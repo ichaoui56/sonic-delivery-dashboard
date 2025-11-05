@@ -78,6 +78,7 @@
     "lint": "next lint",
     "ily": "rm -rf .next && prisma generate && next build && next start",
     "db:seed": "node scripts/seed.js",
+    "db:seed:user": "node scripts/seed-user.js",
     "postinstall": "prisma generate"
   }
 }

@@ -1,6 +1,4 @@
 "use server"
-
-import { redirect } from "next/navigation"
 import { signInSchema } from "@/lib/zod"
 import { signIn, signOut } from "@/auth"
 import { AuthError } from "next-auth"
@@ -17,44 +15,43 @@ export type FormState = {
     password?: string
   }
   success?: boolean
+  redirectUrl?: string
 }
 
-// Rate limiting store (in production, use Redis)
 const rateLimitStore = new Map()
 
 function getClientIP(): string {
   try {
     const headersList = headers()
-    const forwardedFor = headersList.get('x-forwarded-for')
-    const realIP = headersList.get('x-real-ip')
-    
+    const forwardedFor = headersList.get("x-forwarded-for")
+    const realIP = headersList.get("x-real-ip")
+
     if (forwardedFor) {
-      // x-forwarded-for may contain multiple IPs, first one is the client IP
-      return forwardedFor.split(',')[0].trim()
+      return forwardedFor.split(",")[0].trim()
     }
-    
+
     if (realIP) {
       return realIP
     }
-    
-    return 'unknown'
+
+    return "unknown"
   } catch (error) {
-    console.error('Error getting client IP:', error)
-    return 'unknown'
+    console.error("Error getting client IP:", error)
+    return "unknown"
   }
 }
 
-function checkRateLimit(identifier: string, limit: number = 10, windowMs: number = 15 * 60 * 1000): boolean {
+function checkRateLimit(identifier: string, limit = 10, windowMs: number = 15 * 60 * 1000): boolean {
   const now = Date.now()
   const windowStart = now - windowMs
-  
+
   const attempts = rateLimitStore.get(identifier) || []
   const recentAttempts = attempts.filter((timestamp: number) => timestamp > windowStart)
-  
+
   if (recentAttempts.length >= limit) {
     return false
   }
-  
+
   recentAttempts.push(now)
   rateLimitStore.set(identifier, recentAttempts)
   return true
@@ -64,17 +61,14 @@ export async function signInAction(prevState: FormState | null, formData: FormDa
   const email = formData.get("email") as string
   const password = formData.get("password") as string
 
-  // Get client IP for rate limiting
   const ip = getClientIP()
 
-  // Store submitted values to return them if validation fails
   const submittedValues = {
     email,
     password,
   }
 
   try {
-    // Rate limiting check
     if (!checkRateLimit(ip, 10, 15 * 60 * 1000)) {
       return {
         message: "تم تجاوز عدد المحاولات المسموح بها. يرجى المحاولة مرة أخرى بعد 15 دقيقة",
@@ -89,7 +83,6 @@ export async function signInAction(prevState: FormState | null, formData: FormDa
       }
     }
 
-    // Validate input with Zod
     const validatedFields = signInSchema.safeParse({
       email,
       password,
@@ -115,10 +108,10 @@ export async function signInAction(prevState: FormState | null, formData: FormDa
       }
     }
 
-    // Return success instead of redirecting
     return {
       success: true,
       message: "تم تسجيل الدخول بنجاح!",
+      redirectUrl: "/dashboard",
     }
   } catch (error) {
     if (error instanceof Error && error.message === "NEXT_REDIRECT") {
@@ -140,7 +133,7 @@ export async function signInAction(prevState: FormState | null, formData: FormDa
       }
     }
 
-    console.error('Sign in error:', error)
+    console.error("Sign in error:", error)
     return {
       message: "حدث خطأ ما. يرجى المحاولة مرة أخرى",
       values: submittedValues,

@@ -16,7 +16,7 @@ export function LoginForm() {
   const [password, setPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
-  const [errors, setErrors] = useState<{email?: string[], password?: string[]}>({})
+  const [errors, setErrors] = useState<{ email?: string[]; password?: string[] }>({})
   const [message, setMessage] = useState("")
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -31,19 +31,17 @@ export function LoginForm() {
 
     try {
       const result = await signInAction(null, formData)
-      
+
       if (result.errors) {
         setErrors(result.errors)
       }
-      
+
       if (result.message) {
         setMessage(result.message)
       }
 
-      // If login was successful, redirect to dashboard
-      if (result.success) {
-        // Force a full page reload to ensure session is properly synchronized
-        window.location.href = "/dashboard"
+      if (result.success && result.redirectUrl) {
+        window.location.href = result.redirectUrl
         return
       }
     } catch (error) {
@@ -68,11 +66,11 @@ export function LoginForm() {
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 strokeWidth={2}
-                d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+                d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
               />
             </svg>
           </div>
-          <h1 className="text-2xl font-bold">نور ستايل</h1>
+          <h1 className="text-2xl font-bold">DITALOGS</h1>
         </div>
         <CardTitle className="text-2xl">تسجيل الدخول</CardTitle>
         <CardDescription>أدخل بريدك الإلكتروني وكلمة المرور للوصول إلى حسابك</CardDescription>
@@ -91,9 +89,7 @@ export function LoginForm() {
               dir="ltr"
               className={errors.email ? "border-red-500" : ""}
             />
-            {errors.email && (
-              <p className="text-sm text-red-500">{errors.email[0]}</p>
-            )}
+            {errors.email && <p className="text-sm text-red-500">{errors.email[0]}</p>}
           </div>
           <div className="space-y-2 mb-5">
             <Label htmlFor="password">كلمة المرور</Label>
@@ -139,13 +135,13 @@ export function LoginForm() {
                 )}
               </button>
             </div>
-            {errors.password && (
-              <p className="text-sm text-red-500">{errors.password[0]}</p>
-            )}
+            {errors.password && <p className="text-sm text-red-500">{errors.password[0]}</p>}
           </div>
-          
+
           {message && (
-            <div className={`p-3 text-sm ${message.includes("نجاح") ? "text-green-500 bg-green-50 border border-green-200" : "text-red-500 bg-red-50 border border-red-200"} rounded-md`}>
+            <div
+              className={`p-3 text-sm ${message.includes("نجاح") ? "text-green-500 bg-green-50 border border-green-200" : "text-red-500 bg-red-50 border border-red-200"} rounded-md`}
+            >
               {message}
             </div>
           )}
@@ -154,9 +150,7 @@ export function LoginForm() {
           <Button type="submit" className="w-full" disabled={isLoading}>
             {isLoading ? "جاري تسجيل الدخول..." : "تسجيل الدخول"}
           </Button>
-          <p className="text-sm text-muted-foreground text-center">
-            نظام تسجيل الدخول للموظفين فقط
-          </p>
+          <p className="text-sm text-muted-foreground text-center">نظام تسجيل الدخول الآمن</p>
         </CardFooter>
       </form>
     </Card>

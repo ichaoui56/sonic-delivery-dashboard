@@ -1,5 +1,3 @@
-// This is your Prisma schema file
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -9,147 +7,188 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// المستخدم (HR)
 model User {
-  id        String   @id @default(cuid())
-  name      String
-  email     String   @unique
-  password  String
+  id            Int            @id @default(autoincrement())
+  name          String
+  email         String         @unique
+  phone         String?
+  password      String
+  role          Role           @default(MERCHANT)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  admin         Admin?
+  deliveryMan   DeliveryMan?
+  merchant      Merchant?
+  notifications Notification[]
+}
+
+model Admin {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @unique
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@map("users")
+  user      User     @relation(fields: [userId], references: [id])
 }
 
-// أنواع العمل
-enum WorkType {
-  LAFSOW_MAHDI
-  ALFASALA
+model Merchant {
+  id               Int               @id @default(autoincrement())
+  userId           Int               @unique
+  companyName      String?
+  rib              String?
+  bankName         String?
+  balance          Float             @default(0)
+  totalEarned      Float             @default(0)
+  createdAt        DateTime          @default(now())
+  user             User              @relation(fields: [userId], references: [id])
+  moneyTransfers   MoneyTransfer[]
+  orders           Order[]
+  products         Product[]
+  productTransfers ProductTransfer[]
 }
 
-// العامل
-model Worker {
-  id             String       @id @default(cuid())
-  fullName       String
-  phoneNumber    String
-  weeklyPayment  Float
-  workType       WorkType
-  isActive       Boolean      @default(true)
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-  
-  attendances    WeeklyAttendance[]
-  payments       Payment[]
-
-  @@map("workers")
+model Product {
+  id             Int            @id @default(autoincrement())
+  merchantId     Int
+  name           String
+  description    String?
+  image          String?
+  sku            String?        @unique
+  price          Float
+  stockQuantity  Int            @default(0)
+  deliveredCount Int            @default(0)
+  lowStockAlert  Int            @default(3)
+  isActive       Boolean        @default(true)
+  createdAt      DateTime       @default(now())
+  orderItems     OrderItem[]
+  merchant       Merchant       @relation(fields: [merchantId], references: [id])
+  TransferItem   TransferItem[]
 }
 
-// أنواع الحضور
-enum AttendanceType {
-  FULL_DAY
-  DAY_AND_NIGHT
-  HALF_DAY
-  ABSENCE
+model ProductTransfer {
+  id                     Int            @id @default(autoincrement())
+  transferCode           String         @unique
+  merchantId             Int
+  deliveryCompany        String?
+  trackingNumber         String?
+  note                   String?
+  status                 TransferStatus @default(PENDING)
+  shippedAt              DateTime?
+  deliveredToWarehouseAt DateTime?
+  createdAt              DateTime       @default(now())
+  updatedAt              DateTime       @updatedAt
+  merchant               Merchant       @relation(fields: [merchantId], references: [id])
+  transferItems          TransferItem[]
 }
 
-// سجل الحضور الأسبوعي
-model WeeklyAttendance {
-  id         String          @id @default(cuid())
-  workerId   String
-  weekNumber String         // مثل: "W01", "W52"
-  year       Int
-  
-  // الحضور لكل يوم من أيام الأسبوع (الاثنين - السبت)
-  // Allow null values for days that haven't been recorded
-  monday     AttendanceType?  // Changed to optional
-  tuesday    AttendanceType?  // Changed to optional
-  wednesday  AttendanceType?  // Changed to optional
-  thursday   AttendanceType?  // Changed to optional
-  friday     AttendanceType?  // Changed to optional
-  saturday   AttendanceType?  // Changed to optional
-  
-  createdAt  DateTime       @default(now())
-  updatedAt  DateTime       @updatedAt
-  
-  worker     Worker         @relation(fields: [workerId], references: [id], onDelete: Cascade)
-
-  @@unique([workerId, weekNumber, year])
-  @@index([workerId])
-  @@index([weekNumber, year])
-  @@map("weekly_attendances")
+model TransferItem {
+  id         Int             @id @default(autoincrement())
+  transferId Int
+  productId  Int
+  quantity   Int
+  product    Product         @relation(fields: [productId], references: [id])
+  transfer   ProductTransfer @relation(fields: [transferId], references: [id])
 }
 
-// أنواع الدفع
-enum PaymentType {
-  DAILY
-  WEEKLY
-  PARTIAL
+model Order {
+  id                  Int            @id @default(autoincrement())
+  orderCode           String         @unique
+  customerName        String
+  customerPhone       String
+  address             String
+  city                String
+  note                String?
+  totalPrice          Float
+  paymentMethod       PaymentMethod  @default(COD)
+  merchantEarning     Float
+  status              OrderStatus    @default(PENDING)
+  rejectionReason     String?
+  attemptedDeliveryAt DateTime?
+  deliveryAttempts    Int            @default(0)
+  merchantId          Int
+  deliveryManId       Int?
+  createdAt           DateTime       @default(now())
+  deliveredAt         DateTime?
+  updatedAt           DateTime       @updatedAt
+  Notification        Notification[]
+  deliveryMan         DeliveryMan?   @relation(fields: [deliveryManId], references: [id])
+  merchant            Merchant       @relation(fields: [merchantId], references: [id])
+  orderItems          OrderItem[]
 }
 
-// دفعات العمال
-model Payment {
-  id            String        @id @default(cuid())
-  workerId      String
-  amount        Float
-  paymentType   PaymentType
-  weekNumber    String
-  year          Int
-  note          String?
-  createdAt     DateTime      @default(now())
-  
-  worker        Worker        @relation(fields: [workerId], references: [id], onDelete: Cascade)
-
-  @@index([workerId])
-  @@index([weekNumber, year])
-  @@map("payments")
+model OrderItem {
+  id        Int     @id @default(autoincrement())
+  orderId   Int
+  productId Int
+  quantity  Int
+  price     Float
+  order     Order   @relation(fields: [orderId], references: [id])
+  product   Product @relation(fields: [productId], references: [id])
 }
 
-// العميل
-model Client {
-  id          String          @id @default(cuid())
-  name        String
-  city        String
-  phoneNumber String
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
-  
-  transactions    Transaction[]
-  clientPayments  ClientPayment[]
-
-  @@map("clients")
+model DeliveryMan {
+  id                   Int      @id @default(autoincrement())
+  userId               Int      @unique
+  vehicleType          String?
+  active               Boolean  @default(true)
+  totalDeliveries      Int      @default(0)
+  successfulDeliveries Int      @default(0)
+  totalEarned          Float    @default(0)
+  rating               Float?
+  createdAt            DateTime @default(now())
+  user                 User     @relation(fields: [userId], references: [id])
+  assignedOrders       Order[]
 }
 
-// معاملات العميل (المبيعات)
-model Transaction {
-  id          String   @id @default(cuid())
-  clientId    String
-  productName String   // اسم المنتج
-  unitPrice   Float    // سعر الوحدة
-  quantity    Int      // الكمية
-  totalAmount Float    // المبلغ الإجمالي (يتم حسابه: unitPrice * quantity)
-  note        String?  // ملاحظات (اختياري)
-  date        DateTime @default(now())
-  createdAt   DateTime @default(now())
-  
-  client      Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
-
-  @@index([clientId])
-  @@index([date])
-  @@map("transactions")
+model MoneyTransfer {
+  id           Int      @id @default(autoincrement())
+  merchantId   Int
+  amount       Float
+  transferDate DateTime @default(now())
+  reference    String?
+  note         String?
+  createdAt    DateTime @default(now())
+  merchant     Merchant @relation(fields: [merchantId], references: [id])
 }
 
-// دفعات العميل
-model ClientPayment {
-  id            String        @id @default(cuid())
-  clientId      String
-  amount        Float
-  note          String?
-  date          DateTime      @default(now())
-  createdAt     DateTime      @default(now())
-  
-  client        Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+model Notification {
+  id        Int      @id @default(autoincrement())
+  title     String
+  message   String
+  type      String
+  isRead    Boolean  @default(false)
+  userId    Int
+  orderId   Int?
+  createdAt DateTime @default(now())
+  order     Order?   @relation(fields: [orderId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+}
 
-  @@index([clientId])
-  @@index([date])
-  @@map("client_payments")
+enum Role {
+  ADMIN
+  MERCHANT
+  DELIVERYMAN
+}
+
+enum OrderStatus {
+  PENDING
+  ACCEPTED
+  PREPARING
+  READY_FOR_DELIVERY
+  ASSIGNED_TO_DELIVERY
+  IN_TRANSIT
+  OUT_FOR_DELIVERY
+  DELIVERED
+  REJECTED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  COD
+  PREPAID
+}
+
+enum TransferStatus {
+  PENDING
+  IN_TRANSIT
+  DELIVERED_TO_WAREHOUSE
+  CANCELLED
 }

@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
+import { signOutAction } from "@/lib/actions/auth-actions"
 
 const navigation = [
   {
@@ -154,7 +155,12 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   }, [])
 
   const handleLogout = async () => {
-    router.push("/login")
+    try {
+      await signOutAction()
+    } catch (error) {
+      console.error("Logout error:", error)
+      router.push("/login")
+    }
   }
 
   const userName = "محمد مرزوق"
