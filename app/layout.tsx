@@ -5,6 +5,7 @@ import { Analytics } from "@vercel/analytics/next"
 import { Suspense } from "react"
 import "./globals.css"
 import { SessionProvider } from "next-auth/react"
+import { Toaster } from "@/components/ui/toaster"
 
 const cairo = Cairo({
   subsets: ["latin", "arabic"],
@@ -30,6 +31,7 @@ export default function RootLayout({
           <Suspense fallback={<div>Loading...</div>}>
             {children}
             <Analytics />
+            <Toaster />
           </Suspense>
         </SessionProvider>
       </body>

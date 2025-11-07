@@ -19,6 +19,7 @@ import { useRouter } from "next/navigation"
 import { OptimizedImage } from "./optimized-image"
 import { compressImage } from "@/lib/utils/image-compression"
 import { clientCache } from "@/lib/utils/client-cache"
+import { useToast } from "@/hooks/use-toast"
 
 type Product = {
   id: number
@@ -44,6 +45,7 @@ type TransferItemInput = {
 }
 
 export function CreateTransferForm() {
+  const { toast } = useToast()
   const router = useRouter()
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(false)
@@ -119,9 +121,18 @@ export function CreateTransferForm() {
       const url = await response.json()
       console.log("[v0] Upload successful, URL:", url)
       setNewProductImage(url)
+      toast({
+        title: "تم رفع الصورة",
+        description: "تم رفع الصورة بنجاح",
+        variant: "default",
+      })
     } catch (error) {
       console.error("[v0] Image upload error:", error)
-      alert("فشل في رفع الصورة")
+      toast({
+        title: "خطأ",
+        description: "فشل في رفع الصورة",
+        variant: "destructive",
+      })
       setImagePreview(null)
     } finally {
       setUploadingImage(false)
@@ -135,7 +146,11 @@ export function CreateTransferForm() {
 
   const handleCreateProduct = async () => {
     if (!newProductName || !newProductPrice) {
-      alert("الرجاء ملء الحقول المطلوبة")
+      toast({
+        title: "بيانات ناقصة",
+        description: "الرجاء ملء الحقول المطلوبة",
+        variant: "destructive",
+      })
       return
     }
 
@@ -160,9 +175,17 @@ export function CreateTransferForm() {
       setNewProductImage("")
       setImagePreview(null)
       setShowNewProductForm(false)
-      alert("تم إنشاء المنتج بنجاح")
+      toast({
+        title: "نجح",
+        description: "تم إنشاء المنتج بنجاح",
+        variant: "default",
+      })
     } else {
-      alert(result.error || "فشل في إنشاء المنتج")
+      toast({
+        title: "خطأ",
+        description: result.error || "فشل في إنشاء المنتج",
+        variant: "destructive",
+      })
     }
     setSubmitting(false)
   }
@@ -198,13 +221,21 @@ export function CreateTransferForm() {
     e.preventDefault()
 
     if (items.length === 0) {
-      alert("الرجاء إضافة منتج واحد على الأقل")
+      toast({
+        title: "لا توجد منتجات",
+        description: "الرجاء إضافة منتج واحد على الأقل",
+        variant: "destructive",
+      })
       return
     }
 
     const invalidItems = items.filter((item) => !item.productId || item.quantity <= 0)
     if (invalidItems.length > 0) {
-      alert("الرجاء ملء جميع بيانات المنتجات")
+      toast({
+        title: "بيانات غير صحيحة",
+        description: "الرجاء ملء جميع بيانات المنتجات",
+        variant: "destructive",
+      })
       return
     }
 
@@ -227,10 +258,18 @@ export function CreateTransferForm() {
 
     if (result.success) {
       clientCache.invalidate("merchant")
-      alert(result.message || "تم إنشاء الشحنة بنجاح")
+      toast({
+        title: "تم إنشاء الشحنة",
+        description: result.message || "تم إنشاء الشحنة بنجاح",
+        variant: "default",
+      })
       router.push("/merchant/track-shipments")
     } else {
-      alert(result.error || "فشل في إنشاء الشحنة")
+      toast({
+        title: "فشل في الإنشاء",
+        description: result.error || "فشل في إنشاء الشحنة",
+        variant: "destructive",
+      })
     }
 
     setSubmitting(false)
