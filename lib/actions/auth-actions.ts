@@ -1,8 +1,9 @@
 "use server"
 import { signInSchema } from "@/lib/zod"
-import { signIn, signOut } from "@/auth"
+import { auth, signIn, signOut } from "@/auth"
 import { AuthError } from "next-auth"
 import { headers } from "next/headers"
+import db from "../db"
 
 export type FormState = {
   errors?: {
@@ -140,6 +141,38 @@ export async function signInAction(prevState: FormState | null, formData: FormDa
     }
   }
 }
+
+export async function getCurrentUser() {
+  try {
+    const session = await auth()
+
+    if (!session?.user?.id) {
+      console.log("[v0] No session or user id found")
+      return null
+    }
+
+    // Get the specific user from database using the session user id
+    const user = await db.user.findUnique({
+      where: { id: Number.parseInt(session.user.id) },
+      include: {
+        merchant: true,
+        admin: true,
+        deliveryMan: true,
+      },
+    })
+
+    if (!user) {
+      console.log("[v0] User not found in database:", session.user.id)
+      return null
+    }
+
+    return user
+  } catch (error) {
+    console.error("[v0] Error getting current user:", error)
+    return null
+  }
+}
+
 
 export async function signOutAction() {
   await signOut({ redirectTo: "/login" })

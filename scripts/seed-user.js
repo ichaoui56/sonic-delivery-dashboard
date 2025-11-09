@@ -54,7 +54,7 @@ async function main() {
   })
   console.log("✅ تم إنشاء المدير:", admin.email)
 
-  // Create Merchant User
+  // Create Merchant User with 25 DH base fee
   const merchantPassword = saltAndHashPassword("Merchant@123")
   const merchant = await prisma.user.upsert({
     where: { email: "merchant@ditalogs.com" },
@@ -72,13 +72,14 @@ async function main() {
           bankName: "البنك الشعبي",
           balance: 0,
           totalEarned: 0,
+          baseFee: 25.00, // 25 DH per successful order
         },
       },
     },
   })
   console.log("✅ تم إنشاء التاجر:", merchant.email)
 
-  // Create Delivery Person User
+  // Create Delivery Person User with 10 DH base fee
   const deliveryPassword = saltAndHashPassword("Delivery@123")
   const deliveryPerson = await prisma.user.upsert({
     where: { email: "delivery@ditalogs.com" },
@@ -96,24 +97,117 @@ async function main() {
           totalDeliveries: 0,
           successfulDeliveries: 0,
           totalEarned: 0,
+          baseFee: 10.00, // 10 DH per successful delivery
         },
       },
     },
   })
   console.log("✅ تم إنشاء عامل التوصيل:", deliveryPerson.email)
 
+  // Create additional merchants with 25 DH base fee
+  const additionalMerchants = [
+    {
+      name: "فاطمة المتجر",
+      email: "fatima@ditalogs.com",
+      phone: "+212600000004",
+      companyName: "متجر فاطمة للإلكترونيات",
+    },
+    {
+      name: "خالد التجاري",
+      email: "khalid@ditalogs.com",
+      phone: "+212600000005",
+      companyName: "شركة خالد للأجهزة",
+    }
+  ]
+
+  for (const merchantData of additionalMerchants) {
+    const merchantPassword = saltAndHashPassword("Merchant@123")
+    const additionalMerchant = await prisma.user.upsert({
+      where: { email: merchantData.email },
+      update: {},
+      create: {
+        name: merchantData.name,
+        email: merchantData.email,
+        phone: merchantData.phone,
+        password: merchantPassword,
+        role: "MERCHANT",
+        merchant: {
+          create: {
+            companyName: merchantData.companyName,
+            rib: `12345678901234567890${Math.floor(Math.random() * 1000)}`.slice(0, 24),
+            bankName: "البنك المغربي",
+            balance: 0,
+            totalEarned: 0,
+            baseFee: 25.00, // 25 DH per successful order
+          },
+        },
+      },
+    })
+    console.log("✅ تم إنشاء التاجر الإضافي:", additionalMerchant.email)
+  }
+
+  // Create additional delivery men with 10 DH base fee
+  const additionalDeliveryMen = [
+    {
+      name: "يوسف الموزع",
+      email: "youssef@ditalogs.com",
+      phone: "+212600000006",
+      vehicleType: "سيارة"
+    },
+    {
+      name: "سعيد السائق",
+      email: "said@ditalogs.com",
+      phone: "+212600000007",
+      vehicleType: "شاحنة صغيرة"
+    }
+  ]
+
+  for (const deliveryData of additionalDeliveryMen) {
+    const deliveryPassword = saltAndHashPassword("Delivery@123")
+    const additionalDelivery = await prisma.user.upsert({
+      where: { email: deliveryData.email },
+      update: {},
+      create: {
+        name: deliveryData.name,
+        email: deliveryData.email,
+        phone: deliveryData.phone,
+        password: deliveryPassword,
+        role: "DELIVERYMAN",
+        deliveryMan: {
+          create: {
+            vehicleType: deliveryData.vehicleType,
+            active: true,
+            totalDeliveries: 0,
+            successfulDeliveries: 0,
+            totalEarned: 0,
+            baseFee: 10.00, // 10 DH per successful delivery
+          },
+        },
+      },
+    })
+    console.log("✅ تم إنشاء عامل التوصيل الإضافي:", additionalDelivery.email)
+  }
+
   console.log("\n📋 معلومات تسجيل الدخول:")
   console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
   console.log("\n👨‍💼 المدير (Admin):")
   console.log("   البريد الإلكتروني: admin@ditalogs.com")
   console.log("   كلمة المرور: Admin@123")
-  console.log("\n🏪 التاجر (Merchant):")
+  console.log("\n🏪 التجار (Merchants) - رسوم أساسية: 25 درهم لكل طلب ناجح:")
   console.log("   البريد الإلكتروني: merchant@ditalogs.com")
-  console.log("   كلمة المرور: Merchant@123")
-  console.log("\n🚚 عامل التوصيل (Delivery Person):")
+  console.log("   البريد الإلكتروني: fatima@ditalogs.com")
+  console.log("   البريد الإلكتروني: khalid@ditalogs.com")
+  console.log("   كلمة المرور لجميع التجار: Merchant@123")
+  console.log("\n🚚 عمال التوصيل (Delivery Persons) - رسوم أساسية: 10 درهم لكل توصيل ناجح:")
   console.log("   البريد الإلكتروني: delivery@ditalogs.com")
-  console.log("   كلمة المرور: Delivery@123")
+  console.log("   البريد الإلكتروني: youssef@ditalogs.com")
+  console.log("   البريد الإلكتروني: said@ditalogs.com")
+  console.log("   كلمة المرور لجميع عمال التوصيل: Delivery@123")
   console.log("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+  console.log("\n💰 هيكل الرسوم:")
+  console.log("   - كل تاجر: 25 درهم لكل طلب ناجح")
+  console.log("   - كل عامل توصيل: 10 درهم لكل توصيل ناجح")
+  console.log("   - إجمالي رسوم المنصة لكل طلب ناجح: 35 درهم")
   console.log("\n✨ تم إنشاء جميع المستخدمين بنجاح!")
 }
 

@@ -1,23 +1,13 @@
 "use client"
 
 import { useState, useMemo } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { OptimizedImage } from "./optimized-image"
-import {
-  Package,
-  AlertTriangle,
-  Search,
-  Filter,
-  X,
-  ChevronDown,
-  Eye,
-  TrendingUp,
-  DollarSign,
-  Layers,
-} from "lucide-react"
+import { EditProductModal } from "./edit-product-modal"
+import { Package, Search, Filter, X, ChevronDown, Edit2, AlertCircle } from "lucide-react"
 
 type Product = {
   id: number
@@ -38,7 +28,8 @@ export function InventoryTable({ products }: { products: Product[] }) {
   const [stockFilter, setStockFilter] = useState<string>("ALL")
   const [sortBy, setSortBy] = useState<string>("name")
   const [showFilters, setShowFilters] = useState(false)
-  const [viewMode, setViewMode] = useState<"grid" | "list">("list")
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null)
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
 
   const filteredAndSortedProducts = useMemo(() => {
     const filtered = products.filter((product) => {
@@ -119,43 +110,52 @@ export function InventoryTable({ products }: { products: Product[] }) {
 
   const hasActiveFilters = searchTerm !== "" || stockFilter !== "ALL" || sortBy !== "name"
 
+  const handleEditProduct = (product: Product) => {
+    setEditingProduct(product)
+    setIsEditModalOpen(true)
+  }
+
+  const handleUpdateSuccess = () => {
+    window.location.reload()
+  }
+
   return (
-    <div className="space-y-4 md:space-y-6">
-      <Card>
-        <CardContent className="p-3 md:p-4 lg:p-6">
-          <div className="space-y-3 md:space-y-4">
-            <div className="flex flex-col sm:flex-row gap-2 md:gap-3">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <Input
-                  type="text"
-                  placeholder="ابحث عن منتج..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 pr-3 h-9 md:h-10 text-sm"
-                />
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => setShowFilters(!showFilters)}
-                  className="flex-1 sm:flex-none bg-transparent h-9 md:h-10 text-sm"
-                >
-                  <Filter className="w-4 h-4 ml-2" />
-                  فلترة
-                  <ChevronDown className={`w-4 h-4 mr-2 transition-transform ${showFilters ? "rotate-180" : ""}`} />
-                </Button>
-              </div>
+    <div className="space-y-4">
+      <Card className="border-[#048dba]/20 shadow-sm">
+        <CardContent className="p-3 sm:p-4">
+          <div className="space-y-3">
+            {/* Search Bar */}
+            <div className="relative">
+              <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <Input
+                type="text"
+                placeholder="ابحث عن منتج بالاسم، الوصف أو SKU..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pr-10 h-10 text-sm border-gray-200 focus:border-[#048dba]"
+              />
             </div>
 
+            {/* Filter Toggle Button */}
+            <Button
+              variant="outline"
+              onClick={() => setShowFilters(!showFilters)}
+              className="w-full h-9 text-sm border-gray-200 hover:bg-gray-50"
+            >
+              <Filter className="w-4 h-4 ml-2" />
+              خيارات الفلترة والترتيب
+              <ChevronDown className={`w-4 h-4 mr-2 transition-transform ${showFilters ? "rotate-180" : ""}`} />
+            </Button>
+
+            {/* Collapsible Filters */}
             {showFilters && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 p-3 md:p-4 bg-gray-50 rounded-lg">
-                <div className="space-y-2">
-                  <label className="text-xs md:text-sm font-semibold text-gray-700">حالة المخزون</label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-gray-50 rounded-lg border border-gray-100">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-gray-700">حالة المخزون</label>
                   <select
                     value={stockFilter}
                     onChange={(e) => setStockFilter(e.target.value)}
-                    className="w-full h-9 md:h-10 px-3 rounded-md border border-input bg-background text-xs md:text-sm"
+                    className="w-full h-9 px-3 rounded-md border border-gray-200 bg-white text-sm focus:border-[#048dba] focus:ring-1 focus:ring-[#048dba]"
                   >
                     <option value="ALL">جميع المنتجات</option>
                     <option value="IN_STOCK">متوفر في المخزون</option>
@@ -165,12 +165,12 @@ export function InventoryTable({ products }: { products: Product[] }) {
                     <option value="INACTIVE">غير نشط</option>
                   </select>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-xs md:text-sm font-semibold text-gray-700">ترتيب حسب</label>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-gray-700">ترتيب حسب</label>
                   <select
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value)}
-                    className="w-full h-9 md:h-10 px-3 rounded-md border border-input bg-background text-xs md:text-sm"
+                    className="w-full h-9 px-3 rounded-md border border-gray-200 bg-white text-sm focus:border-[#048dba] focus:ring-1 focus:ring-[#048dba]"
                   >
                     <option value="name">الاسم (أ-ي)</option>
                     <option value="stock_high">الكمية (الأعلى أولاً)</option>
@@ -185,23 +185,29 @@ export function InventoryTable({ products }: { products: Product[] }) {
               </div>
             )}
 
+            {/* Active Filters */}
             {hasActiveFilters && (
-              <div className="flex flex-wrap items-center gap-1.5 md:gap-2">
-                <span className="text-xs md:text-sm text-gray-600">الفلاتر:</span>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs text-gray-600 font-medium">الفلاتر النشطة:</span>
                 {searchTerm && (
-                  <Badge variant="secondary" className="gap-1 text-xs">
-                    {searchTerm.substring(0, 20)}
+                  <Badge variant="secondary" className="gap-1.5 text-xs h-7">
+                    {searchTerm.substring(0, 15)}...
                     <X className="w-3 h-3 cursor-pointer hover:text-red-600" onClick={() => setSearchTerm("")} />
                   </Badge>
                 )}
                 {stockFilter !== "ALL" && (
-                  <Badge variant="secondary" className="gap-1 text-xs">
+                  <Badge variant="secondary" className="gap-1.5 text-xs h-7">
                     {stockFilter}
                     <X className="w-3 h-3 cursor-pointer hover:text-red-600" onClick={() => setStockFilter("ALL")} />
                   </Badge>
                 )}
-                <Button variant="ghost" size="sm" onClick={clearFilters} className="h-6 text-xs px-2">
-                  مسح
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearFilters}
+                  className="h-7 text-xs px-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+                >
+                  مسح الكل
                 </Button>
               </div>
             )}
@@ -209,199 +215,186 @@ export function InventoryTable({ products }: { products: Product[] }) {
         </CardContent>
       </Card>
 
-      <div className="flex items-center justify-between px-2">
-        <p className="text-xs md:text-sm text-gray-600">
-          <span className="font-semibold">{filteredAndSortedProducts.length}</span> من{" "}
-          <span className="font-semibold">{products.length}</span>
+      {/* Results Count */}
+      <div className="flex items-center justify-between px-1">
+        <p className="text-xs sm:text-sm text-gray-600">
+          عرض <span className="font-bold text-[#048dba]">{filteredAndSortedProducts.length}</span> من{" "}
+          <span className="font-bold">{products.length}</span> منتج
         </p>
       </div>
 
       {filteredAndSortedProducts.length === 0 ? (
-        <Card>
-          <CardContent className="py-8 md:py-12 text-center">
-            <Package className="w-12 h-12 md:w-16 md:h-16 mx-auto mb-4 text-gray-300" />
-            <p className="text-base md:text-lg font-medium text-gray-500 mb-2">لا توجد منتجات</p>
-            <p className="text-xs md:text-sm text-gray-400">جرب تغيير معايير البحث</p>
+        <Card className="border-gray-200">
+          <CardContent className="py-12 text-center">
+            <Package className="w-16 h-16 mx-auto mb-3 text-gray-300" />
+            <p className="text-base font-medium text-gray-600 mb-1">لا توجد منتجات</p>
+            <p className="text-xs text-gray-400 mb-4">جرب تغيير معايير البحث أو الفلاتر</p>
             {hasActiveFilters && (
-              <Button variant="outline" onClick={clearFilters} className="mt-4 bg-transparent" size="sm">
+              <Button variant="outline" onClick={clearFilters} size="sm">
                 مسح الفلاتر
               </Button>
             )}
           </CardContent>
         </Card>
       ) : (
-        <Card>
-          <CardHeader className="p-3 md:p-6">
-            <CardTitle className="text-base md:text-lg lg:text-xl">قائمة المنتجات</CardTitle>
-          </CardHeader>
-          <CardContent className="p-3 md:p-6">
-            <div className="space-y-3">
-              {filteredAndSortedProducts.map((product) => {
-                const isLowStock = product.stockQuantity > 0 && product.stockQuantity <= product.lowStockAlert
-                const isOutOfStock = product.stockQuantity === 0
-                const totalValue = product.price * product.stockQuantity
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
+          {filteredAndSortedProducts.map((product) => {
+            const isLowStock = product.stockQuantity > 0 && product.stockQuantity <= product.lowStockAlert
+            const isOutOfStock = product.stockQuantity === 0
+            const totalValue = product.price * product.stockQuantity
 
-                return (
-                  <div
-                    key={product.id}
-                    className="flex flex-col gap-3 p-3 md:p-4 border rounded-lg hover:shadow-md transition-all hover:border-[#048dba]"
+            return (
+              <Card
+                key={product.id}
+                className="group overflow- py-0 hover:shadow-xl transition-all duration-300 border-gray-200 hover:border-[#048dba]/50"
+              >
+                {/* Product Image */}
+                <div className="relative w-full h-[300px] aspect-square bg-gradient-to-br from-gray-50 to-gray-100">
+                  {product.image ? (
+                    <OptimizedImage
+                      src={product.image}
+                      alt={product.name}
+                      width={300}
+                      height={300}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <Package className="w-12 sm:w-16 text-gray-300" />
+                    </div>
+                  )}
+
+                  {/* Status Badges */}
+                  <div className="absolute top-2 right-2 flex flex-col gap-1">
+                    {isOutOfStock && (
+                      <Badge className="bg-red-500 text-white text-[10px] sm:text-xs shadow-md">نفذ</Badge>
+                    )}
+                    {isLowStock && (
+                      <Badge className="bg-yellow-500 text-white text-[10px] sm:text-xs shadow-md">منخفض</Badge>
+                    )}
+                    {!product.isActive && (
+                      <Badge variant="secondary" className="text-[10px] sm:text-xs shadow-md">
+                        غير نشط
+                      </Badge>
+                    )}
+                  </div>
+
+                  {/* Edit Button */}
+                  <Button
+                    size="sm"
+                    onClick={() => handleEditProduct(product)}
+                    className="absolute top-2 left-2 h-8 px-2 sm:px-3 bg-white/95 hover:bg-white text-gray-700 shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
                   >
-                    <div className="flex items-start gap-3">
-                      <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-lg overflow-hidden flex-shrink-0 bg-gray-100">
-                        {product.image ? (
-                          <OptimizedImage
-                            src={product.image}
-                            alt={product.name}
-                            width={96}
-                            height={96}
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              console.error("[v0] Image failed to load:", product.image)
-                              const target = e.currentTarget
-                              target.style.display = "none"
-                              const parent = target.parentElement
-                              if (parent && !parent.querySelector(".image-placeholder")) {
-                                const placeholder = document.createElement("div")
-                                placeholder.className =
-                                  "image-placeholder w-full h-full flex items-center justify-center"
-                                placeholder.innerHTML =
-                                  '<svg class="w-8 h-8 md:w-10 md:h-10 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>'
-                                parent.appendChild(placeholder)
-                              }
-                            }}
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <Package className="w-8 h-8 md:w-10 md:h-10 text-gray-400" />
-                          </div>
-                        )}
+                    <Edit2 className="w-3 h-3 sm:w-4 sm:h-4 ml-1" />
+                    <span className="text-xs">تعديل</span>
+                  </Button>
+                </div>
+
+                {/* Product Info */}
+                <CardContent className="p-3 sm:px-5 pt-0 space-y-3">
+                  {/* Title and SKU */}
+                 <div className="space-y-1.5">
+                    <h3 className="font-bold text-base sm:text-lg text-gray-900 line-clamp-2 leading-snug">
+                      {product.name}
+                    </h3>
+                    {product.sku && (
+                      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gray-100 rounded-lg">
+                        <span className="text-xs text-gray-500 font-medium">SKU:</span>
+                        <span className="text-xs font-mono font-bold text-gray-700">{product.sku}</span>
                       </div>
+                    )}
+                  </div>
 
-                      <div className="flex-1 min-w-0">
-                        <div className="flex flex-wrap items-center gap-1.5 mb-1.5">
-                          <h3 className="font-bold text-sm md:text-base lg:text-lg text-gray-900 break-words">
-                            {product.name}
-                          </h3>
-                          {!product.isActive && (
-                            <Badge variant="secondary" className="text-[10px] md:text-xs px-1.5 py-0">
-                              غير نشط
-                            </Badge>
-                          )}
-                          {isOutOfStock && (
-                            <Badge className="bg-red-100 text-red-800 text-[10px] md:text-xs px-1.5 py-0">
-                              <X className="w-2.5 h-2.5 md:w-3 md:h-3 mr-0.5" />
-                              نفذ
-                            </Badge>
-                          )}
-                          {isLowStock && (
-                            <Badge className="bg-yellow-100 text-yellow-800 text-[10px] md:text-xs px-1.5 py-0">
-                              <AlertTriangle className="w-2.5 h-2.5 md:w-3 md:h-3 mr-0.5" />
-                              منخفض
-                            </Badge>
-                          )}
-                        </div>
-                        {product.description && (
-                          <p className="text-xs md:text-sm text-gray-600 line-clamp-2 break-words">
-                            {product.description}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
-                      {product.sku && (
-                        <div className="flex items-center gap-1.5 p-2 bg-gray-50 rounded min-w-0">
-                          <Eye className="w-3.5 h-3.5 md:w-4 md:h-4 text-gray-500 flex-shrink-0" />
-                          <div className="min-w-0 flex-1">
-                            <p className="text-[10px] md:text-xs text-gray-500">SKU</p>
-                            <p className="text-xs md:text-sm font-semibold truncate">{product.sku}</p>
-                          </div>
-                        </div>
-                      )}
-
-                      <div className="flex items-center gap-1.5 p-2 bg-blue-50 rounded min-w-0">
-                        <DollarSign className="w-3.5 h-3.5 md:w-4 md:h-4 text-blue-600 flex-shrink-0" />
-                        <div className="min-w-0 flex-1">
-                          <p className="text-[10px] md:text-xs text-gray-500">السعر</p>
-                          <p className="text-xs md:text-sm font-semibold text-blue-600 truncate">{product.price} د.م</p>
-                        </div>
-                      </div>
-
-                      <div
-                        className={`flex items-center gap-1.5 p-2 rounded min-w-0 ${isOutOfStock ? "bg-red-50" : isLowStock ? "bg-yellow-50" : "bg-teal-50"}`}
+                  {/* Price and Stock - Side by Side */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div
+                      className={`p-2 sm:p-2.5 rounded-lg border-2 ${
+                        isOutOfStock
+                          ? "bg-red-50 border-red-200"
+                          : isLowStock
+                            ? "bg-yellow-50 border-yellow-200"
+                            : "bg-teal-50 border-teal-200"
+                      }`}
+                    >
+                      <p className="text-[10px] sm:text-xs text-gray-600 mb-0.5">المخزون</p>
+                      <p
+                        className={`text-lg sm:text-xl font-bold leading-none ${
+                          isOutOfStock ? "text-red-600" : isLowStock ? "text-yellow-600" : "text-teal-600"
+                        }`}
                       >
-                        <Layers
-                          className={`w-3.5 h-3.5 md:w-4 md:h-4 flex-shrink-0 ${isOutOfStock ? "text-red-600" : isLowStock ? "text-yellow-600" : "text-teal-600"}`}
-                        />
-                        <div className="min-w-0 flex-1">
-                          <p className="text-[10px] md:text-xs text-gray-500">المخزون</p>
-                          <p
-                            className={`text-xs md:text-sm font-bold truncate ${isOutOfStock ? "text-red-600" : isLowStock ? "text-yellow-600" : "text-teal-600"}`}
-                          >
-                            {product.stockQuantity}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-1.5 p-2 bg-green-50 rounded min-w-0">
-                        <TrendingUp className="w-3.5 h-3.5 md:w-4 md:h-4 text-green-600 flex-shrink-0" />
-                        <div className="min-w-0 flex-1">
-                          <p className="text-[10px] md:text-xs text-gray-500">التوصيل</p>
-                          <p className="text-xs md:text-sm font-semibold text-green-600">{product.deliveredCount}</p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-1.5 p-2 bg-purple-50 rounded min-w-0">
-                        <DollarSign className="w-3.5 h-3.5 md:w-4 md:h-4 text-purple-600 flex-shrink-0" />
-                        <div className="min-w-0 flex-1">
-                          <p className="text-[10px] md:text-xs text-gray-500">القيمة</p>
-                          <p className="text-xs md:text-sm font-semibold text-purple-600 truncate">
-                            {totalValue.toFixed(0)}
-                          </p>
-                        </div>
-                      </div>
+                        {product.stockQuantity}
+                      </p>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-1.5 text-[10px] md:text-xs text-gray-500 leading-relaxed">
-                      <span className="break-all">تنبيه: {product.lowStockAlert} قطعة</span>
-                      <span>•</span>
-                      <span className="break-all">{new Date(product.createdAt).toLocaleDateString("ar-MA")}</span>
+                    <div className="p-2 sm:p-2.5 rounded-lg border-2 bg-blue-50 border-blue-200">
+                      <p className="text-[10px] sm:text-xs text-gray-600 mb-0.5">السعر</p>
+                      <p className="text-base sm:text-lg font-bold text-blue-600 leading-none">
+                        {product.price}
+                        <span className="text-xs mr-0.5">د.م</span>
+                      </p>
                     </div>
                   </div>
-                )
-              })}
-            </div>
-          </CardContent>
-        </Card>
+
+                  {/* Additional Info */}
+                  <div className="pt-2 border-t border-gray-100 space-y-1.5">
+                    <div className="flex items-center justify-between text-[10px] sm:text-xs">
+                      <span className="text-gray-500">القيمة الإجمالية</span>
+                      <span className="font-bold text-purple-600">{totalValue.toFixed(0)} د.م</span>
+                    </div>
+                    <div className="flex items-center justify-between text-[10px] sm:text-xs">
+                      <span className="text-gray-500">تم التوصيل</span>
+                      <span className="font-bold text-green-600">{product.deliveredCount} قطعة</span>
+                    </div>
+                  </div>
+
+                  {/* Low Stock Warning */}
+                  {isLowStock && (
+                    <div className="flex items-start gap-1.5 p-2 bg-yellow-50 border border-yellow-200 rounded text-[10px] sm:text-xs">
+                      <AlertCircle className="w-3 h-3 text-yellow-600 flex-shrink-0 mt-0.5" />
+                      <span className="text-yellow-800 leading-tight">تنبيه عند {product.lowStockAlert} قطعة</span>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )
+          })}
+        </div>
       )}
 
-      <Card className="bg-gradient-to-r from-blue-50 to-cyan-50 border-blue-200">
-        <CardContent className="p-3 md:p-4 flex items-start gap-2 md:gap-3">
-          <svg
-            className="w-5 h-5 md:w-6 md:h-6 text-blue-600 flex-shrink-0 mt-0.5"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-            />
-          </svg>
-          <div className="text-xs md:text-sm text-blue-900 leading-relaxed">
-            <p className="font-bold mb-1.5 md:mb-2">💡 معلومة مهمة</p>
-            <ul className="space-y-1 mr-3 md:mr-4">
-              <li>
-                • يتم تحديث المخزون <span className="font-bold">تلقائياً</span> عند التسليم للمستودع
-              </li>
-              <li>• لا يمكن التعديل اليدوي لضمان الدقة</li>
-              <li>• تتبع شحناتك من صفحة "تتبع الشحنات"</li>
-            </ul>
+      <Card className="bg-gradient-to-r from-blue-50 to-cyan-50 border-[#048dba]/30">
+        <CardContent className="p-3 sm:p-4">
+          <div className="flex items-start gap-2 sm:gap-3">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-[#048dba] rounded-full flex items-center justify-center flex-shrink-0">
+              <svg className="w-4 h-4 sm:w-5 sm:h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-sm sm:text-base text-[#048dba] mb-1">نصائح إدارة المخزون</p>
+              <ul className="space-y-1 text-[10px] sm:text-xs text-gray-700 leading-relaxed">
+                <li>• انقر على "تعديل" لتحديث معلومات المنتج (الاسم، السعر، الصورة)</li>
+                <li>• يتم تحديث المخزون تلقائياً عند وصول الشحنات</li>
+                <li>• لا يمكن التعديل اليدوي للكميات لضمان دقة المخزون</li>
+              </ul>
+            </div>
           </div>
         </CardContent>
       </Card>
+
+      <EditProductModal
+        product={editingProduct}
+        open={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false)
+          setEditingProduct(null)
+        }}
+        onSuccess={handleUpdateSuccess}
+      />
     </div>
   )
 }
