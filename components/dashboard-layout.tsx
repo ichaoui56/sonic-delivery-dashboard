@@ -372,11 +372,7 @@ export function DashboardLayout({ children, userRole }: { children: React.ReactN
           <div className="p-6 border-b border-gray-200 flex-shrink-0">
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-1">
-                <div className="w-8 h-8 bg-black rounded flex items-center justify-center">
-                  <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M3 3h8v8H3V3zm10 0h8v8h-8V3zM3 13h8v8H3v-8zm10 0h8v8h-8v-8z" />
-                  </svg>
-                </div>
+                <img src="/images/logo/logo.png" alt="" className="w-12 h-12" />
               </div>
               <div>
                 <div className="font-bold text-xl">SONIC DELIVERY</div>

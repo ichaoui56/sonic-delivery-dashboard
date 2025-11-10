@@ -307,6 +307,7 @@ export function PaymentsDashboard() {
                               year: "numeric",
                               month: "long",
                               day: "numeric",
+                              numberingSystem: "latn",
                             })
                           : "غير محدد"}
                       </p>
