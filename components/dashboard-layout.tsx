@@ -343,8 +343,8 @@ export function DashboardLayout({ children, userRole }: { children: React.ReactN
     }
   }
 
-  const userName = "محمد مرزوق"
-  const userEmail = "موثق"
+  const userName = "محمد التاجر"
+  const userEmail = "merchant@sonic-delivery.com"
   const userInitials = "م م"
 
   return (

@@ -1,13 +1,12 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { signInAction } from "@/lib/actions/auth-actions"
 
 export function LoginForm() {
@@ -57,42 +56,34 @@ export function LoginForm() {
   }
 
   return (
-    <Card className="w-full max-w-md">
-      <CardHeader className="space-y-2">
-        <div className="flex items-center gap-3 mb-2">
-          <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center">
-            <svg className="w-6 h-6 text-primary-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
-              />
-            </svg>
-          </div>
-          <h1 className="text-2xl font-bold">DITALOGS</h1>
-        </div>
-        <CardTitle className="text-2xl">تسجيل الدخول</CardTitle>
-        <CardDescription>أدخل بريدك الإلكتروني وكلمة المرور للوصول إلى حسابك</CardDescription>
+    <Card className="w-full max-w-md border-0 shadow-lg">
+      <CardHeader className="space-y-3 text-center pb-6">
+        <CardTitle className="text-3xl font-bold text-foreground">تسجيل الدخول</CardTitle>
+        <CardDescription className="text-base">أدخل بيانات دخولك للوصول إلى لوحة التحكم الخاصة بك</CardDescription>
       </CardHeader>
       <form onSubmit={handleSubmit}>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-5">
           <div className="space-y-2">
-            <Label htmlFor="email">البريد الإلكتروني</Label>
+            <Label htmlFor="email" className="text-right block font-semibold">
+              البريد الإلكتروني
+            </Label>
             <Input
               id="email"
               type="email"
-              placeholder="name@example.com"
+              placeholder="example@company.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
               dir="ltr"
-              className={errors.email ? "border-red-500" : ""}
+              className={`text-right ${errors.email ? "border-red-500" : ""} h-12 rounded-lg`}
             />
             {errors.email && <p className="text-sm text-red-500">{errors.email[0]}</p>}
           </div>
-          <div className="space-y-2 mb-5">
-            <Label htmlFor="password">كلمة المرور</Label>
+
+          <div className="space-y-2">
+            <Label htmlFor="password" className="text-right block font-semibold">
+              كلمة المرور
+            </Label>
             <div className="relative">
               <Input
                 id="password"
@@ -100,11 +91,11 @@ export function LoginForm() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                className={errors.password ? "border-red-500 pr-10" : "pr-10"}
+                className={`text-right ${errors.password ? "border-red-500" : ""} h-12 rounded-lg pr-12`}
               />
               <button
                 type="button"
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
+                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none transition-colors"
                 onClick={togglePasswordVisibility}
                 aria-label={showPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"}
               >
@@ -140,18 +131,21 @@ export function LoginForm() {
 
           {message && (
             <div
-              className={`p-3 text-sm ${message.includes("نجاح") ? "text-green-500 bg-green-50 border border-green-200" : "text-red-500 bg-red-50 border border-red-200"} rounded-md`}
+              className={`p-3 text-sm rounded-lg ${message.includes("نجاح") ? "text-green-600 bg-green-50 border border-green-200" : "text-red-600 bg-red-50 border border-red-200"}`}
             >
               {message}
             </div>
           )}
         </CardContent>
-        <CardFooter className="flex flex-col gap-4 mt-5">
-          <Button type="submit" className="w-full" disabled={isLoading}>
+        <CardContent className="pt-0">
+          <Button type="submit" className="w-full bg-primary h-12 mt-6 text-base font-semibold rounded-lg" disabled={isLoading}>
             {isLoading ? "جاري تسجيل الدخول..." : "تسجيل الدخول"}
           </Button>
-          <p className="text-sm text-muted-foreground text-center">نظام تسجيل الدخول الآمن</p>
-        </CardFooter>
+        </CardContent>
+        <CardContent className="pt-2 text-center">
+          <p className="text-xs text-muted-foreground mb-4">نظام تسجيل الدخول الآمن</p>
+          
+        </CardContent>
       </form>
     </Card>
   )

@@ -39,11 +39,11 @@ async function main() {
   // Create Admin User
   const adminPassword = saltAndHashPassword("Admin@123")
   const admin = await prisma.user.upsert({
-    where: { email: "admin@ditalogs.com" },
+    where: { email: "admin@sonic-delivery.com" },
     update: {},
     create: {
       name: "مدير النظام",
-      email: "admin@ditalogs.com",
+      email: "admin@sonic-delivery.com",
       phone: "+212600000001",
       password: adminPassword,
       role: "ADMIN",
@@ -57,11 +57,11 @@ async function main() {
   // Create Merchant User with 25 DH base fee
   const merchantPassword = saltAndHashPassword("Merchant@123")
   const merchant = await prisma.user.upsert({
-    where: { email: "merchant@ditalogs.com" },
+    where: { email: "merchant@sonic-delivery.com" },
     update: {},
     create: {
       name: "محمد التاجر",
-      email: "merchant@ditalogs.com",
+      email: "merchant@sonic-delivery.com",
       phone: "+212600000002",
       password: merchantPassword,
       role: "MERCHANT",
@@ -82,11 +82,11 @@ async function main() {
   // Create Delivery Person User with 10 DH base fee
   const deliveryPassword = saltAndHashPassword("Delivery@123")
   const deliveryPerson = await prisma.user.upsert({
-    where: { email: "delivery@ditalogs.com" },
+    where: { email: "delivery@sonic-delivery.com" },
     update: {},
     create: {
       name: "أحمد المسلم",
-      email: "delivery@ditalogs.com",
+      email: "delivery@sonic-delivery.com",
       phone: "+212600000003",
       password: deliveryPassword,
       role: "DELIVERYMAN",
@@ -108,13 +108,13 @@ async function main() {
   const additionalMerchants = [
     {
       name: "فاطمة المتجر",
-      email: "fatima@ditalogs.com",
+      email: "fatima@sonic-delivery.com",
       phone: "+212600000004",
       companyName: "متجر فاطمة للإلكترونيات",
     },
     {
       name: "خالد التجاري",
-      email: "khalid@ditalogs.com",
+      email: "khalid@sonic-delivery.com",
       phone: "+212600000005",
       companyName: "شركة خالد للأجهزة",
     }
@@ -150,13 +150,13 @@ async function main() {
   const additionalDeliveryMen = [
     {
       name: "يوسف الموزع",
-      email: "youssef@ditalogs.com",
+      email: "youssef@sonic-delivery.com",
       phone: "+212600000006",
       vehicleType: "سيارة"
     },
     {
       name: "سعيد السائق",
-      email: "said@ditalogs.com",
+      email: "said@sonic.com",
       phone: "+212600000007",
       vehicleType: "شاحنة صغيرة"
     }
@@ -191,17 +191,17 @@ async function main() {
   console.log("\n📋 معلومات تسجيل الدخول:")
   console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
   console.log("\n👨‍💼 المدير (Admin):")
-  console.log("   البريد الإلكتروني: admin@ditalogs.com")
+  console.log("   البريد الإلكتروني: admin@sonic-delivery.com")
   console.log("   كلمة المرور: Admin@123")
   console.log("\n🏪 التجار (Merchants) - رسوم أساسية: 25 درهم لكل طلب ناجح:")
-  console.log("   البريد الإلكتروني: merchant@ditalogs.com")
-  console.log("   البريد الإلكتروني: fatima@ditalogs.com")
-  console.log("   البريد الإلكتروني: khalid@ditalogs.com")
+  console.log("   البريد الإلكتروني: merchant@sonic-delivery.com")
+  console.log("   البريد الإلكتروني: fatima@sonic-delivery.com")
+  console.log("   البريد الإلكتروني: khalid@sonic-delivery.com")
   console.log("   كلمة المرور لجميع التجار: Merchant@123")
   console.log("\n🚚 عمال التوصيل (Delivery Persons) - رسوم أساسية: 10 درهم لكل توصيل ناجح:")
-  console.log("   البريد الإلكتروني: delivery@ditalogs.com")
-  console.log("   البريد الإلكتروني: youssef@ditalogs.com")
-  console.log("   البريد الإلكتروني: said@ditalogs.com")
+  console.log("   البريد الإلكتروني: delivery@sonic-delivery.com")
+  console.log("   البريد الإلكتروني: youssef@sonic-delivery.com")
+  console.log("   البريد الإلكتروني: said@sonic-delivery.com")
   console.log("   كلمة المرور لجميع عمال التوصيل: Delivery@123")
   console.log("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
   console.log("\n💰 هيكل الرسوم:")
