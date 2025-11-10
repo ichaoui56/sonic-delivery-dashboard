@@ -36,7 +36,7 @@ export function CreateOrderForm({ products }: { products: Product[] }) {
     customerName: "",
     customerPhone: "",
     address: "",
-    city: "",
+    city: "الداخلة",
     note: "",
     paymentMethod: "COD" as "COD" | "PREPAID",
   })
@@ -164,14 +164,7 @@ export function CreateOrderForm({ products }: { products: Product[] }) {
 
           <div className="space-y-2">
             <Label htmlFor="city">المدينة *</Label>
-            <Input
-              id="city"
-              value={formData.city}
-              onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-              placeholder="أدخل المدينة"
-              required
-              className="min-h-[44px]"
-            />
+            <Input id="city" value={formData.city} disabled className="min-h-[44px] bg-gray-50" />
           </div>
 
           <div className="space-y-2">
@@ -321,81 +314,91 @@ export function CreateOrderForm({ products }: { products: Product[] }) {
           <div className="space-y-2">
             {selectedProducts.map((item) => (
               <Card key={item.productId}>
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-4">
-                    <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
-                      {item.image ? (
-                        <OptimizedImage
-                          src={item.image}
-                          alt={item.name}
-                          width={64}
-                          height={64}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-gray-400">
-                          <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
-                            />
-                          </svg>
-                        </div>
-                      )}
+                <CardContent className="p-3 sm:p-4">
+                  <div className="flex flex-col xs:flex-row gap-3">
+                    {/* Product Image and Info */}
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
+                        {item.image ? (
+                          <OptimizedImage
+                            src={item.image}
+                            alt={item.name}
+                            width={64}
+                            height={64}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-gray-400">
+                            <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M20 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                              />
+                            </svg>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm line-clamp-2">{item.name}</p>
+                        <p className="text-sm text-gray-500">
+                          {item.price} د.م × {item.quantity}
+                        </p>
+                      </div>
                     </div>
 
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm truncate">{item.name}</p>
-                      <p className="text-sm text-gray-500">
-                        {item.price} د.م × {item.quantity}
-                      </p>
-                    </div>
+                    {/* Quantity Controls and Actions - Stack on mobile */}
+                    <div className="flex items-center justify-between xs:justify-end gap-3 xs:gap-2">
+                      {/* Quantity Controls */}
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          onClick={() => updateQuantity(item.productId, item.quantity - 1)}
+                          className="h-9 w-9 sm:h-8 sm:w-8"
+                        >
+                          -
+                        </Button>
+                        <span className="w-8 text-center font-medium text-sm">{item.quantity}</span>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          onClick={() => updateQuantity(item.productId, item.quantity + 1)}
+                          className="h-9 w-9 sm:h-8 sm:w-8"
+                        >
+                          +
+                        </Button>
+                      </div>
 
-                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {/* Delete Button */}
                       <Button
                         type="button"
-                        variant="outline"
+                        variant="ghost"
                         size="icon"
-                        onClick={() => updateQuantity(item.productId, item.quantity - 1)}
-                        className="h-8 w-8"
+                        onClick={() => removeProduct(item.productId)}
+                        className="text-red-500 hover:text-red-700 hover:bg-red-50 h-9 w-9 sm:h-8 sm:w-8 flex-shrink-0"
                       >
-                        -
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                          />
+                        </svg>
                       </Button>
-                      <span className="w-8 text-center font-medium">{item.quantity}</span>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        onClick={() => updateQuantity(item.productId, item.quantity + 1)}
-                        className="h-8 w-8"
-                      >
-                        +
-                      </Button>
-                    </div>
 
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => removeProduct(item.productId)}
-                      className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                    >
-                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                        />
-                      </svg>
-                    </Button>
-
-                    <div className="text-left font-bold text-[#048dba]">
-                      {(item.price * item.quantity).toFixed(2)} د.م
+                      {/* Total Price */}
+                      <div className="text-right font-bold text-[#048dba] min-w-[80px]">
+                        {(item.price * item.quantity).toFixed(2)} د.م
+                      </div>
                     </div>
                   </div>
+                  {/* </CHANGE> */}
                 </CardContent>
               </Card>
             ))}

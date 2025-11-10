@@ -237,7 +237,7 @@ export function InventoryTable({ products }: { products: Product[] }) {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 overflow-hidden rounded-2xl">
           {filteredAndSortedProducts.map((product) => {
             const isLowStock = product.stockQuantity > 0 && product.stockQuantity <= product.lowStockAlert
             const isOutOfStock = product.stockQuantity === 0
@@ -246,10 +246,10 @@ export function InventoryTable({ products }: { products: Product[] }) {
             return (
               <Card
                 key={product.id}
-                className="group overflow- py-0 hover:shadow-xl transition-all duration-300 border-gray-200 hover:border-[#048dba]/50"
+                className="group overflow-hidden py-0 hover:shadow-xl transition-all duration-300 border-gray-200 hover:border-[#048dba]/50"
               >
                 {/* Product Image */}
-                <div className="relative w-full h-[300px] aspect-square bg-gradient-to-br from-gray-50 to-gray-100">
+                <div className="relative w-full h-[300px] aspect-square bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl">
                   {product.image ? (
                     <OptimizedImage
                       src={product.image}

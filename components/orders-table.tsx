@@ -8,6 +8,10 @@ import { Button } from "@/components/ui/button"
 import { OptimizedImage } from "./optimized-image"
 import { formatDistanceToNow } from "date-fns"
 import { ar } from "date-fns/locale"
+import { updateOrderStatus } from "@/lib/actions/order.actions"
+import { useToast } from "@/hooks/use-toast"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { OrderStatus } from "@prisma/client"
 
 type Order = {
   id: number
@@ -56,6 +60,8 @@ const statusMap: Record<string, { label: string; color: string }> = {
 export function OrdersTable({ orders }: { orders: Order[] }) {
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("ALL")
+  const [updatingOrderId, setUpdatingOrderId] = useState<number | null>(null)
+  const { toast } = useToast()
 
   const filteredOrders = useMemo(() => {
     return orders.filter((order) => {
@@ -65,7 +71,23 @@ export function OrdersTable({ orders }: { orders: Order[] }) {
         order.customerPhone.includes(searchQuery) ||
         order.city.toLowerCase().includes(searchQuery.toLowerCase())
 
-      const matchesStatus = statusFilter === "ALL" || order.status === statusFilter
+      let matchesStatus = false
+      if (statusFilter === "ALL") {
+        matchesStatus = true
+      } else if (statusFilter === "IN_PROGRESS") {
+        matchesStatus = [
+          "ACCEPTED",
+          "PREPARING",
+          "READY_FOR_DELIVERY",
+          "ASSIGNED_TO_DELIVERY",
+          "IN_TRANSIT",
+          "OUT_FOR_DELIVERY",
+        ].includes(order.status)
+      } else if (statusFilter === "CANCELLED") {
+        matchesStatus = ["REJECTED", "CANCELLED"].includes(order.status)
+      } else {
+        matchesStatus = order.status === statusFilter
+      }
 
       return matchesSearch && matchesStatus
     })
@@ -90,10 +112,47 @@ export function OrdersTable({ orders }: { orders: Order[] }) {
     }
   }, [orders])
 
+  const handleStatusUpdate = async (orderId: number, newStatus: OrderStatus) => {
+    setUpdatingOrderId(orderId)
+    const result = await updateOrderStatus(orderId, newStatus)
+
+    if (result.success) {
+      toast({
+        title: "✓ تم التحديث",
+        description: result.message,
+      })
+    } else {
+      toast({
+        title: "✗ خطأ",
+        description: result.message,
+        variant: "destructive",
+      })
+    }
+
+    setUpdatingOrderId(null)
+  }
+
+  const getAvailableStatuses = (currentStatus: string) => {
+    const allStatuses = [
+      { value: "PENDING", label: "قيد الانتظار" },
+      { value: "ACCEPTED", label: "مقبول" },
+      { value: "PREPARING", label: "قيد التحضير" },
+      { value: "READY_FOR_DELIVERY", label: "جاهز للتوصيل" },
+      { value: "ASSIGNED_TO_DELIVERY", label: "معين لعامل توصيل" },
+      { value: "IN_TRANSIT", label: "في الطريق" },
+      { value: "OUT_FOR_DELIVERY", label: "في التوصيل" },
+      { value: "DELIVERED", label: "تم التسليم" },
+      { value: "REJECTED", label: "مرفوض" },
+      { value: "CANCELLED", label: "ملغي" },
+    ]
+
+    return allStatuses.filter((status) => status.value !== currentStatus)
+  }
+
   return (
     <div className="space-y-4">
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <Card
           className={`cursor-pointer transition-all ${statusFilter === "ALL" ? "ring-2 ring-[#048dba]" : ""}`}
           onClick={() => setStatusFilter("ALL")}
@@ -114,13 +173,6 @@ export function OrdersTable({ orders }: { orders: Order[] }) {
           </CardContent>
         </Card>
 
-        <Card className="cursor-pointer">
-          <CardContent className="p-4">
-            <p className="text-xs sm:text-sm text-gray-600 mb-1">قيد التنفيذ</p>
-            <p className="text-xl sm:text-2xl font-bold text-blue-600">{stats.inProgress}</p>
-          </CardContent>
-        </Card>
-
         <Card
           className={`cursor-pointer transition-all ${statusFilter === "DELIVERED" ? "ring-2 ring-green-500" : ""}`}
           onClick={() => setStatusFilter(statusFilter === "DELIVERED" ? "ALL" : "DELIVERED")}
@@ -131,7 +183,16 @@ export function OrdersTable({ orders }: { orders: Order[] }) {
           </CardContent>
         </Card>
 
-        <Card className="cursor-pointer">
+        <Card
+          className={`cursor-pointer transition-all ${statusFilter === "CANCELLED" ? "ring-2 ring-red-500" : ""}`}
+          onClick={() => {
+            if (statusFilter === "CANCELLED") {
+              setStatusFilter("ALL")
+            } else {
+              setStatusFilter("CANCELLED")
+            }
+          }}
+        >
           <CardContent className="p-4">
             <p className="text-xs sm:text-sm text-gray-600 mb-1">ملغية</p>
             <p className="text-xl sm:text-2xl font-bold text-red-600">{stats.cancelled}</p>
@@ -203,6 +264,29 @@ export function OrdersTable({ orders }: { orders: Order[] }) {
                       <Badge variant="outline" className="font-normal">
                         {order.paymentMethod === "COD" ? "الدفع عند الاستلام" : "مدفوع مسبقاً"}
                       </Badge>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={updatingOrderId === order.id}
+                            className="h-7 text-xs bg-transparent"
+                          >
+                            {updatingOrderId === order.id ? "جاري التحديث..." : "تحديث الحالة"}
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-48">
+                          {getAvailableStatuses(order.status).map((status) => (
+                            <DropdownMenuItem
+                              key={status.value}
+                              onClick={() => handleStatusUpdate(order.id, status.value as OrderStatus)}
+                              className="cursor-pointer"
+                            >
+                              {status.label}
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                     <p className="text-sm text-gray-500 mt-1">
                       {formatDistanceToNow(new Date(order.createdAt), { addSuffix: true, locale: ar })}

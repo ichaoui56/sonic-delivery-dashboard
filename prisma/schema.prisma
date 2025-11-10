@@ -91,41 +91,41 @@ model TransferItem {
 }
 
 model Order {
-  id                  Int               @id @default(autoincrement())
-  orderCode           String            @unique
-  customerName        String
-  customerPhone       String
-  address             String
-  city                String
-  note                String?
-  totalPrice          Float
-  paymentMethod       PaymentMethod     @default(COD)
-  merchantEarning     Float
-  status              OrderStatus       @default(PENDING)
-  merchantId          Int
-  deliveryManId       Int?
-  createdAt           DateTime          @default(now())
-  deliveredAt         DateTime?
-  updatedAt           DateTime          @updatedAt
-  Notification        Notification[]
+  id                     Int               @id @default(autoincrement())
+  orderCode              String            @unique
+  customerName           String
+  customerPhone          String
+  address                String
+  city                   String
+  note                   String?
+  totalPrice             Float
+  paymentMethod          PaymentMethod     @default(COD)
+  merchantEarning        Float
+  status                 OrderStatus       @default(PENDING)
+  merchantId             Int
+  deliveryManId          Int?
+  createdAt              DateTime          @default(now())
+  deliveredAt            DateTime?
+  updatedAt              DateTime          @updatedAt
+  Notification           Notification[]
   deliveryAttemptHistory DeliveryAttempt[] // Track all delivery attempts
-  deliveryMan         DeliveryMan?      @relation(fields: [deliveryManId], references: [id])
-  merchant            Merchant          @relation(fields: [merchantId], references: [id])
-  orderItems          OrderItem[]
+  deliveryMan            DeliveryMan?      @relation(fields: [deliveryManId], references: [id])
+  merchant               Merchant          @relation(fields: [merchantId], references: [id])
+  orderItems             OrderItem[]
 }
 
 model DeliveryAttempt {
-  id           Int       @id @default(autoincrement())
-  orderId      Int
-  attemptNumber Int      // This represents the delivery attempt count
+  id            Int           @id @default(autoincrement())
+  orderId       Int
+  attemptNumber Int // This represents the delivery attempt count
   deliveryManId Int?
-  attemptedAt  DateTime  @default(now())
-  status       AttemptStatus
-  reason       String?   // Reason for failure (if failed)
-  notes        String?   // Additional notes from delivery man
-  location     String?   // GPS location or address where attempt was made
-  deliveryMan  DeliveryMan? @relation(fields: [deliveryManId], references: [id])
-  order        Order        @relation(fields: [orderId], references: [id])
+  attemptedAt   DateTime      @default(now())
+  status        AttemptStatus
+  reason        String? // Reason for failure (if failed)
+  notes         String? // Additional notes from delivery man
+  location      String? // GPS location or address where attempt was made
+  deliveryMan   DeliveryMan?  @relation(fields: [deliveryManId], references: [id])
+  order         Order         @relation(fields: [orderId], references: [id])
 
   @@unique([orderId, attemptNumber])
 }
@@ -141,17 +141,17 @@ model OrderItem {
 }
 
 model DeliveryMan {
-  id                   Int      @id @default(autoincrement())
-  userId               Int      @unique
+  id                   Int               @id @default(autoincrement())
+  userId               Int               @unique
   vehicleType          String?
-  active               Boolean  @default(true)
-  totalDeliveries      Int      @default(0)
-  successfulDeliveries Int      @default(0)
-  totalEarned          Float    @default(0)
-  baseFee              Float    @default(0) // Base fee per successful delivery
+  active               Boolean           @default(true)
+  totalDeliveries      Int               @default(0)
+  successfulDeliveries Int               @default(0)
+  totalEarned          Float             @default(0)
+  baseFee              Float             @default(0) // Base fee per successful delivery
   rating               Float?
-  createdAt            DateTime @default(now())
-  user                 User     @relation(fields: [userId], references: [id])
+  createdAt            DateTime          @default(now())
+  user                 User              @relation(fields: [userId], references: [id])
   assignedOrders       Order[]
   deliveryAttempts     DeliveryAttempt[]
 }
@@ -189,12 +189,9 @@ enum Role {
 enum OrderStatus {
   PENDING
   ACCEPTED
-  PREPARING
-  READY_FOR_DELIVERY
   ASSIGNED_TO_DELIVERY
-  IN_TRANSIT
-  OUT_FOR_DELIVERY
   DELIVERED
+  REPORTED
   REJECTED
   CANCELLED
 }

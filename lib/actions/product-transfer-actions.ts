@@ -266,7 +266,7 @@ export async function updateTransferStatus(
     // Prevent updating from final states
     if (transfer.status === "DELIVERED_TO_WAREHOUSE" || transfer.status === "CANCELLED") {
       console.log("[v0] Transfer already in final state")
-      return { success: false, error: "لا يمكن تحديث شحنة تم تسليمها أو إلغاؤها" }
+      return { success: false, error: "لا يمكن تحديث شحنة تم تسليمها أو إلغاؤه��" }
     }
 
     // Start transaction
