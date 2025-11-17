@@ -1,7 +1,7 @@
 import { auth } from "@/auth"
-import { redirect } from "next/navigation"
+import { redirect } from 'next/navigation'
 import { DashboardLayout } from "@/components/dashboard-layout"
-import { PaymentsDashboard } from "@/components/payments-dashboard"
+import { PaymentsContent } from "@/components/merchant/payment/payments-content"
 
 export const revalidate = 10
 
@@ -14,7 +14,7 @@ export default async function MerchantPaymentsPage() {
 
   return (
     <DashboardLayout userRole={session.user.role || "MERCHANT"}>
-      <PaymentsDashboard />
+      <PaymentsContent />
     </DashboardLayout>
   )
 }

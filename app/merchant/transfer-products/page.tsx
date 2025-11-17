@@ -1,9 +1,9 @@
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { CreateTransferForm } from "@/components/create-transfer-form"
 import { auth } from "@/auth"
-import { redirect } from "next/navigation"
+import { redirect } from 'next/navigation'
 
-export const revalidate = 60 // Revalidate every 60 seconds
+export const revalidate = 60
 
 export default async function TransferProductsPage() {
   const session = await auth()

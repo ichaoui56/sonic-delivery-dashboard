@@ -28,11 +28,9 @@ export default function RootLayout({
     <html lang="ar" dir="rtl">
       <body className={`font-sans ${cairo.variable}`}>
         <SessionProvider>
-          <Suspense fallback={<div>Loading...</div>}>
             {children}
             <Analytics />
             <Toaster />
-          </Suspense>
         </SessionProvider>
       </body>
     </html>
