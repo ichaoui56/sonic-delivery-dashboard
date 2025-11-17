@@ -4,7 +4,6 @@ import db from "@/lib/db"
 import { revalidatePath } from "next/cache"
 import { getCurrentUser } from "./auth-actions"
 
-
 type OrderStatus =
   | "PENDING"
   | "ACCEPTED"
@@ -13,6 +12,18 @@ type OrderStatus =
   | "REPORTED"
   | "REJECTED"
   | "CANCELLED"
+
+function getCityCode(city: string): string {
+  const cityMap: Record<string, string> = {
+    "الداخلة": "DA",
+    "Dakhla": "DA",
+    "بوجدور": "BO",
+    "Boujdour": "BO",
+    "العيون": "LA",
+    "Laayoune": "LA",
+  }
+  return cityMap[city] || "DA" // Default to DA if city not found
+}
 
 export async function createOrder(data: {
   customerName: string
@@ -43,26 +54,34 @@ export async function createOrder(data: {
     // Calculate total price
     const totalPrice = data.items.reduce((sum, item) => sum + item.price * item.quantity, 0)
 
-    // Get the latest order to generate next order code
+    const cityCode = getCityCode(data.city)
+    
+    // Get the latest order for this specific city
     const latestOrder = await db.order.findFirst({
+      where: {
+        city: data.city,
+      },
       orderBy: { id: "desc" },
       select: { orderCode: true },
     })
 
     let nextOrderNumber = 1
     if (latestOrder?.orderCode) {
-      const match = latestOrder.orderCode.match(/OR(\d+)/)
+      // Match pattern: OR-XX-NNNNNN where XX is city code
+      const match = latestOrder.orderCode.match(/OR-[A-Z]{2}-(\d+)/)
       if (match) {
         nextOrderNumber = Number.parseInt(match[1]) + 1
       }
     }
-    const orderCode = `OR${nextOrderNumber.toString().padStart(6, "0")}`
+    
+    // Generate city-specific order code: OR-DA-000001, OR-BO-000001, OR-LA-000001
+    const orderCode = `OR-${cityCode}-${nextOrderNumber.toString().padStart(6, "0")}`
 
     const merchantBaseFee = merchant.baseFee || 25
     const merchantEarning = totalPrice - merchantBaseFee
 
     console.log(
-      `[v0] Order ${orderCode} - Total: ${totalPrice}, Merchant Base Fee: ${merchantBaseFee}, Merchant Earning: ${merchantEarning}`,
+      `[v0] Order ${orderCode} - City: ${data.city} (${cityCode}) - Total: ${totalPrice}, Merchant Base Fee: ${merchantBaseFee}, Merchant Earning: ${merchantEarning}`,
     )
 
     // Validate stock availability

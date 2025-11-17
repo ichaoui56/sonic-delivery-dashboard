@@ -3,13 +3,14 @@
 import type React from "react"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter } from 'next/navigation'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent } from "@/components/ui/card"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { createOrder } from "@/lib/actions/order.actions"
 import { toast } from "sonner"
 import { OptimizedImage } from "./optimized-image"
@@ -24,6 +25,12 @@ type Product = {
   stockQuantity: number
 }
 
+const CITIES = [
+  { value: "الداخلة", label: "الداخلة", code: "DA" },
+  { value: "بوجدور", label: "بوجدور", code: "BO" },
+  { value: "العيون", label: "العيون", code: "LA" },
+]
+
 export function CreateOrderForm({ products }: { products: Product[] }) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
@@ -36,7 +43,7 @@ export function CreateOrderForm({ products }: { products: Product[] }) {
     customerName: "",
     customerPhone: "",
     address: "",
-    city: "الداخلة",
+    city: "",
     note: "",
     paymentMethod: "COD" as "COD" | "PREPAID",
   })
@@ -164,7 +171,18 @@ export function CreateOrderForm({ products }: { products: Product[] }) {
 
           <div className="space-y-2">
             <Label htmlFor="city">المدينة *</Label>
-            <Input id="city" value={formData.city} disabled className="min-h-[44px] bg-gray-50" />
+            <Select value={formData.city} onValueChange={(value) => setFormData({ ...formData, city: value })}>
+              <SelectTrigger className="min-h-[44px]">
+                <SelectValue placeholder="اختر المدينة" />
+              </SelectTrigger>
+              <SelectContent>
+                {CITIES.map((city) => (
+                  <SelectItem key={city.value} value={city.value}>
+                    {city.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">
@@ -285,7 +303,7 @@ export function CreateOrderForm({ products }: { products: Product[] }) {
                           strokeLinecap="round"
                           strokeLinejoin="round"
                           strokeWidth={2}
-                          d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+                          d="M20 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
                         />
                       </svg>
                     </div>
@@ -334,7 +352,7 @@ export function CreateOrderForm({ products }: { products: Product[] }) {
                                 strokeLinecap="round"
                                 strokeLinejoin="round"
                                 strokeWidth={2}
-                                d="M20 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
                               />
                             </svg>
                           </div>
