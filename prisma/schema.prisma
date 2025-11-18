@@ -145,6 +145,7 @@ model DeliveryMan {
   id                   Int               @id @default(autoincrement())
   userId               Int               @unique
   vehicleType          String?
+  city                 String?
   active               Boolean           @default(true)
   totalDeliveries      Int               @default(0)
   successfulDeliveries Int               @default(0)
@@ -155,17 +156,21 @@ model DeliveryMan {
   user                 User              @relation(fields: [userId], references: [id])
   assignedOrders       Order[]
   deliveryAttempts     DeliveryAttempt[]
+  moneyTransfers       MoneyTransfer[]
 }
 
 model MoneyTransfer {
-  id           Int      @id @default(autoincrement())
-  merchantId   Int
+  id           Int          @id @default(autoincrement())
+  merchantId   Int?
+  deliveryManId Int?
   amount       Float
   transferDate DateTime @default(now())
+  invoiceImage String?
   reference    String?
   note         String?
   createdAt    DateTime @default(now())
-  merchant     Merchant @relation(fields: [merchantId], references: [id])
+  merchant     Merchant?    @relation(fields: [merchantId], references: [id])
+  deliveryMan  DeliveryMan? @relation(fields: [deliveryManId], references: [id])
 }
 
 model Notification {

@@ -448,12 +448,15 @@ export async function getDeliveryManOrders() {
     const orders = await db.order.findMany({
       where: {
         OR: [
+          // Orders already assigned to this delivery man
           { deliveryManId: deliveryMan.id },
+          // Available orders in the same city
           {
             status: {
               in: ["PENDING", "ASSIGNED_TO_DELIVERY"],
             },
             deliveryManId: null,
+            city: deliveryMan.city || undefined,
           },
         ],
       },
@@ -477,7 +480,7 @@ export async function getDeliveryManOrders() {
       orderBy: { createdAt: "desc" },
     })
 
-    console.log(`[v0] Found ${orders.length} orders for delivery man`)
+    console.log(`[v0] Found ${orders.length} orders for delivery man in city: ${deliveryMan.city}`)
     return orders
   } catch (error) {
     console.error("[v0] Error fetching delivery orders:", error)
@@ -498,6 +501,19 @@ export async function acceptOrder(orderId: number) {
 
     if (!deliveryMan) {
       return { success: false, message: "عامل التوصيل غير موجود" }
+    }
+
+    const order = await db.order.findUnique({
+      where: { id: orderId },
+      select: { city: true },
+    })
+
+    if (!order) {
+      return { success: false, message: "الطلب غير موجود" }
+    }
+
+    if (deliveryMan.city && order.city !== deliveryMan.city) {
+      return { success: false, message: `لا يمكنك قبول طلبات من ${order.city}. أنت مخصص لـ ${deliveryMan.city}` }
     }
 
     await db.order.update({

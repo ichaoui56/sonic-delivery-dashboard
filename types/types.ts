@@ -113,3 +113,138 @@ export interface MerchantSettingsData {
     baseFee: number
   }
 }
+
+export type FinancialData = {
+  totalRevenue: number
+  totalMerchantBalance: number
+  totalDeliveryManEarnings: number
+  companyProfit: number
+  merchantBalances: Array<{
+    merchant: {
+      user: {
+        name: string
+      }
+      companyName: string | null
+    }
+    balance: number
+  }>
+}
+
+export type MerchantDetail = {
+  id: number
+  companyName: string | null
+  balance: number
+  totalEarned: number
+  rib: string | null
+  bankName: string | null
+  user: {
+    id: number
+    name: string
+    email: string
+    phone: string | null
+    image: string | null
+    createdAt: string
+  }
+  products: Array<{
+    id: number
+    name: string
+    price: number
+    image: string | null
+    stockQuantity: number
+    isActive: boolean
+    createdAt: string
+  }>
+  orders: Array<{
+    id: number
+    orderCode: string
+    customerName: string
+    totalPrice: number
+    merchantEarning: number
+    status: string
+    city: string
+    createdAt: string
+  }>
+  productTransfers: Array<{
+    id: number
+    transferCode: string
+    quantity: number
+    estimatedCost: number
+    status: string
+    createdAt: string
+  }>
+  moneyTransfers: Array<{
+    id: number
+    amount: number
+    type: string
+    invoiceImage: string | null
+    notes: string | null
+    createdAt: string
+  }>
+}
+
+
+export 
+type DeliveryManDetail = {
+  id: number
+  vehicleType: string | null
+  active: boolean
+  city: string
+  totalDeliveries: number
+  successfulDeliveries: number
+  totalEarned: number
+  baseFee: number
+  user: {
+    id: number
+    name: string
+    email: string
+    phone: string | null
+    image: string | null
+    createdAt: string
+  }
+  assignedOrders: Array<{
+    id: number
+    orderCode: string
+    customerName: string
+    totalPrice: number
+    status: string
+    city: string
+    createdAt: string
+    merchant: {
+      user: {
+        name: string
+      }
+    }
+  }>
+  deliveryAttempts: Array<{
+    id: number
+    attemptedAt: string
+    wasSuccessful: boolean
+    notes: string | null
+    order: {
+      orderCode: string
+      customerName: string
+    }
+  }>
+}
+
+
+export type DeliveryMan = {
+  id: number
+  vehicleType: string | null
+  active: boolean
+  city: string
+  totalDeliveries: number
+  successfulDeliveries: number
+  totalEarned: number
+  baseFee: number
+  user: {
+    id: number
+    name: string
+    email: string
+    phone: string | null
+    image: string | null
+  }
+  _count: {
+    assignedOrders: number
+  }
+}
