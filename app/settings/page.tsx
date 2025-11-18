@@ -1,24 +1,24 @@
 import { DashboardLayoutWrapper } from "@/components/dashboard-layout-wrapper"
 import { auth } from "@/auth"
 import { redirect } from 'next/navigation'
-import { TrackShipmentsContent } from "@/components/merchant/track-shipments/track-shipments-content"
+import { SettingsContent } from "@/components/settings/settings-content"
+import { Suspense } from "react"
+import SettingsLoading from "./loading"
 
 export const revalidate = 60
 
-export default async function TrackShipmentsPage() {
+export default async function SettingsPage() {
   const session = await auth()
 
   if (!session?.user) {
     redirect("/login")
   }
 
-  if (session.user.role !== "MERCHANT") {
-    redirect("/dashboard")
-  }
-
   return (
     <DashboardLayoutWrapper userRole={session.user.role}>
-      <TrackShipmentsContent />
+      <Suspense fallback={<SettingsLoading />}>
+        <SettingsContent />
+      </Suspense>
     </DashboardLayoutWrapper>
   )
 }

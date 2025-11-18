@@ -347,7 +347,7 @@ export function MerchantDashboardClient({ initialData }: { initialData: Dashboar
             </div>
             <Button asChild variant="outline" size="sm" className="w-full sm:w-auto bg-transparent">
               <Link href="/merchant/orders">
-                ��رض جميع الطلبات
+                عرض جميع الطلبات
                 <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                 </svg>

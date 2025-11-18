@@ -1,4 +1,4 @@
-import { DashboardLayout } from "@/components/dashboard-layout"
+import { DashboardLayoutWrapper } from "@/components/dashboard-layout-wrapper"
 import { CreateTransferForm } from "@/components/create-transfer-form"
 import { auth } from "@/auth"
 import { redirect } from 'next/navigation'
@@ -17,7 +17,7 @@ export default async function TransferProductsPage() {
   }
 
   return (
-    <DashboardLayout userRole={session.user.role}>
+    <DashboardLayoutWrapper userRole={session.user.role}>
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">نقل المنتجات</h1>
@@ -26,6 +26,6 @@ export default async function TransferProductsPage() {
 
         <CreateTransferForm />
       </div>
-    </DashboardLayout>
+    </DashboardLayoutWrapper>
   )
 }

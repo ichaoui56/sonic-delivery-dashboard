@@ -1,20 +1,26 @@
-import { redirect } from "next/navigation"
-import { auth } from "@/auth"
-import { DashboardLayout } from "@/components/dashboard-layout" // Your client component
-import type React from "react"
+import { DashboardLayout } from "@/components/dashboard-layout"
+import { getCurrentUserData } from "@/lib/actions/user.actions"
 
-interface DashboardLayoutWrapperProps {
-    children: React.ReactNode
-}
+export async function DashboardLayoutWrapper({
+  children,
+  userRole,
+}: {
+  children: React.ReactNode
+  userRole: string
+}) {
+  const result = await getCurrentUserData()
+  const userData = result.success ? result.data : null
 
-export default async function DashboardLayoutWrapper({ children }: DashboardLayoutWrapperProps) {
-    // Check authentication on the server
-    const session = await auth()
-
-    if (!session) {
-        return redirect("/login")
-    }
-
-    // If authenticated, render the client component
-    return <DashboardLayout>{children}</DashboardLayout>
+  return (
+    <DashboardLayout 
+      userRole={userRole}
+      userData={userData ? {
+        name: userData.name,
+        email: userData.email,
+        image: userData.image,
+      } : undefined}
+    >
+      {children}
+    </DashboardLayout>
+  )
 }

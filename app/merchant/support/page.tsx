@@ -1,4 +1,4 @@
-import { DashboardLayout } from "@/components/dashboard-layout"
+import { DashboardLayoutWrapper } from "@/components/dashboard-layout-wrapper"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { auth } from "@/auth"
@@ -20,7 +20,7 @@ const whatsappMessage = encodeURIComponent(
   const whatsappLink = `https://wa.me/${whatsappNumber}?text=${whatsappMessage}`
 
   return (
-    <DashboardLayout userRole={user?.role || "MERCHANT"}>
+    <DashboardLayoutWrapper userRole={user?.role || "MERCHANT"}>
       <div className="max-w-5xl mx-auto space-y-6">
         {/* Header */}
         <div className="space-y-2">
@@ -138,6 +138,6 @@ const whatsappMessage = encodeURIComponent(
           </Card>
         </div>
       </div>
-    </DashboardLayout>
+    </DashboardLayoutWrapper>
   )
 }

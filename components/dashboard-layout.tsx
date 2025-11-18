@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { useEffect, useState } from "react"
-import { useRouter, usePathname } from "next/navigation"
+import { useRouter, usePathname } from 'next/navigation'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -93,28 +93,28 @@ const navigationByRole = {
           </svg>
         ),
       },
-      // {
-      //   name: "الإعدادات",
-      //   href: "/admin/settings",
-      //   icon: (
-      //     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      //       <path
-      //         strokeLinecap="round"
-      //         strokeLinejoin="round"
-      //         strokeWidth={2}
-      //         d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-      //       />
-      //       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-      //     </svg>
-      //   ),
-      // },
+      {
+        name: "الإعدادات",
+        href: "/settings",
+        icon: (
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+            />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+        ),
+      },
     ],
   },
   MERCHANT: {
     main: [
       {
         name: "الرئيسية",
-        href: "/merchant/dashboard",
+        href: "/dashboard",
         icon: (
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path
@@ -212,21 +212,21 @@ const navigationByRole = {
           </svg>
         ),
       },
-      // {
-      //   name: "الإعدادات",
-      //   href: "/merchant/settings",
-      //   icon: (
-      //     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      //       <path
-      //         strokeLinecap="round"
-      //         strokeLinejoin="round"
-      //         strokeWidth={2}
-      //         d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-      //       />
-      //       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-      //     </svg>
-      //   ),
-      // },
+      {
+        name: "الإعدادات",
+        href: "/settings",
+        icon: (
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+            />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+        ),
+      },
     ],
   },
   DELIVERYMAN: {
@@ -289,30 +289,63 @@ const navigationByRole = {
           </svg>
         ),
       },
-      // {
-      //   name: "الإعدادات",
-      //   href: "/delivery/settings",
-      //   icon: (
-      //     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      //       <path
-      //         strokeLinecap="round"
-      //         strokeLinejoin="round"
-      //         strokeWidth={2}
-      //         d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-      //       />
-      //       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-      //     </svg>
-      //   ),
-      // },
+      {
+        name: "الإعدادات",
+        href: "/settings",
+        icon: (
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+            />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+        ),
+      },
     ],
   },
 }
 
-export function DashboardLayout({ children, userRole }: { children: React.ReactNode; userRole: string }) {
+export function DashboardLayout({ 
+  children, 
+  userRole,
+  userData 
+}: { 
+  children: React.ReactNode
+  userRole: string
+  userData?: {
+    name: string | null
+    email: string | null
+    image: string | null
+  }
+}) {
   const router = useRouter()
   const pathname = usePathname()
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
   const [isMobile, setIsMobile] = useState(false)
+
+  const [cachedUserData, setCachedUserData] = useState<typeof userData>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('sonic_user_data')
+      if (stored) {
+        try {
+          return JSON.parse(stored)
+        } catch {
+          return userData
+        }
+      }
+    }
+    return userData
+  })
+
+  useEffect(() => {
+    if (userData && (userData.name || userData.email)) {
+      setCachedUserData(userData)
+      localStorage.setItem('sonic_user_data', JSON.stringify(userData))
+    }
+  }, [userData])
 
   const roleNav = navigationByRole[userRole as keyof typeof navigationByRole] || navigationByRole.MERCHANT
   const navigation = roleNav.main
@@ -343,9 +376,14 @@ export function DashboardLayout({ children, userRole }: { children: React.ReactN
     }
   }
 
-  const userName = "محمد التاجر"
-  const userEmail = "merchant@sonic-delivery.com"
-  const userInitials = "م م"
+  const userName = cachedUserData?.name || "مستخدم"
+  const userEmail = cachedUserData?.email || "user@sonic-delivery.com"
+  const userInitials = userName
+    .split(" ")
+    .slice(0, 2)
+    .map((n) => n[0])
+    .join(" ")
+    .toUpperCase()
 
   return (
     <div className="min-h-screen bg-gray-50" dir="rtl">
@@ -515,7 +553,7 @@ export function DashboardLayout({ children, userRole }: { children: React.ReactN
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="gap-3 min-h-[44px]">
                     <Avatar className="w-8 h-8">
-                      <AvatarImage src="/avatar.png" alt={userName} />
+                      <AvatarImage src={cachedUserData?.image || "/avatar.png"} alt={userName} />
                       <AvatarFallback className="bg-red-900 text-white">{userInitials}</AvatarFallback>
                     </Avatar>
                     <div className="text-right hidden lg:block">

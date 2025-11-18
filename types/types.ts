@@ -93,3 +93,23 @@ export type DashboardData = {
     }>
   }>
 }
+
+
+export interface MerchantSettingsData {
+  user: {
+    id: number
+    name: string
+    email: string
+    phone: string | null
+    image: string | null
+  }
+  merchant: {
+    id: number
+    companyName: string | null
+    rib: string | null
+    bankName: string | null
+    balance: number
+    totalEarned: number
+    baseFee: number
+  }
+}
