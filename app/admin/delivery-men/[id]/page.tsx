@@ -7,19 +7,10 @@ import { Card, CardContent } from "@/components/ui/card"
 
 export const revalidate = 0
 
-export default async function DeliveryManDetailPage({ params }: { params: { id: string } }) {
-  const session = await auth()
-
-  if (!session?.user) {
-    redirect("/login")
-  }
-
-  if (session.user.role !== "ADMIN") {
-    redirect("/dashboard")
-  }
+export default function DeliveryManDetailPage({ params }: { params: { id: string } }) {
 
   return (
-    <DashboardLayoutWrapper userRole={session.user.role}>
+    <DashboardLayoutWrapper userRole="ADMIN" expectedRole="ADMIN">
       <Suspense fallback={<DeliveryManDetailSkeleton />}>
         <DeliveryManDetailContent deliveryManId={parseInt(params.id)} />
       </Suspense>

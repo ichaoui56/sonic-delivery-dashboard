@@ -1,3 +1,4 @@
+// components/dashboard-layout-wrapper.tsx
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { getCurrentUserData } from "@/lib/actions/user.actions"
 import { getCurrentUser } from "@/lib/actions/auth-actions"
@@ -15,6 +16,7 @@ export async function DashboardLayoutWrapper({
   const user = await getCurrentUser()
   
   if (!user) {
+    // Redirect to login instead of showing 404
     redirect("/login")
   }
 
@@ -25,7 +27,7 @@ export async function DashboardLayoutWrapper({
     } else if (user.role === "DELIVERYMAN") {
       redirect("/delivery/dashboard")
     } else if (user.role === "MERCHANT") {
-      redirect("/merchant/inventory")
+      redirect("/merchant/dashboard")
     } else {
       redirect("/login")
     }

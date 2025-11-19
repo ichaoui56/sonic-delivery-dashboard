@@ -10,7 +10,6 @@ import { formatDistanceToNow } from "date-fns"
 import { ar } from "date-fns/locale"
 import { updateOrderStatus, acceptOrder, rejectOrder } from "@/lib/actions/order.actions"
 import { toast } from "sonner"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import {
   Dialog,
   DialogContent,
@@ -21,6 +20,9 @@ import {
 } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { ScrollArea } from "@/components/ui/scroll-area"
 
 type Order = {
   id: number
@@ -52,49 +54,158 @@ type Order = {
   }
 }
 
-const statusMap: Record<string, { label: string; color: string }> = {
-  PENDING: { label: "قيد الانتظار", color: "bg-yellow-100 text-yellow-800 border-yellow-200" },
-  READY_FOR_DELIVERY: { label: "جاهز للتوصيل", color: "bg-cyan-100 text-cyan-800 border-cyan-200" },
-  ASSIGNED_TO_DELIVERY: { label: "معين لك", color: "bg-indigo-100 text-indigo-800 border-indigo-200" },
-  IN_TRANSIT: { label: "في الطريق", color: "bg-orange-100 text-orange-800 border-orange-200" },
-  OUT_FOR_DELIVERY: { label: "في التوصيل", color: "bg-teal-100 text-teal-800 border-teal-200" },
-  DELIVERED: { label: "تم التسليم", color: "bg-green-100 text-green-800 border-green-200" },
-  REJECTED: { label: "مرفوض", color: "bg-red-100 text-red-800 border-red-200" },
-  REPORTED: { label: "รายงาน مشكلة", color: "bg-yellow-100 text-yellow-800 border-yellow-200" },
-  CANCELLED: { label: "ملغي", color: "bg-gray-100 text-gray-800 border-gray-200" },
+const statusMap: Record<string, { label: string; color: string; icon: string }> = {
+  PENDING: { 
+    label: "قيد الانتظار", 
+    color: "bg-amber-50 text-amber-700 border-amber-200", 
+    icon: "⏳" 
+  },
+  READY_FOR_DELIVERY: { 
+    label: "جاهز للتوصيل", 
+    color: "bg-blue-50 text-blue-700 border-blue-200", 
+    icon: "📦" 
+  },
+  ASSIGNED_TO_DELIVERY: { 
+    label: "معين لك", 
+    color: "bg-indigo-50 text-indigo-700 border-indigo-200", 
+    icon: "👤" 
+  },
+  IN_TRANSIT: { 
+    label: "في الطريق", 
+    color: "bg-orange-50 text-orange-700 border-orange-200", 
+    icon: "🚚" 
+  },
+  OUT_FOR_DELIVERY: { 
+    label: "في التوصيل", 
+    color: "bg-cyan-50 text-cyan-700 border-cyan-200", 
+    icon: "🏍️" 
+  },
+  DELIVERED: { 
+    label: "تم التسليم", 
+    color: "bg-emerald-50 text-emerald-700 border-emerald-200", 
+    icon: "✅" 
+  },
+  REJECTED: { 
+    label: "مرفوض", 
+    color: "bg-red-50 text-red-700 border-red-200", 
+    icon: "❌" 
+  },
+  REPORTED: { 
+    label: "تم الإبلاغ", 
+    color: "bg-yellow-50 text-yellow-700 border-yellow-200", 
+    icon: "⚠️" 
+  },
+  CANCELLED: { 
+    label: "ملغي", 
+    color: "bg-gray-100 text-gray-700 border-gray-300", 
+    icon: "🚫" 
+  },
+}
+
+const cityMap: Record<string, { label: string; color: string }> = {
+  "الداخلة": { label: "الداخلة", color: "bg-purple-50 text-purple-700 border-purple-200" },
+  "Dakhla": { label: "الداخلة", color: "bg-purple-50 text-purple-700 border-purple-200" },
+  "بوجدور": { label: "بوجدور", color: "bg-teal-50 text-teal-700 border-teal-200" },
+  "Boujdour": { label: "بوجدور", color: "bg-teal-50 text-teal-700 border-teal-200" },
+  "العيون": { label: "العيون", color: "bg-amber-50 text-amber-700 border-amber-200" },
+  "Laayoune": { label: "العيون", color: "bg-amber-50 text-amber-700 border-amber-200" },
 }
 
 export function DeliveryOrdersTable({ orders }: { orders: Order[] }) {
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("ALL")
+  const [cityFilter, setCityFilter] = useState<string>("ALL")
+  const [paymentFilter, setPaymentFilter] = useState<string>("ALL")
   const [updatingOrderId, setUpdatingOrderId] = useState<number | null>(null)
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false)
   const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null)
   const [rejectionReason, setRejectionReason] = useState("")
   const [reportDialogOpen, setReportDialogOpen] = useState(false)
   const [reportReason, setReportReason] = useState("")
-  const [dropdownOpen, setDropdownOpen] = useState<number | null>(null)
+  const [activeTab, setActiveTab] = useState("all")
 
+  // Advanced filtering with multiple criteria
   const filteredOrders = useMemo(() => {
-    return orders.filter((order) => {
-      const matchesSearch =
+    let filtered = orders
+
+    // Tab-based filtering
+    if (activeTab === "available") {
+      filtered = filtered.filter(o => 
+        (o.status === "READY_FOR_DELIVERY" || o.status === "PENDING") && !o.deliveryManId
+      )
+    } else if (activeTab === "my-orders") {
+      filtered = filtered.filter(o => o.deliveryManId)
+    } else if (activeTab === "completed") {
+      filtered = filtered.filter(o => o.status === "DELIVERED")
+    }
+
+    // Search filter
+    if (searchQuery) {
+      filtered = filtered.filter((order) =>
         order.orderCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
         order.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        order.customerPhone.includes(searchQuery)
-
-      const matchesStatus = statusFilter === "ALL" || order.status === statusFilter
-
-      return matchesSearch && matchesStatus
-    })
-  }, [orders, searchQuery, statusFilter])
-
-  const stats = useMemo(() => {
-    return {
-      available: orders.filter((o) => o.status === "READY_FOR_DELIVERY" || o.status === "PENDING").length,
-      assigned: orders.filter((o) => o.status === "ASSIGNED_TO_DELIVERY").length,
-      inProgress: orders.filter((o) => ["IN_TRANSIT", "OUT_FOR_DELIVERY"].includes(o.status)).length,
-      delivered: orders.filter((o) => o.status === "DELIVERED").length,
+        order.customerPhone.includes(searchQuery) ||
+        order.address.toLowerCase().includes(searchQuery.toLowerCase())
+      )
     }
+
+    // Status filter
+    if (statusFilter !== "ALL") {
+      filtered = filtered.filter(order => order.status === statusFilter)
+    }
+
+    // City filter
+    if (cityFilter !== "ALL") {
+      filtered = filtered.filter(order => order.city === cityFilter)
+    }
+
+    // Payment filter
+    if (paymentFilter !== "ALL") {
+      filtered = filtered.filter(order => order.paymentMethod === paymentFilter)
+    }
+
+    return filtered
+  }, [orders, searchQuery, statusFilter, cityFilter, paymentFilter, activeTab])
+
+  // Advanced statistics
+  const stats = useMemo(() => {
+    const available = orders.filter((o) => 
+      (o.status === "READY_FOR_DELIVERY" || o.status === "PENDING") && !o.deliveryManId
+    ).length
+    
+    const assigned = orders.filter((o) => 
+      o.deliveryManId && o.status === "ASSIGNED_TO_DELIVERY"
+    ).length
+    
+    const inProgress = orders.filter((o) => 
+      ["IN_TRANSIT", "OUT_FOR_DELIVERY"].includes(o.status)
+    ).length
+    
+    const delivered = orders.filter((o) => 
+      o.status === "DELIVERED"
+    ).length
+
+    const totalEarnings = orders
+      .filter(o => o.status === "DELIVERED" && o.deliveryManId)
+      .reduce((sum, order) => sum + 15, 0) // 15 MAD per delivery
+
+    return {
+      available,
+      assigned,
+      inProgress,
+      delivered,
+      totalEarnings
+    }
+  }, [orders])
+
+  // Unique cities for filter
+  const uniqueCities = useMemo(() => {
+    const cities = [...new Set(orders.map(order => order.city))]
+    return cities.map(city => ({
+      value: city,
+      label: cityMap[city]?.label || city,
+      color: cityMap[city]?.color || "bg-gray-50 text-gray-700 border-gray-200"
+    }))
   }, [orders])
 
   const handleAcceptOrder = async (orderId: number) => {
@@ -106,7 +217,6 @@ export function DeliveryOrdersTable({ orders }: { orders: Order[] }) {
     } else {
       toast.error(result.message)
     }
-
     setUpdatingOrderId(null)
   }
 
@@ -127,63 +237,48 @@ export function DeliveryOrdersTable({ orders }: { orders: Order[] }) {
     } else {
       toast.error(result.message)
     }
-
     setUpdatingOrderId(null)
   }
 
   const handleStatusUpdate = async (orderId: number, newStatus: string) => {
-    console.log("[v0] Updating order status:", { orderId, newStatus })
     setUpdatingOrderId(orderId)
     const result = await updateOrderStatus(orderId, newStatus as any)
 
     if (result.success) {
       toast.success(result.message)
-      console.log("[v0] Status updated successfully, reloading page...")
       window.location.reload()
     } else {
       toast.error(result.message)
-      console.error("[v0] Status update failed:", result.message)
     }
-
     setUpdatingOrderId(null)
   }
 
   const getAvailableStatuses = (currentStatus: string, deliveryManId: number | null) => {
-    console.log("[v0] Getting available statuses for:", { currentStatus, deliveryManId })
-    const statuses: { value: string; label: string }[] = []
+    const statuses: { value: string; label: string; icon: string }[] = []
 
-    // If order is assigned to delivery man
     if (deliveryManId) {
       if (currentStatus === "ASSIGNED_TO_DELIVERY" || currentStatus === "ACCEPTED") {
-        statuses.push({ value: "DELIVERED", label: "✅ تم التسليم بنجاح" })
-        statuses.push({ value: "REJECTED", label: "❌ رفض العميل" })
-        statuses.push({ value: "REPORTED", label: "⚠️ الإبلاغ عن مشكلة" })
-        statuses.push({ value: "CANCELLED", label: "🚫 إلغاء الطلب" })
+        statuses.push(
+          { value: "DELIVERED", label: "تم التسليم بنجاح", icon: "✅" },
+          { value: "REJECTED", label: "رفض العميل", icon: "❌" },
+          { value: "REPORTED", label: "الإبلاغ عن مشكلة", icon: "⚠️" },
+          { value: "CANCELLED", label: "إلغاء الطلب", icon: "🚫" }
+        )
       }
     }
 
-    console.log("[v0] Available statuses:", statuses)
     return statuses
   }
 
   const handleStatusClick = (orderId: number, status: string) => {
-    console.log("[v0] ========== STATUS CLICK HANDLER ==========")
-    console.log("[v0] Status clicked:", { orderId, status })
-    console.log("[v0] ==========================================")
-
     if (status === "REPORTED") {
       setSelectedOrderId(orderId)
       setReportDialogOpen(true)
-      setDropdownOpen(null)
     } else if (status === "REJECTED" || status === "CANCELLED") {
-      // For reject/cancel, we can use existing reject dialog
       setSelectedOrderId(orderId)
       setRejectDialogOpen(true)
-      setDropdownOpen(null)
     } else {
-      // For direct status updates like DELIVERED
       handleStatusUpdate(orderId, status)
-      setDropdownOpen(null)
     }
   }
 
@@ -205,279 +300,444 @@ export function DeliveryOrdersTable({ orders }: { orders: Order[] }) {
     } else {
       toast.error(result.message)
     }
-
     setUpdatingOrderId(null)
   }
 
+  const clearAllFilters = () => {
+    setSearchQuery("")
+    setStatusFilter("ALL")
+    setCityFilter("ALL")
+    setPaymentFilter("ALL")
+    setActiveTab("all")
+  }
+
+  const hasActiveFilters = searchQuery || statusFilter !== "ALL" || cityFilter !== "ALL" || paymentFilter !== "ALL" || activeTab !== "all"
+
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <Card
-          className={`cursor-pointer transition-all ${
-            statusFilter === "READY_FOR_DELIVERY" ? "ring-2 ring-cyan-500" : ""
-          }`}
-          onClick={() => setStatusFilter(statusFilter === "READY_FOR_DELIVERY" ? "ALL" : "READY_FOR_DELIVERY")}
-        >
+    <div className="space-y-6">
+      {/* Statistics Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+        <Card className="border-l-4 border-l-blue-500">
           <CardContent className="p-4">
-            <p className="text-xs sm:text-sm text-gray-600 mb-1">متاحة للتوصيل</p>
-            <p className="text-xl sm:text-2xl font-bold text-cyan-600">{stats.available}</p>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-gray-600">متاحة للتوصيل</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.available}</p>
+              </div>
+              <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                <span className="text-blue-600 text-lg">📦</span>
+              </div>
+            </div>
           </CardContent>
         </Card>
 
-        <Card
-          className={`cursor-pointer transition-all ${
-            statusFilter === "ASSIGNED_TO_DELIVERY" ? "ring-2 ring-indigo-500" : ""
-          }`}
-          onClick={() => setStatusFilter(statusFilter === "ASSIGNED_TO_DELIVERY" ? "ALL" : "ASSIGNED_TO_DELIVERY")}
-        >
+        <Card className="border-l-4 border-l-indigo-500">
           <CardContent className="p-4">
-            <p className="text-xs sm:text-sm text-gray-600 mb-1">معينة لي</p>
-            <p className="text-xl sm:text-2xl font-bold text-indigo-600">{stats.assigned}</p>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-gray-600">معينة لي</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.assigned}</p>
+              </div>
+              <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center">
+                <span className="text-indigo-600 text-lg">👤</span>
+              </div>
+            </div>
           </CardContent>
         </Card>
 
-        <Card
-          className={`cursor-pointer transition-all ${
-            statusFilter === "IN_TRANSIT" || statusFilter === "OUT_FOR_DELIVERY" ? "ring-2 ring-orange-500" : ""
-          }`}
-          onClick={() => setStatusFilter(statusFilter === "IN_TRANSIT" ? "ALL" : "IN_TRANSIT")}
-        >
+        <Card className="border-l-4 border-l-orange-500">
           <CardContent className="p-4">
-            <p className="text-xs sm:text-sm text-gray-600 mb-1">قيد التوصيل</p>
-            <p className="text-xl sm:text-2xl font-bold text-orange-600">{stats.inProgress}</p>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-gray-600">قيد التوصيل</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.inProgress}</p>
+              </div>
+              <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
+                <span className="text-orange-600 text-lg">🚚</span>
+              </div>
+            </div>
           </CardContent>
         </Card>
 
-        <Card
-          className={`cursor-pointer transition-all ${statusFilter === "DELIVERED" ? "ring-2 ring-green-500" : ""}`}
-          onClick={() => setStatusFilter(statusFilter === "DELIVERED" ? "ALL" : "DELIVERED")}
-        >
+        <Card className="border-l-4 border-l-emerald-500">
           <CardContent className="p-4">
-            <p className="text-xs sm:text-sm text-gray-600 mb-1">مكتملة</p>
-            <p className="text-xl sm:text-2xl font-bold text-green-600">{stats.delivered}</p>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-gray-600">مكتملة</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.delivered}</p>
+              </div>
+              <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center">
+                <span className="text-emerald-600 text-lg">✅</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-l-4 border-l-amber-500">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-gray-600">إجمالي الأرباح</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.totalEarnings.toFixed(2)} د.م</p>
+              </div>
+              <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center">
+                <span className="text-amber-600 text-lg">💰</span>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <svg
-            className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-            />
-          </svg>
-          <Input
-            type="search"
-            placeholder="ابحث عن طلب... (رقم الطلب، اسم العميل)"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pr-10 min-h-[44px]"
-          />
-        </div>
+      {/* Tabs Navigation */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-4 bg-gray-100/50 p-1">
+          <TabsTrigger value="all" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">
+            جميع الطلبات
+          </TabsTrigger>
+          <TabsTrigger value="available" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">
+            متاحة للتوصيل
+          </TabsTrigger>
+          <TabsTrigger value="my-orders" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">
+            طلباتي
+          </TabsTrigger>
+          <TabsTrigger value="completed" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">
+            مكتملة
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
 
-        {statusFilter !== "ALL" && (
-          <Button variant="outline" onClick={() => setStatusFilter("ALL")} className="min-h-[44px]">
-            مسح الفلتر
-          </Button>
+      {/* Filters Bar */}
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex flex-col lg:flex-row gap-4">
+            {/* Search */}
+            <div className="flex-1 relative">
+              <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <Input
+                type="search"
+                placeholder="ابحث في الطلبات..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pr-10"
+              />
+            </div>
+
+            {/* Status Filter */}
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-full lg:w-40">
+                <SelectValue placeholder="حالة الطلب" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">جميع الحالات</SelectItem>
+                {Object.entries(statusMap).map(([value, { label, icon }]) => (
+                  <SelectItem key={value} value={value}>
+                    <div className="flex items-center gap-2">
+                      <span>{icon}</span>
+                      <span>{label}</span>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {/* City Filter */}
+            <Select value={cityFilter} onValueChange={setCityFilter}>
+              <SelectTrigger className="w-full lg:w-40">
+                <SelectValue placeholder="المدينة" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">جميع المدن</SelectItem>
+                {uniqueCities.map(city => (
+                  <SelectItem key={city.value} value={city.value}>
+                    {city.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {/* Payment Filter */}
+            <Select value={paymentFilter} onValueChange={setPaymentFilter}>
+              <SelectTrigger className="w-full lg:w-40">
+                <SelectValue placeholder="طريقة الدفع" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">جميع الطرق</SelectItem>
+                <SelectItem value="COD">الدفع عند الاستلام</SelectItem>
+                <SelectItem value="PREPAID">مدفوع مسبقاً</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {hasActiveFilters && (
+              <Button variant="outline" onClick={clearAllFilters} className="lg:w-auto">
+                مسح الكل
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Results Summary */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <div className="text-sm text-gray-600">
+          عرض <span className="font-semibold text-gray-900">{filteredOrders.length}</span> من أصل <span className="font-semibold text-gray-900">{orders.length}</span> طلب
+        </div>
+        {hasActiveFilters && (
+          <div className="flex items-center gap-2 flex-wrap">
+            {searchQuery && (
+              <Badge variant="secondary" className="flex items-center gap-1">
+                بحث: {searchQuery}
+                <button onClick={() => setSearchQuery("")} className="hover:text-red-500">×</button>
+              </Badge>
+            )}
+            {statusFilter !== "ALL" && (
+              <Badge variant="secondary" className="flex items-center gap-1">
+                حالة: {statusMap[statusFilter]?.label}
+                <button onClick={() => setStatusFilter("ALL")} className="hover:text-red-500">×</button>
+              </Badge>
+            )}
+            {cityFilter !== "ALL" && (
+              <Badge variant="secondary" className="flex items-center gap-1">
+                مدينة: {cityMap[cityFilter]?.label || cityFilter}
+                <button onClick={() => setCityFilter("ALL")} className="hover:text-red-500">×</button>
+              </Badge>
+            )}
+            {paymentFilter !== "ALL" && (
+              <Badge variant="secondary" className="flex items-center gap-1">
+                دفع: {paymentFilter === "COD" ? "عند الاستلام" : "مسبق"}
+                <button onClick={() => setPaymentFilter("ALL")} className="hover:text-red-500">×</button>
+              </Badge>
+            )}
+          </div>
         )}
       </div>
 
-      <div className="text-sm text-gray-600">
-        عرض {filteredOrders.length} من {orders.length} طلب
-      </div>
-
+      {/* Orders List */}
       <div className="space-y-4">
         {filteredOrders.map((order) => (
-          <Card key={order.id} className="hover:shadow-md transition-shadow">
-            <CardContent className="p-4 sm:p-6">
-              <div className="flex flex-col sm:flex-row justify-between items-start gap-3 mb-4">
-                <div className="flex items-start gap-3">
-                  <div className="w-12 h-12 rounded-full bg-[#048dba]/10 flex items-center justify-center flex-shrink-0">
-                    <svg className="w-6 h-6 text-[#048dba]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"
-                      />
-                    </svg>
+          <Card key={order.id} className="hover:shadow-lg transition-all duration-200 border-l-4 border-l-blue-500">
+            <CardContent className="p-6">
+              {/* Order Header */}
+              <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-6">
+                <div className="flex items-start gap-4 flex-1">
+                  <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
+                    <span className="text-blue-600 text-xl">📦</span>
                   </div>
-                  <div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="font-bold text-lg text-gray-900">{order.orderCode}</h3>
-                      <Badge className={statusMap[order.status]?.color || "bg-gray-100"}>
-                        {statusMap[order.status]?.label || order.status}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                      <h3 className="text-xl font-bold text-gray-900 truncate">{order.orderCode}</h3>
+                      <Badge className={statusMap[order.status]?.color}>
+                        <span className="ml-1">{statusMap[order.status]?.icon}</span>
+                        {statusMap[order.status]?.label}
                       </Badge>
-                      <Badge variant="outline" className="font-normal">
-                        {order.paymentMethod === "COD" ? "الدفع عند الاستلام" : "مدفوع مسبقاً"}
+                      <Badge variant="outline" className={cityMap[order.city]?.color}>
+                        {cityMap[order.city]?.label || order.city}
                       </Badge>
                     </div>
-                    <p className="text-sm text-gray-500 mt-1">
-                      {formatDistanceToNow(new Date(order.createdAt), { addSuffix: true, locale: ar })}
-                    </p>
-                    <p className="text-sm text-gray-600 mt-1">التاجر: {order.merchant.user.name}</p>
+                    <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500">
+                      <span className="flex items-center gap-1">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        {formatDistanceToNow(new Date(order.createdAt), { addSuffix: true, locale: ar })}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                        التاجر: {order.merchant.user.name}
+                      </span>
+                    </div>
                   </div>
                 </div>
 
-                <div className="text-left">
-                  <p className="text-2xl font-bold text-[#048dba]">{order.totalPrice.toFixed(2)} د.م</p>
-                  <p className="text-sm text-gray-500">ربحك: 15.00 د.م</p>
+                <div className="text-left bg-gray-50 rounded-lg px-4 py-3">
+                  <p className="text-2xl font-bold text-blue-600">{order.totalPrice.toFixed(2)} د.م</p>
+                  <div className="flex items-center gap-2 text-sm text-gray-500">
+                    <span>ربحك:</span>
+                    <span className="font-semibold text-green-600">15.00 د.م</span>
+                  </div>
+                  <Badge variant="outline" className="mt-1 bg-white">
+                    {order.paymentMethod === "COD" ? "الدفع عند الاستلام" : "مدفوع مسبقاً"}
+                  </Badge>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg mb-4">
+              {/* Customer Information */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 p-4 bg-gray-50 rounded-xl mb-6">
                 <div>
-                  <p className="text-xs text-gray-500 mb-1">اسم العميل</p>
-                  <p className="font-medium text-sm">{order.customerName}</p>
+                  <p className="text-xs font-medium text-gray-500 mb-1">اسم العميل</p>
+                  <p className="font-semibold text-gray-900">{order.customerName}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-gray-500 mb-1">رقم الهاتف</p>
-                  <p className="font-medium text-sm direction-ltr text-right">{order.customerPhone}</p>
+                  <p className="text-xs font-medium text-gray-500 mb-1">رقم الهاتف</p>
+                  <p className="font-semibold text-gray-900 direction-ltr text-right">{order.customerPhone}</p>
                 </div>
-                <div className="sm:col-span-2">
-                  <p className="text-xs text-gray-500 mb-1">العنوان</p>
-                  <p className="font-medium text-sm">
-                    {order.address} - {order.city}
-                  </p>
+                <div className="lg:col-span-2">
+                  <p className="text-xs font-medium text-gray-500 mb-1">العنوان</p>
+                  <p className="font-semibold text-gray-900">{order.address} - {order.city}</p>
                 </div>
                 {order.note && (
-                  <div className="sm:col-span-2">
-                    <p className="text-xs text-gray-500 mb-1">ملاحظات</p>
-                    <p className="font-medium text-sm">{order.note}</p>
+                  <div className="md:col-span-2 lg:col-span-4">
+                    <p className="text-xs font-medium text-gray-500 mb-1">ملاحظات</p>
+                    <p className="text-sm text-gray-700 bg-white p-2 rounded border">{order.note}</p>
                   </div>
                 )}
               </div>
 
-              <div className="mb-4">
-                <p className="text-sm font-semibold text-gray-700 mb-2">المنتجات ({order.orderItems.length})</p>
-                <div className="space-y-2">
-                  {order.orderItems.map((item) => (
-                    <div key={item.id} className="flex items-center gap-3 p-2 bg-white rounded border">
-                      <div className="w-12 h-12 rounded overflow-hidden bg-gray-100 flex-shrink-0">
-                        {item.product.image ? (
-                          <OptimizedImage
-                            src={item.product.image}
-                            alt={item.product.name}
-                            width={48}
-                            height={48}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-gray-400">
-                            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
-                              />
-                            </svg>
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm truncate">{item.product.name}</p>
-                        <p className="text-xs text-gray-500">الكمية: {item.quantity}</p>
-                      </div>
-                    </div>
-                  ))}
+              {/* Products */}
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-sm font-semibold text-gray-700">المنتجات ({order.orderItems.length})</p>
                 </div>
+                <ScrollArea className="h-32">
+                  <div className="space-y-2 pr-4">
+                    {order.orderItems.map((item) => (
+                      <div key={item.id} className="flex items-center gap-3 p-3 bg-white rounded-lg border hover:bg-gray-50 transition-colors">
+                        <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0 border">
+                          {item.product.image ? (
+                            <OptimizedImage
+                              src={item.product.image}
+                              alt={item.product.name}
+                              width={48}
+                              height={48}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-gray-400">
+                              <span className="text-lg">📦</span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm text-gray-900 truncate">{item.product.name}</p>
+                          <div className="flex items-center gap-4 text-xs text-gray-500 mt-1">
+                            <span>الكمية: {item.quantity}</span>
+                            <span>السعر: {item.price.toFixed(2)} د.م</span>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-semibold text-gray-900">{(item.price * item.quantity).toFixed(2)} د.م</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
               </div>
 
-              <div className="flex gap-2 flex-wrap">
+              {/* Actions */}
+              <div className="flex flex-col sm:flex-row gap-3">
                 {(order.status === "READY_FOR_DELIVERY" || order.status === "PENDING") && !order.deliveryManId && (
                   <>
                     <Button
-                      onClick={() => {
-                        console.log("[v0] Accept button clicked for order:", order.id)
-                        handleAcceptOrder(order.id)
-                      }}
+                      onClick={() => handleAcceptOrder(order.id)}
                       disabled={updatingOrderId === order.id}
-                      className="flex-1 bg-green-600 hover:bg-green-700 min-h-[44px]"
+                      className="flex-1 bg-green-600 hover:bg-green-700 h-12"
+                      size="lg"
                     >
-                      {updatingOrderId === order.id ? "جاري القبول..." : "قبول الطلب"}
+                      {updatingOrderId === order.id ? (
+                        <div className="flex items-center gap-2">
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          جاري القبول...
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <span>✅</span>
+                          قبول الطلب
+                        </div>
+                      )}
                     </Button>
                     <Button
                       onClick={() => {
-                        console.log("[v0] Reject button clicked for order:", order.id)
                         setSelectedOrderId(order.id)
                         setRejectDialogOpen(true)
                       }}
                       disabled={updatingOrderId === order.id}
                       variant="outline"
-                      className="flex-1 border-red-200 text-red-600 hover:bg-red-50 min-h-[44px]"
+                      className="flex-1 border-red-200 text-red-600 hover:bg-red-50 h-12"
+                      size="lg"
                     >
-                      رفض الطلب
+                      <div className="flex items-center gap-2">
+                        <span>❌</span>
+                        رفض الطلب
+                      </div>
                     </Button>
                   </>
                 )}
 
                 {order.deliveryManId && order.status !== "DELIVERED" && order.status !== "REJECTED" && (
-  <div className="flex-1">
-    <select
-      value=""
-      onChange={(e) => {
-        if (e.target.value) {
-          handleStatusClick(order.id, e.target.value)
-        }
-      }}
-      disabled={updatingOrderId === order.id}
-      className="w-full min-h-[44px] px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#048dba]"
-    >
-      <option value="">تحديث الحالة...</option>
-      {getAvailableStatuses(order.status, order.deliveryManId).map((status) => (
-        <option key={status.value} value={status.value}>
-          {status.label}
-        </option>
-      ))}
-    </select>
-  </div>
-)}
+                  <div className="flex-1">
+                    <Select
+                      onValueChange={(value) => handleStatusClick(order.id, value)}
+                      disabled={updatingOrderId === order.id}
+                    >
+                      <SelectTrigger className="w-full h-12">
+                        <SelectValue placeholder="تحديث حالة الطلب..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {getAvailableStatuses(order.status, order.deliveryManId).map((status) => (
+                          <SelectItem key={status.value} value={status.value}>
+                            <div className="flex items-center gap-2">
+                              <span>{status.icon}</span>
+                              <span>{status.label}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
         ))}
 
+        {/* Empty State */}
         {filteredOrders.length === 0 && (
           <Card>
             <CardContent className="p-12 text-center">
-              <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
-                <svg className="w-8 h-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 00-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
-                  />
-                </svg>
+              <div className="w-20 h-20 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
+                <span className="text-2xl">📦</span>
               </div>
-              <p className="text-gray-500">لا توجد طلبات</p>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">لا توجد طلبات</h3>
+              <p className="text-gray-500 mb-6">
+                {hasActiveFilters 
+                  ? "لم يتم العثور على طلبات تطابق معايير البحث الخاصة بك"
+                  : "لا توجد طلبات متاحة حاليًا للتوصيل"
+                }
+              </p>
+              {hasActiveFilters && (
+                <Button onClick={clearAllFilters}>
+                  مسح جميع الفلاتر
+                </Button>
+              )}
             </CardContent>
           </Card>
         )}
       </div>
 
+      {/* Reject/Cancel Dialog */}
       <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>رفض/إلغاء الطلب</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <span>❌</span>
+              رفض/إلغاء الطلب
+            </DialogTitle>
             <DialogDescription>يرجى تحديد سبب رفض أو إلغاء هذا الطلب</DialogDescription>
           </DialogHeader>
-          <Textarea
-            placeholder="اكتب السبب..."
-            value={rejectionReason}
-            onChange={(e) => setRejectionReason(e.target.value)}
-            rows={4}
-            className="resize-none"
-          />
+          <div className="space-y-4">
+            <Label htmlFor="rejection-reason">سبب الرفض أو الإلغاء</Label>
+            <Textarea
+              id="rejection-reason"
+              placeholder="اكتب السبب هنا..."
+              value={rejectionReason}
+              onChange={(e) => setRejectionReason(e.target.value)}
+              rows={4}
+              className="resize-none"
+            />
+          </div>
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setRejectDialogOpen(false)}>
               إلغاء
@@ -487,16 +747,20 @@ export function DeliveryOrdersTable({ orders }: { orders: Order[] }) {
               disabled={!rejectionReason.trim() || updatingOrderId === selectedOrderId}
               className="bg-red-600 hover:bg-red-700"
             >
-              {updatingOrderId === selectedOrderId ? "جاري الرفض..." : "تأكيد"}
+              {updatingOrderId === selectedOrderId ? "جاري المعالجة..." : "تأكيد"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
+      {/* Report Dialog */}
       <Dialog open={reportDialogOpen} onOpenChange={setReportDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>الإبلاغ عن مشكلة في التوصيل</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <span>⚠️</span>
+              الإبلاغ عن مشكلة في التوصيل
+            </DialogTitle>
             <DialogDescription>يرجى وصف المشكلة التي واجهتها أثناء محاولة التوصيل</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -519,7 +783,7 @@ export function DeliveryOrdersTable({ orders }: { orders: Order[] }) {
             <Button
               onClick={handleReportOrder}
               disabled={!reportReason.trim() || updatingOrderId === selectedOrderId}
-              className="bg-yellow-600 hover:bg-yellow-700"
+              className="bg-amber-600 hover:bg-amber-700"
             >
               {updatingOrderId === selectedOrderId ? "جاري الإبلاغ..." : "إرسال البلاغ"}
             </Button>

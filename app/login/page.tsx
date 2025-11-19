@@ -1,6 +1,6 @@
 import { LoginForm } from "@/components/login-form"
+import { redirect } from 'next/navigation'
 import { auth } from "@/auth"
-import { redirect } from "next/navigation"
 
 export const metadata = {
   title: "تسجيل الدخول - Sonic Delivery",
@@ -9,14 +9,22 @@ export const metadata = {
 
 export default async function LoginPage() {
   const session = await auth()
-  if (session) {
-    return redirect("/dashboard")
+
+  if (session?.user) {
+    const userRole = session.user.role
+    
+    if (userRole === "ADMIN") {
+      redirect("/admin/dashboard")
+    } else if (userRole === "DELIVERYMAN") {
+      redirect("/delivery/dashboard")
+    } else if (userRole === "MERCHANT") {
+      redirect("/merchant/inventory")
+    }
   }
 
   return (
+
     <div className="flex min-h-screen" dir="rtl">
-      {/* Right side - Form Section */}
-     
 
       {/* Left side - Banner Section */}
       <div className="hidden md:flex w-1/2 flex-col justify-between bg-gradient-to-br from-[#048dba] to-[#0570a1] p-12 text-white">
@@ -90,7 +98,7 @@ export default async function LoginPage() {
           <p>موثوق من قبل التجار والعاملين</p>
         </div>
       </div>
-       <div className="flex w-full flex-col items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 px-4 py-8 md:w-1/2">
+      <div className="flex w-full flex-col items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 px-4 py-8 md:w-1/2">
         <LoginForm />
       </div>
     </div>

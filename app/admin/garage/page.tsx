@@ -1,12 +1,12 @@
 import { DashboardLayoutWrapper } from "@/components/dashboard-layout-wrapper"
-import { TransfersContent } from "@/components/admin/transfers/transfers-content"
+import { GarageContent } from "@/components/admin/garage/garage-content"
 
 export const revalidate = 0
 
-export default async function TransfersPage() {
+export default async function GaragePage() {
   return (
     <DashboardLayoutWrapper userRole="ADMIN" expectedRole="ADMIN">
-      <TransfersContent />
+      <GarageContent />
     </DashboardLayoutWrapper>
   )
 }

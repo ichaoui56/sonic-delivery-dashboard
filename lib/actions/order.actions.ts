@@ -412,48 +412,25 @@ export async function getDeliveryManOrders() {
       where: { userId: user.id },
     })
 
-    // If no delivery man profile exists, show all pending/ready orders for testing
+    // If no delivery man profile exists, return empty array
     if (!deliveryMan) {
-      console.log("[v0] No delivery man profile found, showing all available orders for testing")
-      const orders = await db.order.findMany({
-        where: {
-          status: {
-            in: ["PENDING", "ASSIGNED_TO_DELIVERY"],
-          },
-          deliveryManId: null,
-        },
-        include: {
-          orderItems: {
-            include: {
-              product: true,
-            },
-          },
-          merchant: {
-            include: {
-              user: true,
-            },
-          },
-          deliveryMan: {
-            include: {
-              user: true,
-            },
-          },
-        },
-        orderBy: { createdAt: "desc" },
-      })
-
-      return orders
+      console.log("[v0] No delivery man profile found")
+      return []
     }
+
+    console.log(`[v0] Delivery man city: ${deliveryMan.city}`)
 
     const orders = await db.order.findMany({
       where: {
         OR: [
-          // Orders already assigned to this delivery man
-          { deliveryManId: deliveryMan.id },
-          // Available orders in the same city
+          // Orders already assigned to this delivery man (regardless of city)
+          { 
+            deliveryManId: deliveryMan.id 
+          },
+          // Available orders in the same city that aren't assigned to anyone
           {
             status: {
-              in: ["PENDING", "ASSIGNED_TO_DELIVERY"],
+              in: ["PENDING"],
             },
             deliveryManId: null,
             city: deliveryMan.city || undefined,
@@ -481,6 +458,12 @@ export async function getDeliveryManOrders() {
     })
 
     console.log(`[v0] Found ${orders.length} orders for delivery man in city: ${deliveryMan.city}`)
+    
+    // Log order details for debugging
+    orders.forEach(order => {
+      console.log(`[v0] Order ${order.orderCode}: city=${order.city}, status=${order.status}, deliveryManId=${order.deliveryManId}`)
+    })
+    
     return orders
   } catch (error) {
     console.error("[v0] Error fetching delivery orders:", error)
@@ -505,15 +488,26 @@ export async function acceptOrder(orderId: number) {
 
     const order = await db.order.findUnique({
       where: { id: orderId },
-      select: { city: true },
     })
 
     if (!order) {
       return { success: false, message: "الطلب غير موجود" }
     }
 
+    // Enhanced city validation
     if (deliveryMan.city && order.city !== deliveryMan.city) {
-      return { success: false, message: `لا يمكنك قبول طلبات من ${order.city}. أنت مخصص لـ ${deliveryMan.city}` }
+      return { 
+        success: false, 
+        message: `لا يمكنك قبول طلبات من ${order.city}. أنت مخصص لـ ${deliveryMan.city}` 
+      }
+    }
+
+    // Check if order is already assigned
+    if (order.deliveryManId && order.deliveryManId !== deliveryMan.id) {
+      return { 
+        success: false, 
+        message: "هذا الطلب已被 عامل توصيل آخر قبله" 
+      }
     }
 
     await db.order.update({

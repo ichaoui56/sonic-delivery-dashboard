@@ -7,19 +7,10 @@ import { Card } from "@/components/ui/card"
 
 export const revalidate = 0
 
-export default async function MerchantDetailPage({ params }: { params: { id: string } }) {
-  const session = await auth()
-
-  if (!session?.user) {
-    redirect("/login")
-  }
-
-  if (session.user.role !== "ADMIN") {
-    redirect("/dashboard")
-  }
+export default function MerchantDetailPage({ params }: { params: { id: string } }) {
 
   return (
-    <DashboardLayoutWrapper userRole={session.user.role}>
+    <DashboardLayoutWrapper userRole="ADMIN" expectedRole="ADMIN">
       <Suspense fallback={<div className="p-8"><Card className="p-8 animate-pulse h-96" /></div>}>
         <MerchantDetailContent merchantId={params.id} />
       </Suspense>

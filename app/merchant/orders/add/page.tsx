@@ -1,12 +1,10 @@
 import { DashboardLayoutWrapper } from "@/components/dashboard-layout-wrapper"
-import { getCurrentUser } from "@/lib/actions/auth-actions"
 import { CreateOrderContent } from "@/components/merchant/orders/add/create-order-content"
 
-export default async function CreateOrderPage() {
-  const user = await getCurrentUser()
+export default function CreateOrderPage() {
 
   return (
-    <DashboardLayoutWrapper userRole={user?.role || "MERCHANT"}>
+    <DashboardLayoutWrapper userRole="MERCHANT" expectedRole="MERCHANT">
       <CreateOrderContent />
     </DashboardLayoutWrapper>
   )

@@ -122,7 +122,7 @@ export async function signInAction(prevState: FormState | null, formData: FormDa
     } else if (userRole === "DELIVERYMAN") {
       redirectUrl = "/delivery/dashboard"
     } else if (userRole === "MERCHANT") {
-      redirectUrl = "/merchant/inventory"
+      redirectUrl = "/merchant/dashboard"
     }
     
     console.log("[v0] redirectUrl", redirectUrl)

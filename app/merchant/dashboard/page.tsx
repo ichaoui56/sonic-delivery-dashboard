@@ -6,7 +6,6 @@ import { DashboardStatsSkeleton } from "@/components/skeletons/dashboard-stats-s
 export const revalidate = 30
 
 export default function DashboardPage() {
-
   return (
     <DashboardLayoutWrapper userRole="MERCHANT" expectedRole="MERCHANT">
       <Suspense fallback={<DashboardStatsSkeleton />}>
@@ -14,5 +13,4 @@ export default function DashboardPage() {
       </Suspense>
     </DashboardLayoutWrapper>
   )
-
 }

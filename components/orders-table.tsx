@@ -264,7 +264,7 @@ export function OrdersTable({ orders }: { orders: Order[] }) {
                       <Badge variant="outline" className="font-normal">
                         {order.paymentMethod === "COD" ? "الدفع عند الاستلام" : "مدفوع مسبقاً"}
                       </Badge>
-                      <DropdownMenu>
+                      {/* <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button
                             variant="outline"
@@ -272,7 +272,7 @@ export function OrdersTable({ orders }: { orders: Order[] }) {
                             disabled={updatingOrderId === order.id}
                             className="h-7 text-xs bg-transparent"
                           >
-                            {updatingOrderId === order.id ? "جاري التحديث..." : "تحديث الحالة"}
+                            {updatingOrderId === order.id ? "جاري التحديث..." : "تحديث احالة"}
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-48">
@@ -286,7 +286,7 @@ export function OrdersTable({ orders }: { orders: Order[] }) {
                             </DropdownMenuItem>
                           ))}
                         </DropdownMenuContent>
-                      </DropdownMenu>
+                      </DropdownMenu> */}
                     </div>
                     <p className="text-sm text-gray-500 mt-1">
                       {formatDistanceToNow(new Date(order.createdAt), { addSuffix: true, locale: ar })}

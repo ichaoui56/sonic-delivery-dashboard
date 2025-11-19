@@ -1,8 +1,11 @@
 import Link from "next/link"
 import { Home, ArrowLeft, Search } from 'lucide-react'
 import { Button } from "@/components/ui/button"
+import { auth } from "@/auth"
 
-export default function NotFound() {
+export default async function NotFound() {
+  const session = await auth()
+  const userRole = session?.user?.role.toLowerCase()
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 flex items-center justify-center p-4">
       <div className="max-w-2xl w-full text-center space-y-8">
@@ -33,7 +36,7 @@ export default function NotFound() {
             size="lg"
             className="bg-[#048dba] hover:bg-[#037399] text-white w-full sm:w-auto"
           >
-            <Link href="/dashboard" className="flex items-center gap-2">
+            <Link href={`/${userRole}/dashboard`} className="flex items-center gap-2">
               <Home className="w-5 h-5" />
               العودة للرئيسية
             </Link>
@@ -45,7 +48,7 @@ export default function NotFound() {
             size="lg"
             className="border-[#048dba] text-[#048dba] hover:bg-[#048dba] hover:text-white w-full sm:w-auto"
           >
-            <Link href="/dashboard" className="flex items-center gap-2">
+            <Link href={`/${userRole}/dashboard`} className="flex items-center gap-2">
               <ArrowLeft className="w-5 h-5" />
               الرجوع للخلف
             </Link>
@@ -57,19 +60,19 @@ export default function NotFound() {
           <p className="text-sm text-slate-500 mb-4">روابط قد تهمك:</p>
           <div className="flex flex-wrap gap-4 justify-center text-sm">
             <Link 
-              href="/merchant/inventory" 
+              href={`/${userRole}/dashboard`} 
               className="text-[#048dba] hover:underline hover:text-[#037399] transition-colors"
             >
-              المخزون
+              الرئيسية
             </Link>
             <Link 
-              href="/merchant/orders" 
+              href={`/${userRole}/orders`} 
               className="text-[#048dba] hover:underline hover:text-[#037399] transition-colors"
             >
               الطلبات
             </Link>
             <Link 
-              href="/merchant/settings" 
+              href={`/${userRole}/settings`} 
               className="text-[#048dba] hover:underline hover:text-[#037399] transition-colors"
             >
               الإعدادات
