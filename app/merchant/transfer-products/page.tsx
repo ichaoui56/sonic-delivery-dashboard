@@ -1,23 +1,12 @@
 import { DashboardLayoutWrapper } from "@/components/dashboard-layout-wrapper"
 import { CreateTransferForm } from "@/components/create-transfer-form"
-import { auth } from "@/auth"
-import { redirect } from 'next/navigation'
 
 export const revalidate = 60
 
-export default async function TransferProductsPage() {
-  const session = await auth()
-
-  if (!session?.user) {
-    redirect("/login")
-  }
-
-  if (session.user.role !== "MERCHANT") {
-    redirect("/dashboard")
-  }
+export default function TransferProductsPage() {
 
   return (
-    <DashboardLayoutWrapper userRole={session.user.role}>
+    <DashboardLayoutWrapper userRole="MERCHANT" expectedRole="MERCHANT">
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">نقل المنتجات</h1>

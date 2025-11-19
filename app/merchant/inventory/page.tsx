@@ -6,19 +6,10 @@ import { DashboardLayoutWrapper } from "@/components/dashboard-layout-wrapper"
 
 export const revalidate = 10
 
-export default async function InventoryPage() {
-  const session = await auth()
-
-  if (!session?.user) {
-    redirect("/login")
-  }
-
-  if (session.user.role !== "MERCHANT" ) {
-    redirect("/dashboard")
-  }
+export default function InventoryPage() {
 
   return (
-    <DashboardLayoutWrapper userRole={session.user.role}>
+    <DashboardLayoutWrapper userRole="MERCHANT" expectedRole="MERCHANT">
       <InventoryContent />
     </DashboardLayoutWrapper>
   )

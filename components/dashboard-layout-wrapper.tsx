@@ -1,13 +1,36 @@
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { getCurrentUserData } from "@/lib/actions/user.actions"
+import { getCurrentUser } from "@/lib/actions/auth-actions"
+import { redirect } from 'next/navigation'
 
 export async function DashboardLayoutWrapper({
   children,
   userRole,
+  expectedRole,
 }: {
   children: React.ReactNode
   userRole: string
+  expectedRole?: "ADMIN" | "MERCHANT" | "DELIVERYMAN"
 }) {
+  const user = await getCurrentUser()
+  
+  if (!user) {
+    redirect("/login")
+  }
+
+  if (expectedRole && user.role !== expectedRole) {
+    // Redirect to appropriate dashboard based on actual user role
+    if (user.role === "ADMIN") {
+      redirect("/admin/dashboard")
+    } else if (user.role === "DELIVERYMAN") {
+      redirect("/delivery/dashboard")
+    } else if (user.role === "MERCHANT") {
+      redirect("/merchant/inventory")
+    } else {
+      redirect("/login")
+    }
+  }
+
   const result = await getCurrentUserData()
   const userData = result.success ? result.data : null
 

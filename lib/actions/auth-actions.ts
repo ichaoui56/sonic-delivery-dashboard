@@ -109,10 +109,29 @@ export async function signInAction(prevState: FormState | null, formData: FormDa
       }
     }
 
+    const user = await db.user.findUnique({
+      where: { email: validatedFields.data.email },
+      select: { role: true },
+    })
+
+    const userRole = user?.role
+
+    let redirectUrl = "/dashboard"
+    if (userRole === "ADMIN") {
+      redirectUrl = "/admin/dashboard"
+    } else if (userRole === "DELIVERYMAN") {
+      redirectUrl = "/delivery/dashboard"
+    } else if (userRole === "MERCHANT") {
+      redirectUrl = "/merchant/inventory"
+    }
+    
+    console.log("[v0] redirectUrl", redirectUrl)
+    console.log("[v0] userRole", userRole)
+    
     return {
       success: true,
       message: "تم تسجيل الدخول بنجاح!",
-      redirectUrl: "/dashboard",
+      redirectUrl,
     }
   } catch (error) {
     if (error instanceof Error && error.message === "NEXT_REDIRECT") {
@@ -147,11 +166,9 @@ export async function getCurrentUser() {
     const session = await auth()
 
     if (!session?.user?.id) {
-      console.log("[v0] No session or user id found")
       return null
     }
 
-    // Get the specific user from database using the session user id
     const user = await db.user.findUnique({
       where: { id: Number.parseInt(session.user.id) },
       include: {
@@ -162,7 +179,6 @@ export async function getCurrentUser() {
     })
 
     if (!user) {
-      console.log("[v0] User not found in database:", session.user.id)
       return null
     }
 
@@ -172,7 +188,6 @@ export async function getCurrentUser() {
     return null
   }
 }
-
 
 export async function signOutAction() {
   await signOut({ redirectTo: "/login" })

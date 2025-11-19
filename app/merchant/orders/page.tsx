@@ -4,11 +4,10 @@ import { OrdersContent } from "@/components/merchant/orders/orders-content"
 
 export const revalidate = 10
 
-export default async function OrdersPage() {
-  const user = await getCurrentUser()
+export default function OrdersPage() {
 
   return (
-    <DashboardLayoutWrapper userRole={user?.role || "MERCHANT"}>
+    <DashboardLayoutWrapper userRole="MERCHANT" expectedRole="MERCHANT">
       <OrdersContent />
     </DashboardLayoutWrapper>
   )

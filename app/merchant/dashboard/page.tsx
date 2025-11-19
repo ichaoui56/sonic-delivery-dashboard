@@ -1,5 +1,3 @@
-import { auth } from "@/auth"
-import { redirect } from 'next/navigation'
 import { DashboardLayoutWrapper } from "@/components/dashboard-layout-wrapper"
 import { MerchantDashboardContent } from "@/components/merchant/dashboard/merchant-dashboard-content"
 import { Suspense } from "react"
@@ -7,22 +5,14 @@ import { DashboardStatsSkeleton } from "@/components/skeletons/dashboard-stats-s
 
 export const revalidate = 30
 
-export default async function DashboardPage() {
-  const session = await auth()
-
-  if (!session?.user) {
-    redirect("/login")
-  }
-
-  const userRole = session.user.role || "MERCHANT"
+export default function DashboardPage() {
 
   return (
-    <DashboardLayoutWrapper userRole={userRole}>
+    <DashboardLayoutWrapper userRole="MERCHANT" expectedRole="MERCHANT">
       <Suspense fallback={<DashboardStatsSkeleton />}>
-        {userRole === "MERCHANT" && <MerchantDashboardContent />}
-        {userRole === "ADMIN" && <div>Admin Dashboard Coming Soon</div>}
-        {userRole === "DELIVERYMAN" && <div>Delivery Dashboard Coming Soon</div>}
+        <MerchantDashboardContent />
       </Suspense>
     </DashboardLayoutWrapper>
   )
+
 }

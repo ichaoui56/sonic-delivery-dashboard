@@ -6,7 +6,10 @@ const prisma = new PrismaClient()
 async function main() {
   console.log("[v0] Starting database seeding...")
 
-  const hashedPassword = await bcrypt.hash("password123", 10)
+  const Admin_Hashed_Password = await bcrypt.hash("Admin@123", 10)
+  const Merchant_Hashed_Password = await bcrypt.hash("Merchant@123", 10)
+  const Delivery_Hashed_Password = await bcrypt.hash("Delivery@123", 10)
+  
 
   const adminUser = await prisma.user.upsert({
     where: { email: "admin@sonic-delivery.com" },
@@ -14,7 +17,7 @@ async function main() {
     create: {
       email: "admin@sonic-delivery.com",
       name: "مدير النظام",
-      password: hashedPassword,
+      password: Admin_Hashed_Password,
       phone: "+212600000001",
       role: Role.ADMIN,
       image: null,
@@ -37,7 +40,7 @@ async function main() {
     create: {
       email: "merchant.dakhla@sonic-delivery.com",
       name: "محمد التاجر",
-      password: hashedPassword,
+      password: Merchant_Hashed_Password,
       phone: "+212600000002",
       role: Role.MERCHANT,
       image: null,
@@ -62,7 +65,7 @@ async function main() {
     create: {
       email: "merchant.boujdour@sonic-delivery.com",
       name: "أحمد البوجدوري",
-      password: hashedPassword,
+      password: Merchant_Hashed_Password,
       phone: "+212600000003",
       role: Role.MERCHANT,
       image: null,
@@ -87,7 +90,7 @@ async function main() {
     create: {
       email: "merchant.laayoune@sonic-delivery.com",
       name: "عبد الله العيوني",
-      password: hashedPassword,
+      password: Merchant_Hashed_Password,
       phone: "+212600000004",
       role: Role.MERCHANT,
       image: null,
@@ -114,9 +117,9 @@ async function main() {
     create: {
       email: "delivery.dakhla@sonic-delivery.com",
       name: "يوسف السائق",
-      password: hashedPassword,
+      password: Delivery_Hashed_Password,
       phone: "+212600000005",
-      role: Role.DELIVERY_MAN,
+      role: Role.DELIVERYMAN,
       image: null,
     },
   })
@@ -139,9 +142,9 @@ async function main() {
     create: {
       email: "delivery.boujdour@sonic-delivery.com",
       name: "إبراهيم الموزع",
-      password: hashedPassword,
+      password: Delivery_Hashed_Password,
       phone: "+212600000006",
-      role: Role.DELIVERY_MAN,
+      role: Role.DELIVERYMAN,
       image: null,
     },
   })
@@ -164,9 +167,9 @@ async function main() {
     create: {
       email: "delivery.laayoune@sonic-delivery.com",
       name: "حسن المرسال",
-      password: hashedPassword,
+      password: Delivery_Hashed_Password,
       phone: "+212600000007",
-      role: Role.DELIVERY_MAN,
+      role: Role.DELIVERYMAN,
       image: null,
     },
   })

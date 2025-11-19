@@ -1,19 +1,12 @@
-import { DashboardLayout } from "@/components/dashboard-layout"
 import { AdminTransfersTable } from "@/components/admin-transfers-table"
-import { auth } from "@/auth"
-import { redirect } from "next/navigation"
+import { DashboardLayoutWrapper } from "@/components/dashboard-layout-wrapper"
 
 export const revalidate = 10
 
-export default async function AdminTransfersPage() {
-  const session = await auth()
-
-  if (!session?.user) {
-    redirect("/login")
-  }
+export default function AdminTransfersPage() {
 
   return (
-    <DashboardLayout userRole={session.user.role}>
+    <DashboardLayoutWrapper userRole="ADMIN" expectedRole="ADMIN">
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">إدارة شحنات التجار</h1>
@@ -22,6 +15,6 @@ export default async function AdminTransfersPage() {
 
         <AdminTransfersTable />
       </div>
-    </DashboardLayout>
+    </DashboardLayoutWrapper>
   )
 }

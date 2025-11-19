@@ -6,7 +6,48 @@ import { OptimizedImage } from "@/components/optimized-image"
 import { useState } from "react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { PaymentData } from "@/types/types"
+import { FileText, Eye } from 'lucide-react'
+
+type PaymentData = {
+  totalRevenue: number
+  currentBalance: number
+  totalPaidByAdmin: number
+  merchantBaseFee: number
+  totalAmountOwedByAdmin: number
+  totalAmountOwedToCompany: number
+  paymentHistory: Array<{
+    id: number
+    amount: number
+    reference: string | null
+    note: string | null
+    transferDate: Date
+    invoiceImage: string | null
+  }>
+  deliveredOrders: Array<{
+    id: number
+    orderCode: string
+    customerName: string
+    customerPhone: string
+    totalPrice: number
+    merchantEarning: number
+    paymentMethod: "COD" | "PREPAID"
+    deliveredAt: Date | null
+    orderItems: Array<{
+      id: number
+      quantity: number
+      price: number
+      product: {
+        id: number
+        name: string
+        image: string | null
+      }
+    }>
+  }>
+}
+
+const formatNumber = (num: number): string => {
+  return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
 
 export function PaymentsClient({ initialData }: { initialData: PaymentData }) {
   const [searchQuery, setSearchQuery] = useState("")
@@ -38,12 +79,12 @@ export function PaymentsClient({ initialData }: { initialData: PaymentData }) {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <Card className="bg-gradient-to-br from-[#048dba] to-[#036a8f] text-white border-0">
+        <Card className="bg-[#048dba] text-white border-0">
           <CardHeader className="pb-2">
             <CardTitle className="text-xs sm:text-sm font-medium opacity-90">إجمالي المبيعات</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-xl sm:text-2xl font-bold">{data.totalRevenue.toFixed(2)} د.م</div>
+            <div className="text-xl sm:text-2xl font-bold">{formatNumber(data.totalRevenue)} د.م</div>
             <p className="text-xs opacity-75 mt-1">من جميع الطلبات المسلمة</p>
           </CardContent>
         </Card>
@@ -51,8 +92,8 @@ export function PaymentsClient({ initialData }: { initialData: PaymentData }) {
         <Card
           className={`border-0 ${
             data.currentBalance >= 0
-              ? "bg-gradient-to-br from-green-500 to-green-600"
-              : "bg-gradient-to-br from-red-500 to-red-600"
+              ? "bg-green-500"
+              : "bg-red-500"
           } text-white`}
         >
           <CardHeader className="pb-2">
@@ -63,31 +104,31 @@ export function PaymentsClient({ initialData }: { initialData: PaymentData }) {
           <CardContent>
             <div className="text-xl sm:text-2xl font-bold">
               {data.currentBalance >= 0 ? "+" : ""}
-              {data.currentBalance.toFixed(2)} د.م
+              {formatNumber(data.currentBalance)} د.م
             </div>
             <p className="text-xs opacity-75 mt-1">
-              {data.currentBalance >= 0 ? `رسوم الشركة: ${data.merchantBaseFee} د.م/طلب` : "يجب تسديد المبلغ للشركة"}
+              {data.currentBalance >= 0 ? `رسوم الشركة: ${formatNumber(data.merchantBaseFee)} د.م/طلب` : "يجب تسديد المبلغ للشركة"}
             </p>
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white border-0">
+        <Card className="bg-purple-500 text-white border-0">
           <CardHeader className="pb-2">
             <CardTitle className="text-xs sm:text-sm font-medium opacity-90">المبلغ المستلم</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-xl sm:text-2xl font-bold">{data.totalPaidByAdmin.toFixed(2)} د.م</div>
+            <div className="text-xl sm:text-2xl font-bold">{formatNumber(data.totalPaidByAdmin)} د.م</div>
             <p className="text-xs opacity-75 mt-1">تم استلامه من الإدارة</p>
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-orange-500 to-orange-600 text-white border-0">
+        <Card className="bg-orange-500 text-white border-0">
           <CardHeader className="pb-2">
             <CardTitle className="text-xs sm:text-sm font-medium opacity-90">الرصيد الصافي</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-xl sm:text-2xl font-bold">
-              {(data.currentBalance - data.totalPaidByAdmin).toFixed(2)} د.م
+              {formatNumber(data.currentBalance - data.totalPaidByAdmin)} د.م
             </div>
             <p className="text-xs opacity-75 mt-1">بعد خصم المدفوعات</p>
           </CardContent>
@@ -101,9 +142,9 @@ export function PaymentsClient({ initialData }: { initialData: PaymentData }) {
             <CardTitle className="text-sm font-medium text-gray-700">طلبات الدفع عند الاستلام (COD)</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600 mb-1">+{data.totalAmountOwedByAdmin.toFixed(2)} د.م</div>
+            <div className="text-2xl font-bold text-green-600 mb-1">+{formatNumber(data.totalAmountOwedByAdmin)} د.م</div>
             <p className="text-xs text-gray-500">
-              سيتم دفعها لك من الإدارة (السعر - {data.merchantBaseFee} د.م رسوم - 15 د.م توصيل)
+              سيتم دفعها لك من الإدارة (السعر - {formatNumber(data.merchantBaseFee)} د.م رسوم - 15 د.م توصيل)
             </p>
           </CardContent>
         </Card>
@@ -113,9 +154,9 @@ export function PaymentsClient({ initialData }: { initialData: PaymentData }) {
             <CardTitle className="text-sm font-medium text-gray-700">طلبات الدفع المسبق (PREPAID)</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600 mb-1">-{data.totalAmountOwedToCompany.toFixed(2)} د.م</div>
+            <div className="text-2xl font-bold text-red-600 mb-1">-{formatNumber(data.totalAmountOwedToCompany)} د.م</div>
             <p className="text-xs text-gray-500">
-              مستحق للشركة ({data.merchantBaseFee} د.م رسوم × {prepaidOrders.length} طلب)
+              مستحق للشركة ({formatNumber(data.merchantBaseFee)} د.م رسوم × {prepaidOrders.length} طلب)
             </p>
           </CardContent>
         </Card>
@@ -182,31 +223,59 @@ export function PaymentsClient({ initialData }: { initialData: PaymentData }) {
               {filteredPayments.map((transfer) => (
                 <div
                   key={transfer.id}
-                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
                 >
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                        تحويل مالي
-                      </Badge>
-                      {transfer.reference && (
-                        <span className="text-xs text-gray-500 truncate">المرجع: {transfer.reference}</span>
-                      )}
+                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                          تحويل مالي
+                        </Badge>
+                        {transfer.reference && (
+                          <span className="text-xs text-gray-500 truncate font-mono">المرجع: {transfer.reference}</span>
+                        )}
+                      </div>
+                      {transfer.note && <p className="text-sm text-gray-600 mt-1">{transfer.note}</p>}
+                      <p className="text-xs text-gray-400 mt-1">
+                        {new Date(transfer.transferDate).toLocaleDateString("ar-EG", {
+                          year: "numeric",
+                          month: "long",
+                          day: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                          numberingSystem: "latn",
+                        })}
+                      </p>
                     </div>
-                    {transfer.note && <p className="text-sm text-gray-600 mt-1">{transfer.note}</p>}
-                    <p className="text-xs text-gray-400 mt-1">
-                      {new Date(transfer.transferDate).toLocaleDateString("ar-EG", {
-                        year: "numeric",
-                        month: "long",
-                        day: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </p>
+                    <div className="text-right sm:text-left shrink-0">
+                      <div className="text-lg sm:text-xl font-bold text-green-600">+{formatNumber(transfer.amount)} د.م</div>
+                    </div>
                   </div>
-                  <div className="text-right sm:text-left shrink-0">
-                    <div className="text-lg sm:text-xl font-bold text-green-600">+{transfer.amount.toFixed(2)} د.م</div>
-                  </div>
+
+                  {transfer.invoiceImage && (
+                    <div className="pt-3 border-t border-gray-100">
+                      <p className="text-xs text-gray-500 mb-2 flex items-center gap-1">
+                        <FileText className="w-3 h-3" />
+                        صورة الفاتورة:
+                      </p>
+                      <a
+                        href={transfer.invoiceImage}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block group"
+                      >
+                        <img
+                          src={transfer.invoiceImage || "/placeholder.svg"}
+                          alt="فاتورة الدفع"
+                          className="w-full max-w-xs rounded-lg border-2 border-gray-200 hover:border-[#048dba] transition-colors cursor-pointer group-hover:shadow-lg"
+                        />
+                        <p className="text-xs text-[#048dba] mt-1 flex items-center gap-1">
+                          <Eye className="w-3 h-3" />
+                          اضغط للعرض بالحجم الكامل
+                        </p>
+                      </a>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -271,19 +340,19 @@ export function PaymentsClient({ initialData }: { initialData: PaymentData }) {
                     </div>
                     <div className="text-right shrink-0">
                       <div className="text-base font-medium text-gray-500">السعر الكلي</div>
-                      <div className="text-lg font-bold text-gray-900">{order.totalPrice.toFixed(2)} د.م</div>
+                      <div className="text-lg font-bold text-gray-900">{formatNumber(order.totalPrice)} د.م</div>
                       <div
                         className={`text-sm font-medium mt-1 ${
                           order.merchantEarning >= 0 ? "text-green-600" : "text-red-600"
                         }`}
                       >
                         {order.merchantEarning >= 0 ? "ربحك: +" : "مستحق عليك: "}
-                        {Math.abs(order.merchantEarning).toFixed(2)} د.م
+                        {formatNumber(Math.abs(order.merchantEarning))} د.م
                       </div>
                       <div className="text-xs text-gray-500 mt-1">
                         {order.paymentMethod === "COD"
-                          ? `رسوم الشركة: ${data.merchantBaseFee} د.م`
-                          : `رسوم مستحقة: ${data.merchantBaseFee} د.م`}
+                          ? `رسوم الشركة: ${formatNumber(data.merchantBaseFee)} د.م`
+                          : `رسوم مستحقة: ${formatNumber(data.merchantBaseFee)} د.م`}
                       </div>
                     </div>
                   </div>
@@ -304,11 +373,11 @@ export function PaymentsClient({ initialData }: { initialData: PaymentData }) {
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-gray-900 truncate">{item.product.name}</p>
                           <p className="text-xs text-gray-500">
-                            {item.quantity} × {item.price.toFixed(2)} د.م
+                            {item.quantity} × {formatNumber(item.price)} د.م
                           </p>
                         </div>
                         <div className="text-sm font-medium text-gray-900 shrink-0">
-                          {(item.quantity * item.price).toFixed(2)} د.م
+                          {formatNumber(item.quantity * item.price)} د.م
                         </div>
                       </div>
                     ))}

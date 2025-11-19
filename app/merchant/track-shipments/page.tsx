@@ -1,23 +1,13 @@
 import { DashboardLayoutWrapper } from "@/components/dashboard-layout-wrapper"
 import { auth } from "@/auth"
-import { redirect } from 'next/navigation'
 import { TrackShipmentsContent } from "@/components/merchant/track-shipments/track-shipments-content"
 
 export const revalidate = 60
 
-export default async function TrackShipmentsPage() {
-  const session = await auth()
-
-  if (!session?.user) {
-    redirect("/login")
-  }
-
-  if (session.user.role !== "MERCHANT") {
-    redirect("/dashboard")
-  }
+export default function TrackShipmentsPage() {
 
   return (
-    <DashboardLayoutWrapper userRole={session.user.role}>
+    <DashboardLayoutWrapper userRole="MERCHANT" expectedRole="MERCHANT">
       <TrackShipmentsContent />
     </DashboardLayoutWrapper>
   )
