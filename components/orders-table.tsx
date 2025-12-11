@@ -10,8 +10,8 @@ import { formatDistanceToNow } from "date-fns"
 import { ar } from "date-fns/locale"
 import { updateOrderStatus } from "@/lib/actions/order.actions"
 import { useToast } from "@/hooks/use-toast"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { OrderStatus } from "@prisma/client"
+import type { OrderStatus } from "@prisma/client"
+import { Tag, TrendingDown } from "lucide-react"
 
 type Order = {
   id: number
@@ -27,10 +27,19 @@ type Order = {
   status: string
   createdAt: Date
   deliveredAt: Date | null
+  discountType: string | null
+  discountValue: number | null
+  discountDescription: string | null
+  originalTotalPrice: number | null
+  totalDiscount: number | null
+  buyXGetYConfig: string | null
+  // </CHANGE>
   orderItems: {
     id: number
     quantity: number
     price: number
+    originalPrice: number | null
+    isFree: boolean
     product: {
       id: number
       name: string
@@ -55,6 +64,13 @@ const statusMap: Record<string, { label: string; color: string }> = {
   DELIVERED: { label: "تم التسليم", color: "bg-green-100 text-green-800 border-green-200" },
   REJECTED: { label: "مرفوض", color: "bg-red-100 text-red-800 border-red-200" },
   CANCELLED: { label: "ملغي", color: "bg-gray-100 text-gray-800 border-gray-200" },
+}
+
+const discountTypeLabels: Record<string, string> = {
+  PERCENTAGE: "خصم نسبة مئوية",
+  FIXED_AMOUNT: "خصم مبلغ ثابت",
+  BUY_X_GET_Y: "اشتر X واحصل على Y",
+  CUSTOM_PRICE: "سعر مخصص",
 }
 
 export function OrdersTable({ orders }: { orders: Order[] }) {
@@ -115,7 +131,6 @@ export function OrdersTable({ orders }: { orders: Order[] }) {
   const handleStatusUpdate = async (orderId: number, newStatus: OrderStatus) => {
     setUpdatingOrderId(orderId)
     const result = await updateOrderStatus(orderId, newStatus)
-
     if (result.success) {
       toast({
         title: "✓ تم التحديث",
@@ -128,7 +143,6 @@ export function OrdersTable({ orders }: { orders: Order[] }) {
         variant: "destructive",
       })
     }
-
     setUpdatingOrderId(null)
   }
 
@@ -145,13 +159,12 @@ export function OrdersTable({ orders }: { orders: Order[] }) {
       { value: "REJECTED", label: "مرفوض" },
       { value: "CANCELLED", label: "ملغي" },
     ]
-
     return allStatuses.filter((status) => status.value !== currentStatus)
   }
 
   return (
     <div className="space-y-4">
-      {/* Stats Cards */}
+      {/* ... existing stats cards ... */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <Card
           className={`cursor-pointer transition-all ${statusFilter === "ALL" ? "ring-2 ring-[#048dba]" : ""}`}
@@ -162,7 +175,6 @@ export function OrdersTable({ orders }: { orders: Order[] }) {
             <p className="text-xl sm:text-2xl font-bold text-gray-900">{stats.total}</p>
           </CardContent>
         </Card>
-
         <Card
           className={`cursor-pointer transition-all ${statusFilter === "PENDING" ? "ring-2 ring-yellow-500" : ""}`}
           onClick={() => setStatusFilter(statusFilter === "PENDING" ? "ALL" : "PENDING")}
@@ -172,7 +184,6 @@ export function OrdersTable({ orders }: { orders: Order[] }) {
             <p className="text-xl sm:text-2xl font-bold text-yellow-600">{stats.pending}</p>
           </CardContent>
         </Card>
-
         <Card
           className={`cursor-pointer transition-all ${statusFilter === "DELIVERED" ? "ring-2 ring-green-500" : ""}`}
           onClick={() => setStatusFilter(statusFilter === "DELIVERED" ? "ALL" : "DELIVERED")}
@@ -182,7 +193,6 @@ export function OrdersTable({ orders }: { orders: Order[] }) {
             <p className="text-xl sm:text-2xl font-bold text-green-600">{stats.delivered}</p>
           </CardContent>
         </Card>
-
         <Card
           className={`cursor-pointer transition-all ${statusFilter === "CANCELLED" ? "ring-2 ring-red-500" : ""}`}
           onClick={() => {
@@ -200,7 +210,7 @@ export function OrdersTable({ orders }: { orders: Order[] }) {
         </Card>
       </div>
 
-      {/* Search */}
+      {/* ... existing search ... */}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <svg
@@ -224,7 +234,6 @@ export function OrdersTable({ orders }: { orders: Order[] }) {
             className="pr-10 min-h-[44px]"
           />
         </div>
-
         {statusFilter !== "ALL" && (
           <Button variant="outline" onClick={() => setStatusFilter("ALL")} className="min-h-[44px]">
             مسح الفلتر
@@ -232,7 +241,6 @@ export function OrdersTable({ orders }: { orders: Order[] }) {
         )}
       </div>
 
-      {/* Results Count */}
       <div className="text-sm text-gray-600">
         عرض {filteredOrders.length} من {orders.length} طلب
       </div>
@@ -264,43 +272,60 @@ export function OrdersTable({ orders }: { orders: Order[] }) {
                       <Badge variant="outline" className="font-normal">
                         {order.paymentMethod === "COD" ? "الدفع عند الاستلام" : "مدفوع مسبقاً"}
                       </Badge>
-                      {/* <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            disabled={updatingOrderId === order.id}
-                            className="h-7 text-xs bg-transparent"
-                          >
-                            {updatingOrderId === order.id ? "جاري التحديث..." : "تحديث احالة"}
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-48">
-                          {getAvailableStatuses(order.status).map((status) => (
-                            <DropdownMenuItem
-                              key={status.value}
-                              onClick={() => handleStatusUpdate(order.id, status.value as OrderStatus)}
-                              className="cursor-pointer"
-                            >
-                              {status.label}
-                            </DropdownMenuItem>
-                          ))}
-                        </DropdownMenuContent>
-                      </DropdownMenu> */}
+                      {order.discountType && order.totalDiscount && order.totalDiscount > 0 && (
+                        <Badge variant="secondary" className="bg-green-100 text-green-800 border-green-200">
+                          <Tag className="w-3 h-3 ml-1" />
+                          خصم {order.totalDiscount.toFixed(0)} د.م
+                        </Badge>
+                      )}
+                      {/* </CHANGE> */}
                     </div>
                     <p className="text-sm text-gray-500 mt-1">
                       {formatDistanceToNow(new Date(order.createdAt), { addSuffix: true, locale: ar })}
                     </p>
                   </div>
                 </div>
-
                 <div className="text-left">
-                  <p className="text-2xl font-bold text-[#048dba]">{order.totalPrice.toFixed(2)} د.م</p>
+                  {order.originalTotalPrice && order.originalTotalPrice !== order.totalPrice ? (
+                    <div>
+                      <p className="text-sm text-gray-500 line-through">{order.originalTotalPrice.toFixed(2)} د.م</p>
+                      <p className="text-2xl font-bold text-[#048dba]">{order.totalPrice.toFixed(2)} د.م</p>
+                      <div className="flex items-center gap-1 text-xs text-green-600">
+                        <TrendingDown className="w-3 h-3" />
+                        <span>وفر {order.totalDiscount?.toFixed(0)} د.م</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-2xl font-bold text-[#048dba]">{order.totalPrice.toFixed(2)} د.م</p>
+                  )}
+                  {/* </CHANGE> */}
                   <p className="text-sm text-gray-500">ربحك: {order.merchantEarning.toFixed(2)} د.م</p>
                 </div>
               </div>
 
-              {/* Customer Info */}
+              {order.discountType && order.totalDiscount && order.totalDiscount > 0 && (
+                <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <div className="flex items-center gap-2 text-sm">
+                    <Tag className="w-4 h-4 text-green-600" />
+                    <span className="font-medium text-green-800">
+                      {discountTypeLabels[order.discountType] || order.discountType}
+                    </span>
+                    {order.discountValue && (
+                      <span className="text-green-600">
+                        (
+                        {order.discountType === "PERCENTAGE" ? `${order.discountValue}%` : `${order.discountValue} د.م`}
+                        )
+                      </span>
+                    )}
+                  </div>
+                  {order.discountDescription && (
+                    <p className="text-xs text-gray-600 mt-1">{order.discountDescription}</p>
+                  )}
+                </div>
+              )}
+              {/* </CHANGE> */}
+
+              {/* ... existing customer info ... */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-4 bg-gray-50 rounded-lg mb-4">
                 <div>
                   <p className="text-xs text-gray-500 mb-1">اسم العميل</p>
@@ -363,10 +388,26 @@ export function OrdersTable({ orders }: { orders: Order[] }) {
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-sm truncate">{item.product.name}</p>
                         <p className="text-xs text-gray-500">
-                          {item.price.toFixed(2)} د.م × {item.quantity}
+                          {item.isFree ? (
+                            <Badge variant="secondary" className="text-xs bg-green-100 text-green-800">
+                              مجاني
+                            </Badge>
+                          ) : (
+                            <>
+                              {item.originalPrice && item.originalPrice !== item.price && (
+                                <span className="line-through text-gray-400 ml-1">
+                                  {item.originalPrice.toFixed(2)} د.م
+                                </span>
+                              )}
+                              {item.price.toFixed(2)} د.م × {item.quantity}
+                            </>
+                          )}
+                          {/* </CHANGE> */}
                         </p>
                       </div>
-                      <p className="font-bold text-sm text-[#048dba]">{(item.price * item.quantity).toFixed(2)} د.م</p>
+                      <p className="font-bold text-sm text-[#048dba]">
+                        {item.isFree ? "0.00" : (item.price * item.quantity).toFixed(2)} د.م
+                      </p>
                     </div>
                   ))}
                 </div>

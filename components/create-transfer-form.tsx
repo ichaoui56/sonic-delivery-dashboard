@@ -12,6 +12,7 @@ import { Plus, Trash2, Package, Truck, AlertCircle, X, Loader2, ImageIcon } from
 import {
   createProductTransfer,
   createProduct,
+  getMerchantProductsForTransfer,
   getMerchantProducts,
   type ProductTransferItem,
 } from "@/lib/actions/product-transfer-actions"
@@ -82,7 +83,7 @@ export function CreateTransferForm() {
     }
 
     setLoading(true)
-    const result = await getMerchantProducts()
+    const result = await getMerchantProductsForTransfer()
     if (result.success && result.data) {
       setProducts(result.data)
       // Cache for 2 minutes

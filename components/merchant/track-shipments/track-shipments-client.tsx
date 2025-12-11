@@ -1,7 +1,7 @@
 "use client"
 
 import { Card, CardContent } from "@/components/ui/card"
-import { Package } from 'lucide-react'
+import { Package } from "lucide-react"
 import { TrackShipmentsTable } from "@/components/track-shipments-table"
 
 type Transfer = any // Use the proper type from your codebase

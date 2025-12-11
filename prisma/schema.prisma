@@ -1,4 +1,3 @@
-// schema.prisma
 generator client {
   provider = "prisma-client-js"
 }
@@ -39,7 +38,7 @@ model Merchant {
   bankName         String?
   balance          Float             @default(0)
   totalEarned      Float             @default(0)
-  baseFee          Float             @default(0) // Base fee per successful order
+  baseFee          Float             @default(0)
   createdAt        DateTime          @default(now())
   user             User              @relation(fields: [userId], references: [id])
   moneyTransfers   MoneyTransfer[]
@@ -105,11 +104,18 @@ model Order {
   status                 OrderStatus       @default(PENDING)
   merchantId             Int
   deliveryManId          Int?
+  discountType           DiscountType?     // Type of discount applied
+  discountValue          Float?            // Percentage or fixed amount value
+  discountDescription    String?           // Merchant's description of the promotion
+  originalTotalPrice     Float?            // Original price before discount
+  totalDiscount          Float?            // Total discount amount applied
+  buyXGetYConfig         String?           // JSON string for buy X get Y rules
+  // </CHANGE>
   createdAt              DateTime          @default(now())
   deliveredAt            DateTime?
   updatedAt              DateTime          @updatedAt
   Notification           Notification[]
-  deliveryAttemptHistory DeliveryAttempt[] // Track all delivery attempts
+  deliveryAttemptHistory DeliveryAttempt[]
   deliveryMan            DeliveryMan?      @relation(fields: [deliveryManId], references: [id])
   merchant               Merchant          @relation(fields: [merchantId], references: [id])
   orderItems             OrderItem[]
@@ -118,13 +124,13 @@ model Order {
 model DeliveryAttempt {
   id            Int           @id @default(autoincrement())
   orderId       Int
-  attemptNumber Int // This represents the delivery attempt count
+  attemptNumber Int
   deliveryManId Int?
   attemptedAt   DateTime      @default(now())
   status        AttemptStatus
-  reason        String? // Reason for failure (if failed)
-  notes         String? // Additional notes from delivery man
-  location      String? // GPS location or address where attempt was made
+  reason        String?
+  notes         String?
+  location      String?
   deliveryMan   DeliveryMan?  @relation(fields: [deliveryManId], references: [id])
   order         Order         @relation(fields: [orderId], references: [id])
 
@@ -137,6 +143,9 @@ model OrderItem {
   productId Int
   quantity  Int
   price     Float
+  originalPrice Float? // Price before discount
+  isFree        Boolean @default(false) // Mark free items from promotions
+  // </CHANGE>
   order     Order   @relation(fields: [orderId], references: [id])
   product   Product @relation(fields: [productId], references: [id])
 }
@@ -150,7 +159,7 @@ model DeliveryMan {
   totalDeliveries      Int               @default(0)
   successfulDeliveries Int               @default(0)
   totalEarned          Float             @default(0)
-  baseFee              Float             @default(0) // Base fee per successful delivery
+  baseFee              Float             @default(0)
   rating               Float?
   createdAt            DateTime          @default(now())
   user                 User              @relation(fields: [userId], references: [id])
@@ -160,17 +169,17 @@ model DeliveryMan {
 }
 
 model MoneyTransfer {
-  id           Int          @id @default(autoincrement())
-  merchantId   Int?
+  id            Int          @id @default(autoincrement())
+  merchantId    Int?
   deliveryManId Int?
-  amount       Float
-  transferDate DateTime @default(now())
-  invoiceImage String?
-  reference    String?
-  note         String?
-  createdAt    DateTime @default(now())
-  merchant     Merchant?    @relation(fields: [merchantId], references: [id])
-  deliveryMan  DeliveryMan? @relation(fields: [deliveryManId], references: [id])
+  amount        Float
+  transferDate  DateTime     @default(now())
+  invoiceImage  String?
+  reference     String?
+  note          String?
+  createdAt     DateTime     @default(now())
+  merchant      Merchant?    @relation(fields: [merchantId], references: [id])
+  deliveryMan   DeliveryMan? @relation(fields: [deliveryManId], references: [id])
 }
 
 model Notification {
@@ -222,4 +231,11 @@ enum AttemptStatus {
   WRONG_ADDRESS
   REFUSED
   OTHER
+}
+
+enum DiscountType {
+  PERCENTAGE       // e.g., 10% off
+  FIXED_AMOUNT     // e.g., 50 MAD off
+  BUY_X_GET_Y      // e.g., Buy 2 Get 1 Free
+  CUSTOM_PRICE     // Manual price override
 }

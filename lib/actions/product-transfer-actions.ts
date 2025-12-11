@@ -159,7 +159,12 @@ export async function getMerchantProducts() {
     }
 
     const products = await prisma.product.findMany({
-      where: { merchantId: merchant.id },
+      where: {
+        merchantId: merchant.id,
+        deliveredCount: {
+          gt: 0,
+        },
+      },
       orderBy: { createdAt: "desc" },
     })
 
@@ -266,7 +271,7 @@ export async function updateTransferStatus(
     // Prevent updating from final states
     if (transfer.status === "DELIVERED_TO_WAREHOUSE" || transfer.status === "CANCELLED") {
       console.log("[v0] Transfer already in final state")
-      return { success: false, error: "لا يمكن تحديث شحنة تم تسليمها أو إلغاؤه��" }
+      return { success: false, error: "لا يمكن تحديث شحنة تم تسليمها أو إلغاؤه" }
     }
 
     // Start transaction
@@ -435,7 +440,12 @@ export async function getInventoryStats() {
     }
 
     const products = await prisma.product.findMany({
-      where: { merchantId: merchant.id },
+      where: {
+        merchantId: merchant.id,
+        deliveredCount: {
+          gt: 0,
+        },
+      },
     })
 
     const stats = {
@@ -511,5 +521,241 @@ export async function updateProductInfo(
   } catch (error) {
     console.error("Error updating product:", error)
     return { success: false, error: "فشل في تحديث المنتج" }
+  }
+}
+
+export async function deleteProductTransfer(transferId: number) {
+  try {
+    const session = await auth()
+
+    if (!session?.user || session.user.role !== "MERCHANT") {
+      return { success: false, error: "غير مصرح" }
+    }
+
+    const merchant = await prisma.merchant.findUnique({
+      where: { userId: Number.parseInt(session.user.id) },
+    })
+
+    if (!merchant) {
+      return { success: false, error: "التاجر غير موجود" }
+    }
+
+    const transfer = await prisma.productTransfer.findUnique({
+      where: { id: transferId },
+      include: {
+        merchant: true,
+        transferItems: {
+          include: {
+            product: true,
+          },
+        },
+      },
+    })
+
+    if (!transfer) {
+      return { success: false, error: "الشحنة غير موجودة" }
+    }
+
+    // Check if transfer belongs to merchant
+    if (transfer.merchantId !== merchant.id) {
+      return { success: false, error: "غير مصرح بحذف هذه الشحنة" }
+    }
+
+    // Only allow deletion of PENDING transfers
+    if (transfer.status !== "PENDING") {
+      return { success: false, error: "لا يمكن حذف شحنة تم شحنها أو تسليمها" }
+    }
+
+    await prisma.$transaction(async (tx) => {
+      const productsToDelete: number[] = []
+      const productsToUpdate: { id: number; quantity: number }[] = []
+
+      // Process each product in the transfer
+      for (const item of transfer.transferItems) {
+        // Check if this product appears in any other transfers
+        const otherTransferItems = await tx.transferItem.count({
+          where: {
+            productId: item.productId,
+            transferId: {
+              not: transferId,
+            },
+          },
+        })
+
+        if (otherTransferItems === 0) {
+          // Product only exists in this transfer, mark for deletion
+          productsToDelete.push(item.productId)
+        } else if (transfer.status === "DELIVERED_TO_WAREHOUSE") {
+          // Product exists in other transfers and was delivered, mark for stock adjustment
+          productsToUpdate.push({ id: item.productId, quantity: item.quantity })
+        }
+        // If status is PENDING and product exists elsewhere, no stock adjustment needed
+      }
+
+      await tx.transferItem.deleteMany({
+        where: { transferId },
+      })
+
+      for (const productId of productsToDelete) {
+        await tx.product.delete({
+          where: { id: productId },
+        })
+      }
+
+      for (const { id, quantity } of productsToUpdate) {
+        await tx.product.update({
+          where: { id },
+          data: {
+            stockQuantity: {
+              decrement: quantity,
+            },
+            deliveredCount: {
+              decrement: quantity,
+            },
+          },
+        })
+      }
+
+      // Delete transfer
+      await tx.productTransfer.delete({
+        where: { id: transferId },
+      })
+    })
+
+    revalidateTag(`merchant-transfers-${merchant.id}`)
+    revalidateTag(`merchant-products-${merchant.id}`)
+
+    return {
+      success: true,
+      message: "تم حذف الشحنة بنجاح",
+    }
+  } catch (error) {
+    console.error("Error deleting product transfer:", error)
+    return { success: false, error: "فشل في حذف الشحنة" }
+  }
+}
+
+export async function updateProductTransfer(
+  transferId: number,
+  data: {
+    deliveryCompany?: string
+    trackingNumber?: string
+    note?: string
+    items?: ProductTransferItem[]
+  },
+) {
+  try {
+    const session = await auth()
+
+    if (!session?.user || session.user.role !== "MERCHANT") {
+      return { success: false, error: "غير مصرح" }
+    }
+
+    const merchant = await prisma.merchant.findUnique({
+      where: { userId: Number.parseInt(session.user.id) },
+    })
+
+    if (!merchant) {
+      return { success: false, error: "التاجر غير موجود" }
+    }
+
+    // Get transfer to verify ownership and status
+    const transfer = await prisma.productTransfer.findUnique({
+      where: { id: transferId },
+      include: {
+        merchant: true,
+        transferItems: true,
+      },
+    })
+
+    if (!transfer) {
+      return { success: false, error: "الشحنة غير موجودة" }
+    }
+
+    // Check if transfer belongs to merchant
+    if (transfer.merchantId !== merchant.id) {
+      return { success: false, error: "غير مصرح بتحديث هذه الشحنة" }
+    }
+
+    // Only allow updating PENDING transfers
+    if (transfer.status !== "PENDING") {
+      return { success: false, error: "لا يمكن تحديث شحنة تم شحنها أو تسليمها" }
+    }
+
+    // Update transfer
+    const updatedTransfer = await prisma.$transaction(async (tx) => {
+      // Update basic transfer info
+      const updated = await tx.productTransfer.update({
+        where: { id: transferId },
+        data: {
+          deliveryCompany: data.deliveryCompany !== undefined ? data.deliveryCompany : transfer.deliveryCompany,
+          trackingNumber: data.trackingNumber !== undefined ? data.trackingNumber : transfer.trackingNumber,
+          note: data.note !== undefined ? data.note : transfer.note,
+          updatedAt: new Date(),
+        },
+      })
+
+      // If items are provided, update them
+      if (data.items && data.items.length > 0) {
+        // Delete existing items
+        await tx.transferItem.deleteMany({
+          where: { transferId },
+        })
+
+        // Create new items
+        await tx.transferItem.createMany({
+          data: data.items.map((item) => ({
+            transferId,
+            productId: item.productId,
+            quantity: item.quantity,
+          })),
+        })
+      }
+
+      return updated
+    })
+
+    revalidateTag(`merchant-transfers-${merchant.id}`)
+
+    return {
+      success: true,
+      data: updatedTransfer,
+      message: "تم تحديث الشحنة بنجاح",
+    }
+  } catch (error) {
+    console.error("Error updating product transfer:", error)
+    return { success: false, error: "فشل في تحديث الشحنة" }
+  }
+}
+
+// Add this new function in your server actions
+export async function getMerchantProductsForTransfer() {
+  try {
+    const session = await auth()
+
+    if (!session?.user || session.user.role !== "MERCHANT") {
+      return { success: false, error: "غير مصرح" }
+    }
+
+    const merchant = await prisma.merchant.findUnique({
+      where: { userId: Number.parseInt(session.user.id) },
+    })
+
+    if (!merchant) {
+      return { success: false, error: "التاجر غير موجود" }
+    }
+
+    // Show ALL products for transfer (no deliveredCount filter)
+    const products = await prisma.product.findMany({
+      where: {
+        merchantId: merchant.id,
+      },
+      orderBy: { createdAt: "desc" },
+    })
+
+    return { success: true, data: products }
+  } catch (error) {
+    console.error("Error fetching products:", error)
+    return { success: false, error: "فشل في جلب المنتجات" }
   }
 }

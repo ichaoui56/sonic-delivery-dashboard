@@ -1,15 +1,14 @@
-import { PrismaClient, Role } from "@prisma/client"
-import bcrypt from "bcryptjs"
+import { PrismaClient, Role } from "@prisma/client";
+import bcrypt from "bcryptjs";
 
-const prisma = new PrismaClient()
+const prisma = new PrismaClient();
 
 async function main() {
-  console.log("[v0] Starting database seeding...")
+  console.log("[v0] Starting database seeding...");
 
-  const Admin_Hashed_Password = await bcrypt.hash("Admin@123", 10)
-  const Merchant_Hashed_Password = await bcrypt.hash("Merchant@123", 10)
-  const Delivery_Hashed_Password = await bcrypt.hash("Delivery@123", 10)
-  
+  const Admin_Hashed_Password = await bcrypt.hash("Admin@123", 10);
+  const Merchant_Hashed_Password = await bcrypt.hash("Merchant@123", 10);
+  const Delivery_Hashed_Password = await bcrypt.hash("Delivery@123", 10);
 
   const adminUser = await prisma.user.upsert({
     where: { email: "admin@sonic-delivery.com" },
@@ -22,7 +21,7 @@ async function main() {
       role: Role.ADMIN,
       image: null,
     },
-  })
+  });
 
   const admin = await prisma.admin.upsert({
     where: { userId: adminUser.id },
@@ -30,9 +29,9 @@ async function main() {
     create: {
       userId: adminUser.id,
     },
-  })
+  });
 
-  console.log("[v0] Created admin user:", adminUser.email)
+  console.log("[v0] Created admin user:", adminUser.email);
 
   const merchantDakhla = await prisma.user.upsert({
     where: { email: "merchant.dakhla@sonic-delivery.com" },
@@ -45,7 +44,7 @@ async function main() {
       role: Role.MERCHANT,
       image: null,
     },
-  })
+  });
 
   const merchantDataDakhla = await prisma.merchant.upsert({
     where: { userId: merchantDakhla.id },
@@ -57,7 +56,7 @@ async function main() {
       bankName: "البنك الشعبي",
       balance: 0,
     },
-  })
+  });
 
   const merchantBoujdour = await prisma.user.upsert({
     where: { email: "merchant.boujdour@sonic-delivery.com" },
@@ -70,7 +69,7 @@ async function main() {
       role: Role.MERCHANT,
       image: null,
     },
-  })
+  });
 
   const merchantDataBoujdour = await prisma.merchant.upsert({
     where: { userId: merchantBoujdour.id },
@@ -82,7 +81,7 @@ async function main() {
       bankName: "بنك المغرب",
       balance: 0,
     },
-  })
+  });
 
   const merchantLaayoune = await prisma.user.upsert({
     where: { email: "merchant.laayoune@sonic-delivery.com" },
@@ -95,7 +94,7 @@ async function main() {
       role: Role.MERCHANT,
       image: null,
     },
-  })
+  });
 
   const merchantDataLaayoune = await prisma.merchant.upsert({
     where: { userId: merchantLaayoune.id },
@@ -107,9 +106,9 @@ async function main() {
       bankName: "التجاري وفا بنك",
       balance: 0,
     },
-  })
+  });
 
-  console.log("[v0] Created merchant users for all 3 cities")
+  console.log("[v0] Created merchant users for all 3 cities");
 
   const deliveryDakhla = await prisma.user.upsert({
     where: { email: "delivery.dakhla@sonic-delivery.com" },
@@ -122,7 +121,7 @@ async function main() {
       role: Role.DELIVERYMAN,
       image: null,
     },
-  })
+  });
 
   const deliveryManDakhla = await prisma.deliveryMan.upsert({
     where: { userId: deliveryDakhla.id },
@@ -134,7 +133,7 @@ async function main() {
       active: true,
       totalEarned: 0,
     },
-  })
+  });
 
   const deliveryBoujdour = await prisma.user.upsert({
     where: { email: "delivery.boujdour@sonic-delivery.com" },
@@ -147,7 +146,7 @@ async function main() {
       role: Role.DELIVERYMAN,
       image: null,
     },
-  })
+  });
 
   const deliveryManBoujdour = await prisma.deliveryMan.upsert({
     where: { userId: deliveryBoujdour.id },
@@ -159,7 +158,7 @@ async function main() {
       active: true,
       totalEarned: 0,
     },
-  })
+  });
 
   const deliveryLaayoune = await prisma.user.upsert({
     where: { email: "delivery.laayoune@sonic-delivery.com" },
@@ -172,7 +171,7 @@ async function main() {
       role: Role.DELIVERYMAN,
       image: null,
     },
-  })
+  });
 
   const deliveryManLaayoune = await prisma.deliveryMan.upsert({
     where: { userId: deliveryLaayoune.id },
@@ -184,52 +183,54 @@ async function main() {
       active: true,
       totalEarned: 0,
     },
-  })
+  });
 
-  console.log("[v0] Created delivery men users for all 3 cities with city assignments")
+  console.log(
+    "[v0] Created delivery men users for all 3 cities with city assignments"
+  );
 
   const product1 = await prisma.product.create({
     data: {
       name: "منتج تجريبي 1",
       description: "وصف المنتج التجريبي",
-      price: 150.00,
+      price: 150.0,
       stockQuantity: 50,
       merchantId: merchantDataDakhla.id,
       isActive: true,
       image: null,
     },
-  })
+  });
 
   const product2 = await prisma.product.create({
     data: {
       name: "منتج تجريبي 2",
       description: "وصف المنتج التجريبي",
-      price: 200.00,
+      price: 200.0,
       stockQuantity: 30,
       merchantId: merchantDataBoujdour.id,
       isActive: true,
       image: null,
     },
-  })
+  });
 
-  console.log("[v0] Created sample products")
+  console.log("[v0] Created sample products");
 
-  console.log("[v0] ✅ Database seeding completed successfully!")
-  console.log("[v0] Test credentials (all passwords: password123):")
-  console.log("[v0]   Admin: admin@sonic-delivery.com")
-  console.log("[v0]   Merchant Dakhla: merchant.dakhla@sonic-delivery.com")
-  console.log("[v0]   Merchant Boujdour: merchant.boujdour@sonic-delivery.com")
-  console.log("[v0]   Merchant Laayoune: merchant.laayoune@sonic-delivery.com")
-  console.log("[v0]   Delivery Dakhla: delivery.dakhla@sonic-delivery.com")
-  console.log("[v0]   Delivery Boujdour: delivery.boujdour@sonic-delivery.com")
-  console.log("[v0]   Delivery Laayoune: delivery.laayoune@sonic-delivery.com")
+  console.log("[v0] ✅ Database seeding completed successfully!");
+  console.log("[v0] Test credentials (all passwords: password123):");
+  console.log("[v0]   Admin: admin@sonic-delivery.com");
+  console.log("[v0]   Merchant Dakhla: merchant.dakhla@sonic-delivery.com");
+  console.log("[v0]   Merchant Boujdour: merchant.boujdour@sonic-delivery.com");
+  console.log("[v0]   Merchant Laayoune: merchant.laayoune@sonic-delivery.com");
+  console.log("[v0]   Delivery Dakhla: delivery.dakhla@sonic-delivery.com");
+  console.log("[v0]   Delivery Boujdour: delivery.boujdour@sonic-delivery.com");
+  console.log("[v0]   Delivery Laayoune: delivery.laayoune@sonic-delivery.com");
 }
 
 main()
   .catch((e) => {
-    console.error("[v0] ❌ Error during seeding:", e)
-    process.exit(1)
+    console.error("[v0] ❌ Error during seeding:", e);
+    process.exit(1);
   })
   .finally(async () => {
-    await prisma.$disconnect()
-  })
+    await prisma.$disconnect();
+  });

@@ -4,25 +4,20 @@ import db from "@/lib/db"
 import { revalidatePath } from "next/cache"
 import { getCurrentUser } from "./auth-actions"
 
-type OrderStatus =
-  | "PENDING"
-  | "ACCEPTED"
-  | "ASSIGNED_TO_DELIVERY"
-  | "DELIVERED"
-  | "REPORTED"
-  | "REJECTED"
-  | "CANCELLED"
+type OrderStatus = "PENDING" | "ACCEPTED" | "ASSIGNED_TO_DELIVERY" | "DELIVERED" | "REPORTED" | "REJECTED" | "CANCELLED"
+
+type DiscountType = "PERCENTAGE" | "FIXED_AMOUNT" | "BUY_X_GET_Y" | "CUSTOM_PRICE"
 
 function getCityCode(city: string): string {
   const cityMap: Record<string, string> = {
-    "الداخلة": "DA",
-    "Dakhla": "DA",
-    "بوجدور": "BO",
-    "Boujdour": "BO",
-    "العيون": "LA",
-    "Laayoune": "LA",
+    الداخلة: "DA",
+    Dakhla: "DA",
+    بوجدور: "BO",
+    Boujdour: "BO",
+    العيون: "LA",
+    Laayoune: "LA",
   }
-  return cityMap[city] || "DA" // Default to DA if city not found
+  return cityMap[city] || "DA"
 }
 
 export async function createOrder(data: {
@@ -32,7 +27,21 @@ export async function createOrder(data: {
   city: string
   note?: string
   paymentMethod: "COD" | "PREPAID"
-  items: { productId: number; quantity: number; price: number }[]
+  items: {
+    productId: number
+    quantity: number
+    price: number
+    originalPrice?: number
+    isFree?: boolean
+  }[]
+  // New discount fields
+  discountType?: DiscountType
+  discountValue?: number
+  discountDescription?: string
+  originalTotalPrice?: number
+  totalDiscount?: number
+  buyXGetYConfig?: string
+  finalTotal?: number
 }) {
   try {
     const user = await getCurrentUser()
@@ -51,11 +60,14 @@ export async function createOrder(data: {
       return { success: false, message: "التاجر غير موجود" }
     }
 
-    // Calculate total price
-    const totalPrice = data.items.reduce((sum, item) => sum + item.price * item.quantity, 0)
+    // Calculate total price (use finalTotal if provided, otherwise calculate from items)
+    const totalPrice = data.finalTotal ?? data.items.reduce((sum, item) => sum + item.price * item.quantity, 0)
+
+    const originalTotalPrice = data.originalTotalPrice ?? totalPrice
+    const totalDiscount = data.totalDiscount ?? 0
 
     const cityCode = getCityCode(data.city)
-    
+
     // Get the latest order for this specific city
     const latestOrder = await db.order.findFirst({
       where: {
@@ -67,25 +79,25 @@ export async function createOrder(data: {
 
     let nextOrderNumber = 1
     if (latestOrder?.orderCode) {
-      // Match pattern: OR-XX-NNNNNN where XX is city code
       const match = latestOrder.orderCode.match(/OR-[A-Z]{2}-(\d+)/)
       if (match) {
         nextOrderNumber = Number.parseInt(match[1]) + 1
       }
     }
-    
-    // Generate city-specific order code: OR-DA-000001, OR-BO-000001, OR-LA-000001
+
     const orderCode = `OR-${cityCode}-${nextOrderNumber.toString().padStart(6, "0")}`
 
     const merchantBaseFee = merchant.baseFee || 25
     const merchantEarning = totalPrice - merchantBaseFee
 
     console.log(
-      `[v0] Order ${orderCode} - City: ${data.city} (${cityCode}) - Total: ${totalPrice}, Merchant Base Fee: ${merchantBaseFee}, Merchant Earning: ${merchantEarning}`,
+      `[v0] Order ${orderCode} - City: ${data.city} (${cityCode}) - Original: ${originalTotalPrice}, Discount: ${totalDiscount}, Final: ${totalPrice}, Merchant Earning: ${merchantEarning}`,
     )
 
     // Validate stock availability
     for (const item of data.items) {
+      if (item.isFree) continue // Skip stock check for free items
+
       const product = await db.product.findUnique({
         where: { id: item.productId },
       })
@@ -111,11 +123,20 @@ export async function createOrder(data: {
         paymentMethod: data.paymentMethod,
         merchantEarning,
         merchantId: merchant.id,
+        // Discount fields
+        discountType: data.discountType || null,
+        discountValue: data.discountValue || null,
+        discountDescription: data.discountDescription || null,
+        originalTotalPrice: originalTotalPrice,
+        totalDiscount: totalDiscount,
+        buyXGetYConfig: data.buyXGetYConfig || null,
         orderItems: {
           create: data.items.map((item) => ({
             productId: item.productId,
             quantity: item.quantity,
             price: item.price,
+            originalPrice: item.originalPrice || item.price,
+            isFree: item.isFree || false,
           })),
         },
       },
@@ -128,9 +149,9 @@ export async function createOrder(data: {
       },
     })
 
-    console.log("[v0] Order created successfully:", orderCode)
-    revalidatePath("/merchant/orders")
+    console.log("[v0] Order created successfully with discount:", orderCode)
 
+    revalidatePath("/merchant/orders")
     return { success: true, message: "تم إنشاء الطلب بنجاح", orderCode }
   } catch (error) {
     console.error("[v0] Error creating order:", error)
@@ -177,6 +198,7 @@ export async function updateOrderStatus(orderId: number, newStatus: OrderStatus)
     }
 
     console.log("[v0] Current order status:", order.status)
+
     const previousStatus = order.status
 
     const updatedOrder = await db.order.update({
@@ -191,10 +213,7 @@ export async function updateOrderStatus(orderId: number, newStatus: OrderStatus)
 
     if (newStatus === "REPORTED") {
       console.log("[v0] ===== PROCESSING REPORTED ORDER =====")
-
-      // Get the delivery man
       if (order.deliveryManId) {
-        // Count existing attempts
         const existingAttempts = await db.deliveryAttempt.count({
           where: { orderId },
         })
@@ -233,22 +252,25 @@ export async function updateOrderStatus(orderId: number, newStatus: OrderStatus)
     if (newStatus === "DELIVERED" && previousStatus !== "DELIVERED") {
       console.log("[v0] ===== PROCESSING DELIVERED ORDER =====")
 
-      // Deduct stock
+      // Deduct stock (skip free items)
       for (const item of order.orderItems) {
+        if (item.isFree) {
+          console.log(`[v0] Skipping stock deduction for free item: ${item.product.name}`)
+          continue
+        }
+
         const currentProduct = await db.product.findUnique({
           where: { id: item.productId },
         })
 
         if (currentProduct) {
           const newStock = Math.max(0, currentProduct.stockQuantity - item.quantity)
-
           await db.product.update({
             where: { id: item.productId },
             data: {
               stockQuantity: newStock,
             },
           })
-
           console.log(
             `[v0] Product ${currentProduct.name}: Stock reduced from ${currentProduct.stockQuantity} to ${newStock}`,
           )
@@ -257,11 +279,12 @@ export async function updateOrderStatus(orderId: number, newStatus: OrderStatus)
 
       const merchantBaseFee = order.merchant.baseFee || 25
       const deliveryManBaseFee = order.deliveryMan?.baseFee || 15
-
       const merchantEarning = order.totalPrice - merchantBaseFee
 
       console.log(`[v0] Payment Breakdown:`)
       console.log(`[v0] - Order Total: ${order.totalPrice} MAD`)
+      console.log(`[v0] - Original Total: ${order.originalTotalPrice || order.totalPrice} MAD`)
+      console.log(`[v0] - Discount Applied: ${order.totalDiscount || 0} MAD`)
       console.log(`[v0] - Merchant Base Fee: ${merchantBaseFee} MAD`)
       console.log(`[v0] - Merchant Earning: ${merchantEarning} MAD`)
       console.log(`[v0] - Delivery Man Fee (paid by company): ${deliveryManBaseFee} MAD`)
@@ -279,9 +302,7 @@ export async function updateOrderStatus(orderId: number, newStatus: OrderStatus)
             },
           },
         })
-
         console.log(`[v0] COD Order: Merchant balance increased by ${merchantEarning} MAD`)
-        console.log(`[v0] Company receives ${merchantBaseFee} MAD and pays ${deliveryManBaseFee} MAD to delivery`)
       } else {
         await db.merchant.update({
           where: { id: order.merchant.id },
@@ -294,9 +315,7 @@ export async function updateOrderStatus(orderId: number, newStatus: OrderStatus)
             },
           },
         })
-
         console.log(`[v0] PREPAID Order: Merchant balance decreased by ${merchantBaseFee} MAD`)
-        console.log(`[v0] Company receives ${merchantBaseFee} MAD and pays ${deliveryManBaseFee} MAD to delivery`)
       }
 
       if (order.deliveryManId && order.deliveryMan) {
@@ -393,10 +412,33 @@ export async function getMerchantProducts() {
           gt: 0,
         },
       },
+      include: {
+        TransferItem: {
+          include: {
+            transfer: true,
+          },
+        },
+      },
       orderBy: { name: "asc" },
     })
 
-    return products
+    // Filter products to only include those with delivered transfers
+    const deliveredProducts = products.filter((product) => {
+      // If product has no transfers, don't show it (not delivered yet)
+      if (product.TransferItem.length === 0) {
+        return false
+      }
+
+      // Check if at least one transfer is delivered to warehouse
+      const hasDeliveredTransfer = product.TransferItem.some(
+        (item) => item.transfer.status === "DELIVERED_TO_WAREHOUSE",
+      )
+
+      return hasDeliveredTransfer
+    })
+
+    // Map to remove the TransferItem data from the response
+    return deliveredProducts.map(({ TransferItem, ...product }) => product)
   } catch (error) {
     console.error("[v0] Error fetching products:", error)
     return []
@@ -412,7 +454,6 @@ export async function getDeliveryManOrders() {
       where: { userId: user.id },
     })
 
-    // If no delivery man profile exists, return empty array
     if (!deliveryMan) {
       console.log("[v0] No delivery man profile found")
       return []
@@ -423,11 +464,9 @@ export async function getDeliveryManOrders() {
     const orders = await db.order.findMany({
       where: {
         OR: [
-          // Orders already assigned to this delivery man (regardless of city)
-          { 
-            deliveryManId: deliveryMan.id 
+          {
+            deliveryManId: deliveryMan.id,
           },
-          // Available orders in the same city that aren't assigned to anyone
           {
             status: {
               in: ["PENDING"],
@@ -458,12 +497,13 @@ export async function getDeliveryManOrders() {
     })
 
     console.log(`[v0] Found ${orders.length} orders for delivery man in city: ${deliveryMan.city}`)
-    
-    // Log order details for debugging
-    orders.forEach(order => {
-      console.log(`[v0] Order ${order.orderCode}: city=${order.city}, status=${order.status}, deliveryManId=${order.deliveryManId}`)
+
+    orders.forEach((order) => {
+      console.log(
+        `[v0] Order ${order.orderCode}: city=${order.city}, status=${order.status}, deliveryManId=${order.deliveryManId}`,
+      )
     })
-    
+
     return orders
   } catch (error) {
     console.error("[v0] Error fetching delivery orders:", error)
@@ -494,19 +534,17 @@ export async function acceptOrder(orderId: number) {
       return { success: false, message: "الطلب غير موجود" }
     }
 
-    // Enhanced city validation
     if (deliveryMan.city && order.city !== deliveryMan.city) {
-      return { 
-        success: false, 
-        message: `لا يمكنك قبول طلبات من ${order.city}. أنت مخصص لـ ${deliveryMan.city}` 
+      return {
+        success: false,
+        message: `لا يمكنك قبول طلبات من ${order.city}. أنت مخصص لـ ${deliveryMan.city}`,
       }
     }
 
-    // Check if order is already assigned
     if (order.deliveryManId && order.deliveryManId !== deliveryMan.id) {
-      return { 
-        success: false, 
-        message: "هذا الطلب已被 عامل توصيل آخر قبله" 
+      return {
+        success: false,
+        message: "هذا الطلب تم قبوله من عامل توصيل آخر",
       }
     }
 
@@ -519,7 +557,6 @@ export async function acceptOrder(orderId: number) {
     })
 
     revalidatePath("/delivery/orders")
-
     return { success: true, message: "تم قبول الطلب بنجاح" }
   } catch (error) {
     console.error("[v0] Error accepting order:", error)
@@ -562,7 +599,6 @@ export async function rejectOrder(orderId: number, reason: string) {
     })
 
     revalidatePath("/delivery/orders")
-
     return { success: true, message: "تم رفض الطلب" }
   } catch (error) {
     console.error("[v0] Error rejecting order:", error)

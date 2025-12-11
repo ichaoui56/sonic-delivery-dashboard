@@ -40,7 +40,7 @@ export function LoginForm() {
       }
 
       if (result.success && result.redirectUrl) {
-        window.location.href = result.redirectUrl
+        router.replace(result.redirectUrl)
         return
       }
     } catch (error) {

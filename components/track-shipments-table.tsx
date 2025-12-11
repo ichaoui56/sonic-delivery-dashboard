@@ -6,7 +6,30 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { OptimizedImage } from "./optimized-image"
-import { Package, Truck, CheckCircle, XCircle, Clock, Search, Filter, X, ChevronDown } from "lucide-react"
+import { Package, Truck, CheckCircle, XCircle, Clock, Search, Filter, X, ChevronDown, Edit, Trash2 } from "lucide-react"
+import { deleteProductTransfer, updateProductTransfer } from "@/lib/actions/product-transfer-actions"
+import { useToast } from "@/hooks/use-toast"
+import { useRouter } from "next/navigation"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 type Transfer = {
   id: number
@@ -42,10 +65,20 @@ export function TrackShipmentsTable({ transfers }: { transfers: Transfer[] }) {
   const [statusFilter, setStatusFilter] = useState<string>("ALL")
   const [dateFilter, setDateFilter] = useState<string>("ALL")
   const [showFilters, setShowFilters] = useState(false)
+  const { toast } = useToast()
+  const router = useRouter()
+  const [editingTransfer, setEditingTransfer] = useState<Transfer | null>(null)
+  const [deletingTransferId, setDeletingTransferId] = useState<number | null>(null)
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const [editDeliveryCompany, setEditDeliveryCompany] = useState("")
+  const [editTrackingNumber, setEditTrackingNumber] = useState("")
+  const [editNote, setEditNote] = useState("")
 
   const filteredTransfers = useMemo(() => {
     return transfers.filter((transfer) => {
-      // Search filter
       const matchesSearch =
         searchTerm === "" ||
         transfer.transferCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -53,10 +86,8 @@ export function TrackShipmentsTable({ transfers }: { transfers: Transfer[] }) {
         transfer.trackingNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         transfer.transferItems.some((item) => item.product.name.toLowerCase().includes(searchTerm.toLowerCase()))
 
-      // Status filter
       const matchesStatus = statusFilter === "ALL" || transfer.status === statusFilter
 
-      // Date filter
       let matchesDate = true
       if (dateFilter !== "ALL") {
         const transferDate = new Date(transfer.createdAt)
@@ -100,6 +131,73 @@ export function TrackShipmentsTable({ transfers }: { transfers: Transfer[] }) {
   }
 
   const hasActiveFilters = searchTerm !== "" || statusFilter !== "ALL" || dateFilter !== "ALL"
+
+  const handleEdit = (transfer: Transfer) => {
+    setEditingTransfer(transfer)
+    setEditDeliveryCompany(transfer.deliveryCompany || "")
+    setEditTrackingNumber(transfer.trackingNumber || "")
+    setEditNote(transfer.note || "")
+    setIsEditDialogOpen(true)
+  }
+
+  const handleSubmitEdit = async () => {
+    if (!editingTransfer) return
+
+    setIsSubmitting(true)
+    const result = await updateProductTransfer(editingTransfer.id, {
+      deliveryCompany: editDeliveryCompany,
+      trackingNumber: editTrackingNumber,
+      note: editNote,
+    })
+
+    if (result.success) {
+      toast({
+        title: "تم التحديث",
+        description: "تم تحديث الشحنة بنجاح",
+        variant: "default",
+      })
+      setIsEditDialogOpen(false)
+      setEditingTransfer(null)
+      router.refresh()
+    } else {
+      toast({
+        title: "خطأ",
+        description: result.error || "فشل في تحديث الشحنة",
+        variant: "destructive",
+      })
+    }
+    setIsSubmitting(false)
+  }
+
+  const handleDeleteClick = (transferId: number) => {
+    setDeletingTransferId(transferId)
+    setIsDeleteDialogOpen(true)
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!deletingTransferId) return
+
+    setIsSubmitting(true)
+    const result = await deleteProductTransfer(deletingTransferId)
+
+    if (result.success) {
+      toast({
+        title: "تم الحذف",
+        description: "تم حذف الشحنة بنجاح",
+        variant: "default",
+      })
+      setIsDeleteDialogOpen(false)
+      setDeletingTransferId(null)
+      router.refresh()
+    } else {
+      toast({
+        title: "خطأ",
+        description: result.error || "فشل في حذف الشحنة",
+        variant: "destructive",
+      })
+    }
+    setIsSubmitting(false)
+  }
 
   return (
     <div className="space-y-4 md:space-y-6">
@@ -276,6 +374,7 @@ export function TrackShipmentsTable({ transfers }: { transfers: Transfer[] }) {
             const StatusIcon = status.icon
             const totalItems = transfer.transferItems.reduce((sum, item) => sum + item.quantity, 0)
             const totalValue = transfer.transferItems.reduce((sum, item) => sum + item.product.price * item.quantity, 0)
+            const canEdit = transfer.status === "PENDING"
 
             return (
               <Card key={transfer.id} className="py-0 overflow-hidden hover:shadow-lg transition-shadow">
@@ -294,10 +393,32 @@ export function TrackShipmentsTable({ transfers }: { transfers: Transfer[] }) {
                         </p>
                       </div>
                     </div>
-                    <Badge className={`${status.color} flex items-center gap-1.5 px-3 py-1 whitespace-nowrap`}>
-                      <StatusIcon className="w-4 h-4" />
-                      {status.label}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge className={`${status.color} flex items-center gap-1.5 px-3 py-1 whitespace-nowrap`}>
+                        <StatusIcon className="w-4 h-4" />
+                        {status.label}
+                      </Badge>
+                      {canEdit && (
+                        <div className="flex gap-1">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8 text-white hover:bg-white/20"
+                            onClick={() => handleEdit(transfer)}
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8 text-white hover:bg-white/20 hover:text-red-300"
+                            onClick={() => handleDeleteClick(transfer.id)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent className="p-4 md:p-6 space-y-4 md:space-y-6">
@@ -460,6 +581,74 @@ export function TrackShipmentsTable({ transfers }: { transfers: Transfer[] }) {
           })}
         </div>
       )}
+
+      {/* Edit Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>تعديل معلومات الشحنة</DialogTitle>
+            <DialogDescription>قم بتعديل معلومات الشحنة {editingTransfer?.transferCode}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-delivery-company">شركة النقل</Label>
+              <Input
+                id="edit-delivery-company"
+                value={editDeliveryCompany}
+                onChange={(e) => setEditDeliveryCompany(e.target.value)}
+                placeholder="اسم شركة النقل"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-tracking-number">رقم التتبع</Label>
+              <Input
+                id="edit-tracking-number"
+                value={editTrackingNumber}
+                onChange={(e) => setEditTrackingNumber(e.target.value)}
+                placeholder="رقم التتبع"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-note">ملاحظات</Label>
+              <Textarea
+                id="edit-note"
+                value={editNote}
+                onChange={(e) => setEditNote(e.target.value)}
+                placeholder="أضف ملاحظات..."
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)} disabled={isSubmitting}>
+              إلغاء
+            </Button>
+            <Button onClick={handleSubmitEdit} disabled={isSubmitting} className="bg-[#048dba] hover:bg-[#037a9f]">
+              {isSubmitting ? "جاري الحفظ..." : "حفظ التغييرات"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>هل أنت متأكد؟</AlertDialogTitle>
+            <AlertDialogDescription>سيتم حذف هذه الشحنة نهائياً. لا يمكن التراجع عن هذا الإجراء.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isSubmitting}>إلغاء</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              disabled={isSubmitting}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {isSubmitting ? "جاري الحذف..." : "حذف"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
