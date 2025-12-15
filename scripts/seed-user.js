@@ -195,30 +195,6 @@ async function main() {
     "[v0] Created delivery men users for all 3 cities with city assignments"
   );
 
-  const product1 = await prisma.product.create({
-    data: {
-      name: "منتج تجريبي 1",
-      description: "وصف المنتج التجريبي",
-      price: 150.0,
-      stockQuantity: 50,
-      merchantId: merchantDataDakhla.id,
-      isActive: true,
-      image: null,
-    },
-  });
-
-  const product2 = await prisma.product.create({
-    data: {
-      name: "منتج تجريبي 2",
-      description: "وصف المنتج التجريبي",
-      price: 200.0,
-      stockQuantity: 30,
-      merchantId: merchantDataBoujdour.id,
-      isActive: true,
-      image: null,
-    },
-  });
-
   console.log("[v0] Created sample products");
 
   console.log("[v0] ✅ Database seeding completed successfully!");

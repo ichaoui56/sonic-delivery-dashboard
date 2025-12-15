@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useMemo } from "react"
+import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -10,43 +10,24 @@ import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Badge } from "@/components/ui/badge"
 import { createOrder } from "@/lib/actions/order.actions"
 import { toast } from "sonner"
 import { OptimizedImage } from "./optimized-image"
-import {
-  ShoppingCart,
-  User,
-  CreditCard,
-  Tag,
-  CheckCircle2,
-  ArrowRight,
-  ArrowLeft,
-  Percent,
-  DollarSign,
-  Gift,
-} from "lucide-react"
+import { ShoppingCart, User, CreditCard, CheckCircle2, ArrowRight, ArrowLeft } from "lucide-react"
 
 type Product = {
   id: number
   name: string
-  description: string | null
   image: string | null
   sku: string | null
-  price: number
   stockQuantity: number
 }
-
-type DiscountType = "PERCENTAGE" | "FIXED_AMOUNT" | "BUY_X_GET_Y" | "CUSTOM_PRICE" | null
 
 type SelectedProduct = {
   productId: number
   quantity: number
-  price: number
-  originalPrice: number
   name: string
   image: string | null
-  isFree?: boolean
 }
 
 const CITIES = [
@@ -60,11 +41,10 @@ export function CreateOrderForm({ products }: { products: Product[] }) {
   const [loading, setLoading] = useState(false)
   const [currentStep, setCurrentStep] = useState(1)
 
-  // Product selection state
   const [selectedProducts, setSelectedProducts] = useState<SelectedProduct[]>([])
   const [searchQuery, setSearchQuery] = useState("")
+  const [totalPrice, setTotalPrice] = useState<string>("")
 
-  // Customer info state
   const [formData, setFormData] = useState({
     customerName: "",
     customerPhone: "",
@@ -74,61 +54,11 @@ export function CreateOrderForm({ products }: { products: Product[] }) {
     paymentMethod: "COD" as "COD" | "PREPAID",
   })
 
-  const [discountType, setDiscountType] = useState<DiscountType>(null)
-  const [discountValue, setDiscountValue] = useState<number>(0)
-  const [discountDescription, setDiscountDescription] = useState("")
-  const [buyXGetYConfig, setBuyXGetYConfig] = useState({
-    buyQuantity: 2,
-    getQuantity: 1,
-    applicableProductId: null as number | null,
-  })
-  // </CHANGE>
-
   const filteredProducts = products.filter(
     (product) =>
       product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       product.sku?.toLowerCase().includes(searchQuery.toLowerCase()),
   )
-
-  const pricingCalculations = useMemo(() => {
-    const originalTotal = selectedProducts.reduce((sum, item) => {
-      if (item.isFree) return sum
-      return sum + item.originalPrice * item.quantity
-    }, 0)
-
-    let discountAmount = 0
-    const finalItems = [...selectedProducts]
-
-    if (discountType === "PERCENTAGE" && discountValue > 0) {
-      discountAmount = (originalTotal * discountValue) / 100
-    } else if (discountType === "FIXED_AMOUNT" && discountValue > 0) {
-      discountAmount = Math.min(discountValue, originalTotal)
-    } else if (discountType === "BUY_X_GET_Y" && buyXGetYConfig.applicableProductId) {
-      // Apply buy X get Y logic
-      const targetProduct = selectedProducts.find((p) => p.productId === buyXGetYConfig.applicableProductId)
-
-      if (targetProduct && targetProduct.quantity >= buyXGetYConfig.buyQuantity) {
-        const freeItemsCount =
-          Math.floor(targetProduct.quantity / (buyXGetYConfig.buyQuantity + buyXGetYConfig.getQuantity)) *
-          buyXGetYConfig.getQuantity
-
-        discountAmount = targetProduct.originalPrice * freeItemsCount
-      }
-    } else if (discountType === "CUSTOM_PRICE" && discountValue >= 0) {
-      const customTotal = discountValue
-      discountAmount = originalTotal - customTotal
-    }
-
-    const finalTotal = Math.max(0, originalTotal - discountAmount)
-
-    return {
-      originalTotal,
-      discountAmount,
-      finalTotal,
-      finalItems,
-    }
-  }, [selectedProducts, discountType, discountValue, buyXGetYConfig])
-  // </CHANGE>
 
   const addProduct = (product: Product) => {
     const existing = selectedProducts.find((p) => p.productId === product.id)
@@ -144,11 +74,8 @@ export function CreateOrderForm({ products }: { products: Product[] }) {
         {
           productId: product.id,
           quantity: 1,
-          price: product.price,
-          originalPrice: product.price,
           name: product.name,
           image: product.image,
-          isFree: false,
         },
       ])
     }
@@ -189,6 +116,11 @@ export function CreateOrderForm({ products }: { products: Product[] }) {
       return
     }
 
+    if (!totalPrice || Number.parseFloat(totalPrice) <= 0) {
+      toast.error("يرجى إدخال السعر الإجمالي للطلب")
+      return
+    }
+
     setLoading(true)
     try {
       const result = await createOrder({
@@ -196,18 +128,8 @@ export function CreateOrderForm({ products }: { products: Product[] }) {
         items: selectedProducts.map((p) => ({
           productId: p.productId,
           quantity: p.quantity,
-          price: p.price,
-          originalPrice: p.originalPrice,
-          isFree: p.isFree || false,
         })),
-        discountType: discountType || undefined,
-        discountValue: discountValue || undefined,
-        discountDescription: discountDescription || undefined,
-        originalTotalPrice: pricingCalculations.originalTotal,
-        totalDiscount: pricingCalculations.discountAmount,
-        buyXGetYConfig: discountType === "BUY_X_GET_Y" ? JSON.stringify(buyXGetYConfig) : undefined,
-        finalTotal: pricingCalculations.finalTotal,
-        // </CHANGE>
+        totalPrice: Number.parseFloat(totalPrice),
       })
 
       if (result.success) {
@@ -230,13 +152,11 @@ export function CreateOrderForm({ products }: { products: Product[] }) {
   const steps = [
     { number: 1, title: "اختيار المنتجات", icon: ShoppingCart },
     { number: 2, title: "معلومات العميل", icon: User },
-    { number: 3, title: "تعديل الأسعار", icon: Tag },
-    { number: 4, title: "المراجعة والتأكيد", icon: CheckCircle2 },
+    { number: 3, title: "المراجعة والتأكيد", icon: CheckCircle2 },
   ]
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {/* Progress Steps */}
       <div className="flex items-center justify-between mb-8">
         {steps.map((step, index) => (
           <div key={step.number} className="flex items-center flex-1">
@@ -271,7 +191,6 @@ export function CreateOrderForm({ products }: { products: Product[] }) {
         ))}
       </div>
 
-      {/* Step 1: Product Selection */}
       {currentStep === 1 && (
         <div className="space-y-4">
           <Card>
@@ -282,7 +201,6 @@ export function CreateOrderForm({ products }: { products: Product[] }) {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Search */}
               <div className="relative">
                 <svg
                   className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400"
@@ -306,7 +224,6 @@ export function CreateOrderForm({ products }: { products: Product[] }) {
                 />
               </div>
 
-              {/* Products Grid */}
               <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 max-h-[400px] overflow-y-auto">
                 {filteredProducts.map((product) => (
                   <Card
@@ -331,7 +248,6 @@ export function CreateOrderForm({ products }: { products: Product[] }) {
                         )}
                       </div>
                       <p className="font-medium text-sm mb-1 line-clamp-2">{product.name}</p>
-                      <p className="text-[#048dba] font-bold text-sm">{product.price} د.م</p>
                       <p className="text-xs text-gray-500">متوفر: {product.stockQuantity}</p>
                     </CardContent>
                   </Card>
@@ -346,7 +262,6 @@ export function CreateOrderForm({ products }: { products: Product[] }) {
             </CardContent>
           </Card>
 
-          {/* Selected Products */}
           {selectedProducts.length > 0 && (
             <Card>
               <CardHeader>
@@ -372,9 +287,7 @@ export function CreateOrderForm({ products }: { products: Product[] }) {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-sm line-clamp-2">{item.name}</p>
-                      <p className="text-sm text-gray-500">
-                        {item.price} د.م × {item.quantity}
-                      </p>
+                      <p className="text-sm text-gray-500">الكمية: {item.quantity}</p>
                     </div>
                     <div className="flex items-center gap-2">
                       <Button
@@ -406,9 +319,6 @@ export function CreateOrderForm({ products }: { products: Product[] }) {
                         ×
                       </Button>
                     </div>
-                    <div className="text-right font-bold text-[#048dba] min-w-[80px]">
-                      {(item.price * item.quantity).toFixed(2)} د.م
-                    </div>
                   </div>
                 ))}
               </CardContent>
@@ -429,7 +339,6 @@ export function CreateOrderForm({ products }: { products: Product[] }) {
         </div>
       )}
 
-      {/* Step 2: Customer Information */}
       {currentStep === 2 && (
         <div className="space-y-4">
           <Card>
@@ -504,7 +413,6 @@ export function CreateOrderForm({ products }: { products: Product[] }) {
             </CardContent>
           </Card>
 
-          {/* Payment Method */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -528,7 +436,7 @@ export function CreateOrderForm({ products }: { products: Product[] }) {
                     <RadioGroupItem value="COD" id="cod" />
                     <div>
                       <p className="font-medium">الدفع عند الاستلام</p>
-                      <p className="text-sm text-gray-500">COD - يدفع العميل عند التسليم</p>
+                      <p className="text-sm text-gray-500">COD</p>
                     </div>
                   </div>
                 </Label>
@@ -541,8 +449,8 @@ export function CreateOrderForm({ products }: { products: Product[] }) {
                   <div className="flex items-center gap-3">
                     <RadioGroupItem value="PREPAID" id="prepaid" />
                     <div>
-                      <p className="font-medium">مدفوع مسبقاً</p>
-                      <p className="text-sm text-gray-500">تم الدفع من قبل العميل</p>
+                      <p className="font-medium">الدفع المسبق</p>
+                      <p className="text-sm text-gray-500">PREPAID</p>
                     </div>
                   </div>
                 </Label>
@@ -550,8 +458,8 @@ export function CreateOrderForm({ products }: { products: Product[] }) {
             </CardContent>
           </Card>
 
-          <div className="flex justify-between">
-            <Button type="button" variant="outline" onClick={() => setCurrentStep(1)}>
+          <div className="flex gap-4">
+            <Button type="button" variant="outline" onClick={() => setCurrentStep(1)} className="flex-1">
               <ArrowLeft className="w-4 h-4 ml-2" />
               السابق
             </Button>
@@ -559,7 +467,7 @@ export function CreateOrderForm({ products }: { products: Product[] }) {
               type="button"
               onClick={() => setCurrentStep(3)}
               disabled={!canProceedToStep3}
-              className="bg-[#048dba] hover:bg-[#037ba0]"
+              className="flex-1 bg-[#048dba] hover:bg-[#037ba0]"
             >
               التالي
               <ArrowRight className="w-4 h-4 mr-2" />
@@ -568,426 +476,82 @@ export function CreateOrderForm({ products }: { products: Product[] }) {
         </div>
       )}
 
-      {/* Step 3: Pricing Adjustment */}
       {currentStep === 3 && (
         <div className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Tag className="w-5 h-5" />
-                تعديل الأسعار والعروض الترويجية
-              </CardTitle>
-              <p className="text-sm text-gray-500">اختياري - يمكنك تطبيق خصم أو عرض ترويجي على هذا الطلب</p>
+              <CardTitle>ملخص الطلب</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Discount Type Selection */}
-              <div className="space-y-2">
-                <Label>نوع الخصم</Label>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <Button
-                    type="button"
-                    variant={discountType === null ? "default" : "outline"}
-                    onClick={() => {
-                      setDiscountType(null)
-                      setDiscountValue(0)
-                    }}
-                    className="h-auto py-3"
-                  >
-                    <div className="flex flex-col items-center gap-1">
-                      <CheckCircle2 className="w-5 h-5" />
-                      <span>بدون خصم</span>
-                    </div>
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={discountType === "PERCENTAGE" ? "default" : "outline"}
-                    onClick={() => setDiscountType("PERCENTAGE")}
-                    className="h-auto py-3"
-                  >
-                    <div className="flex flex-col items-center gap-1">
-                      <Percent className="w-5 h-5" />
-                      <span>خصم بالنسبة المئوية</span>
-                    </div>
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={discountType === "FIXED_AMOUNT" ? "default" : "outline"}
-                    onClick={() => setDiscountType("FIXED_AMOUNT")}
-                    className="h-auto py-3"
-                  >
-                    <div className="flex flex-col items-center gap-1">
-                      <DollarSign className="w-5 h-5" />
-                      <span>خصم مبلغ ثابت</span>
-                    </div>
-                  </Button>
-                 
-                </div>
-              </div>
-
-              {/* Percentage Discount */}
-              {discountType === "PERCENTAGE" && (
-                <div className="space-y-3 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                  <div className="flex items-center gap-2 text-blue-700">
-                    <Percent className="w-5 h-5" />
-                    <span className="font-medium">خصم بالنسبة المئوية</span>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="percentageDiscount">نسبة الخصم (%)</Label>
-                    <Input
-                      id="percentageDiscount"
-                      type="number"
-                      min="0"
-                      max="100"
-                      step="0.01"
-                      value={discountValue || ""}
-                      onChange={(e) => setDiscountValue(Number.parseFloat(e.target.value) || 0)}
-                      placeholder="مثال: 10"
-                      className="min-h-[44px]"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="discountDesc">وصف العرض (اختياري)</Label>
-                    <Input
-                      id="discountDesc"
-                      value={discountDescription}
-                      onChange={(e) => setDiscountDescription(e.target.value)}
-                      placeholder="مثال: خصم خاص للعملاء المميزين"
-                      className="min-h-[44px]"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* Fixed Amount Discount */}
-              {discountType === "FIXED_AMOUNT" && (
-                <div className="space-y-3 p-4 bg-green-50 rounded-lg border border-green-200">
-                  <div className="flex items-center gap-2 text-green-700">
-                    <DollarSign className="w-5 h-5" />
-                    <span className="font-medium">خصم مبلغ ثابت</span>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="fixedDiscount">مبلغ الخصم (د.م)</Label>
-                    <Input
-                      id="fixedDiscount"
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={discountValue || ""}
-                      onChange={(e) => setDiscountValue(Number.parseFloat(e.target.value) || 0)}
-                      placeholder="مثال: 50"
-                      className="min-h-[44px]"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="discountDesc">وصف العرض (اختياري)</Label>
-                    <Input
-                      id="discountDesc"
-                      value={discountDescription}
-                      onChange={(e) => setDiscountDescription(e.target.value)}
-                      placeholder="مثال: كوبون خصم 50 درهم"
-                      className="min-h-[44px]"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* Buy X Get Y */}
-              {discountType === "BUY_X_GET_Y" && (
-                <div className="space-y-3 p-4 bg-purple-50 rounded-lg border border-purple-200">
-                  <div className="flex items-center gap-2 text-purple-700">
-                    <Gift className="w-5 h-5" />
-                    <span className="font-medium">اشتر X واحصل على Y مجاناً</span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-2">
-                      <Label htmlFor="buyQuantity">اشتر (عدد)</Label>
-                      <Input
-                        id="buyQuantity"
-                        type="number"
-                        min="1"
-                        value={buyXGetYConfig.buyQuantity}
-                        onChange={(e) =>
-                          setBuyXGetYConfig({
-                            ...buyXGetYConfig,
-                            buyQuantity: Number.parseInt(e.target.value) || 1,
-                          })
-                        }
-                        className="min-h-[44px]"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="getQuantity">احصل على (عدد)</Label>
-                      <Input
-                        id="getQuantity"
-                        type="number"
-                        min="1"
-                        value={buyXGetYConfig.getQuantity}
-                        onChange={(e) =>
-                          setBuyXGetYConfig({
-                            ...buyXGetYConfig,
-                            getQuantity: Number.parseInt(e.target.value) || 1,
-                          })
-                        }
-                        className="min-h-[44px]"
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="applicableProduct">المنتج المطبق عليه العرض</Label>
-                    <Select
-                      value={buyXGetYConfig.applicableProductId?.toString() || ""}
-                      onValueChange={(value) =>
-                        setBuyXGetYConfig({
-                          ...buyXGetYConfig,
-                          applicableProductId: Number.parseInt(value),
-                        })
-                      }
-                    >
-                      <SelectTrigger className="min-h-[44px]">
-                        <SelectValue placeholder="اختر المنتج" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {selectedProducts.map((product) => (
-                          <SelectItem key={product.productId} value={product.productId.toString()}>
-                            {product.name} (الكمية: {product.quantity})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="discountDesc">وصف العرض (اختياري)</Label>
-                    <Input
-                      id="discountDesc"
-                      value={discountDescription}
-                      onChange={(e) => setDiscountDescription(e.target.value)}
-                      placeholder="مثال: اشتر 2 واحصل على 1 مجاناً"
-                      className="min-h-[44px]"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* Custom Price Override */}
-              <Button
-                type="button"
-                variant={discountType === "CUSTOM_PRICE" ? "default" : "outline"}
-                onClick={() => setDiscountType("CUSTOM_PRICE")}
-                className="w-full"
-              >
-                تعديل السعر الإجمالي يدوياً
-              </Button>
-
-              {discountType === "CUSTOM_PRICE" && (
-                <div className="space-y-3 p-4 bg-orange-50 rounded-lg border border-orange-200">
-                  <div className="flex items-center gap-2 text-orange-700">
-                    <DollarSign className="w-5 h-5" />
-                    <span className="font-medium">تعديل السعر الإجمالي</span>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="customPrice">السعر النهائي (د.م)</Label>
-                    <Input
-                      id="customPrice"
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={discountValue || ""}
-                      onChange={(e) => setDiscountValue(Number.parseFloat(e.target.value) || 0)}
-                      placeholder={`السعر الأصلي: ${pricingCalculations.originalTotal.toFixed(2)} د.م`}
-                      className="min-h-[44px]"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="discountDesc">سبب التعديل (اختياري)</Label>
-                    <Input
-                      id="discountDesc"
-                      value={discountDescription}
-                      onChange={(e) => setDiscountDescription(e.target.value)}
-                      placeholder="مثال: عميل مميز - سعر خاص"
-                      className="min-h-[44px]"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* Price Preview */}
-              <Card className="bg-gradient-to-r from-blue-50 to-purple-50 border-[#048dba]">
-                <CardContent className="p-4 space-y-2">
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-600">السعر الأصلي:</span>
-                    <span className="font-bold text-gray-900">{pricingCalculations.originalTotal.toFixed(2)} د.م</span>
-                  </div>
-                  {pricingCalculations.discountAmount > 0 && (
-                    <>
-                      <div className="flex justify-between items-center text-green-600">
-                        <span>الخصم:</span>
-                        <span className="font-bold">- {pricingCalculations.discountAmount.toFixed(2)} د.م</span>
-                      </div>
-                      <div className="border-t border-gray-300 pt-2"></div>
-                    </>
-                  )}
-                  <div className="flex justify-between items-center">
-                    <span className="text-lg font-semibold">السعر النهائي:</span>
-                    <span className="text-2xl font-bold text-[#048dba]">
-                      {pricingCalculations.finalTotal.toFixed(2)} د.م
-                    </span>
-                  </div>
-                  {discountDescription && (
-                    <div className="pt-2 border-t border-gray-300">
-                      <Badge variant="secondary" className="text-xs">
-                        {discountDescription}
-                      </Badge>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </CardContent>
-          </Card>
-
-          <div className="flex justify-between">
-            <Button type="button" variant="outline" onClick={() => setCurrentStep(2)}>
-              <ArrowLeft className="w-4 h-4 ml-2" />
-              السابق
-            </Button>
-            <Button type="button" onClick={() => setCurrentStep(4)} className="bg-[#048dba] hover:bg-[#037ba0]">
-              التالي
-              <ArrowRight className="w-4 h-4 mr-2" />
-            </Button>
-          </div>
-        </div>
-      )}
-      {/* </CHANGE> */}
-
-      {/* Step 4: Review and Confirm */}
-      {currentStep === 4 && (
-        <div className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <CheckCircle2 className="w-5 h-5" />
-                مراجعة الطلب والتأكيد
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Customer Info */}
               <div>
-                <h3 className="font-semibold mb-3 flex items-center gap-2">
-                  <User className="w-4 h-4" />
-                  معلومات العميل
-                </h3>
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div>
-                    <span className="text-gray-500">الاسم:</span>
-                    <span className="font-medium mr-2">{formData.customerName}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-500">الهاتف:</span>
-                    <span className="font-medium mr-2">{formData.customerPhone}</span>
-                  </div>
-                  <div className="col-span-2">
-                    <span className="text-gray-500">العنوان:</span>
-                    <span className="font-medium mr-2">
-                      {formData.address}, {formData.city}
-                    </span>
-                  </div>
-                  <div className="col-span-2">
-                    <span className="text-gray-500">طريقة الدفع:</span>
-                    <Badge variant="outline" className="mr-2">
-                      {formData.paymentMethod === "COD" ? "الدفع عند الاستلام" : "مدفوع مسبقاً"}
-                    </Badge>
-                  </div>
-                </div>
-              </div>
-
-              {/* Products */}
-              <div>
-                <h3 className="font-semibold mb-3 flex items-center gap-2">
-                  <ShoppingCart className="w-4 h-4" />
-                  المنتجات ({selectedProducts.length})
-                </h3>
+                <h3 className="font-semibold mb-2">المنتجات:</h3>
                 <div className="space-y-2">
                   {selectedProducts.map((item) => (
-                    <div key={item.productId} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                      <div className="w-12 h-12 rounded overflow-hidden bg-gray-200 flex-shrink-0">
-                        {item.image ? (
-                          <OptimizedImage
-                            src={item.image}
-                            alt={item.name}
-                            width={48}
-                            height={48}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <ShoppingCart className="w-6 h-6 text-gray-400" />
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex-1">
-                        <p className="font-medium text-sm">{item.name}</p>
-                        <p className="text-xs text-gray-500">
-                          {item.price} د.م × {item.quantity}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-bold text-[#048dba]">{(item.price * item.quantity).toFixed(2)} د.م</p>
-                        {item.isFree && (
-                          <Badge variant="secondary" className="text-xs mt-1">
-                            مجاني
-                          </Badge>
-                        )}
-                      </div>
+                    <div key={item.productId} className="flex justify-between text-sm">
+                      <span>
+                        {item.name} × {item.quantity}
+                      </span>
                     </div>
                   ))}
                 </div>
               </div>
-
-              {/* Pricing Summary */}
-              <div>
-                <h3 className="font-semibold mb-3 flex items-center gap-2">
-                  <Tag className="w-4 h-4" />
-                  ملخص الأسعار
-                </h3>
-                <Card className="bg-gradient-to-r from-blue-50 to-purple-50">
-                  <CardContent className="p-4 space-y-3">
-                    <div className="flex justify-between items-center text-sm">
-                      <span className="text-gray-600">المجموع الأصلي:</span>
-                      <span className="font-semibold">{pricingCalculations.originalTotal.toFixed(2)} د.م</span>
-                    </div>
-
-                    {pricingCalculations.discountAmount > 0 && (
-                      <>
-                        <div className="flex justify-between items-center text-sm text-green-600">
-                          <span>الخصم المطبق:</span>
-                          <span className="font-semibold">- {pricingCalculations.discountAmount.toFixed(2)} د.م</span>
-                        </div>
-                        {discountDescription && (
-                          <div className="text-xs text-gray-500 italic">{discountDescription}</div>
-                        )}
-                        <div className="border-t border-gray-300"></div>
-                      </>
-                    )}
-
-                    <div className="flex justify-between items-center pt-2">
-                      <span className="text-lg font-bold">المجموع النهائي:</span>
-                      <span className="text-2xl font-bold text-[#048dba]">
-                        {pricingCalculations.finalTotal.toFixed(2)} د.م
-                      </span>
-                    </div>
-                  </CardContent>
-                </Card>
+              <div className="border-t pt-4">
+                <h3 className="font-semibold mb-2">معلومات العميل:</h3>
+                <div className="space-y-1 text-sm">
+                  <p>
+                    <span className="font-medium">الاسم:</span> {formData.customerName}
+                  </p>
+                  <p>
+                    <span className="font-medium">الهاتف:</span> {formData.customerPhone}
+                  </p>
+                  <p>
+                    <span className="font-medium">المدينة:</span> {CITIES.find((c) => c.value === formData.city)?.label}
+                  </p>
+                  <p>
+                    <span className="font-medium">العنوان:</span> {formData.address}
+                  </p>
+                  {formData.note && (
+                    <p>
+                      <span className="font-medium">ملاحظات:</span> {formData.note}
+                    </p>
+                  )}
+                  <p>
+                    <span className="font-medium">طريقة الدفع:</span>{" "}
+                    {formData.paymentMethod === "COD" ? "الدفع عند الاستلام" : "الدفع المسبق"}
+                  </p>
+                </div>
+              </div>
+              <div className="border-t pt-4">
+                <Label htmlFor="totalPrice" className="text-base font-semibold mb-2 block">
+                  السعر الإجمالي للطلب *
+                </Label>
+                <Input
+                  id="totalPrice"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={totalPrice}
+                  onChange={(e) => setTotalPrice(e.target.value)}
+                  placeholder="أدخل السعر الإجمالي (درهم)"
+                  required
+                  className="min-h-[44px] text-lg font-bold"
+                />
+                <p className="text-sm text-gray-500 mt-1">أدخل السعر الإجمالي للطلب بعد احتساب كل التكاليف</p>
               </div>
             </CardContent>
           </Card>
 
-          <div className="flex justify-between">
-            <Button type="button" variant="outline" onClick={() => setCurrentStep(3)}>
+          <div className="flex gap-4">
+            <Button type="button" variant="outline" onClick={() => setCurrentStep(2)} className="flex-1">
               <ArrowLeft className="w-4 h-4 ml-2" />
               السابق
             </Button>
-            <Button type="submit" disabled={loading} className="bg-green-600 hover:bg-green-700">
+            <Button
+              type="submit"
+              disabled={loading || !totalPrice || Number.parseFloat(totalPrice) <= 0}
+              className="flex-1 bg-green-500 hover:bg-green-600"
+            >
               {loading ? "جاري الإنشاء..." : "تأكيد الطلب"}
-              <CheckCircle2 className="w-4 h-4 mr-2" />
             </Button>
           </div>
         </div>
@@ -995,4 +559,3 @@ export function CreateOrderForm({ products }: { products: Product[] }) {
     </form>
   )
 }
-// </CHANGE>

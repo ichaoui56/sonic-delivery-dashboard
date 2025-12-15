@@ -373,11 +373,8 @@ export function PaymentsClient({ initialData }: { initialData: PaymentData }) {
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-gray-900 truncate">{item.product.name}</p>
                           <p className="text-xs text-gray-500">
-                            {item.quantity} × {formatNumber(item.price)} د.م
+                            {item.quantity} × قطعة 
                           </p>
-                        </div>
-                        <div className="text-sm font-medium text-gray-900 shrink-0">
-                          {formatNumber(item.quantity * item.price)} د.م
                         </div>
                       </div>
                     ))}

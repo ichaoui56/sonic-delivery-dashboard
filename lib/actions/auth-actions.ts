@@ -169,14 +169,25 @@ export async function getCurrentUser() {
       return null
     }
 
+    const userId = Number.parseInt(session.user.id);
+
     const user = await db.user.findUnique({
-      where: { id: Number.parseInt(session.user.id) },
-      include: {
-        merchant: true,
-        admin: true,
-        deliveryMan: true,
+      where: { id: userId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        password: false, 
+        role: true,
+        image: true,
+        createdAt: true,
+        updatedAt: true,
+        merchant: session.user.role === 'MERCHANT',
+        admin: session.user.role === 'ADMIN',
+        deliveryMan: session.user.role === 'DELIVERYMAN',
       },
-    })
+    });
 
     if (!user) {
       return null

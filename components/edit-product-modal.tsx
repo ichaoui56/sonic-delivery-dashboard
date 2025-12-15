@@ -11,7 +11,7 @@ import { OptimizedImage } from "./optimized-image"
 import { useToast } from "@/hooks/use-toast"
 import { updateProductInfo } from "@/lib/actions/product-transfer-actions"
 import { compressImage } from "@/lib/utils/image-compression"
-import { Loader2, Upload, X } from "lucide-react"
+import { Loader2, Upload, X } from 'lucide-react'
 
 type Product = {
   id: number
@@ -19,7 +19,6 @@ type Product = {
   description: string | null
   image: string | null
   sku: string | null
-  price: number
   stockQuantity: number
   lowStockAlert: number
 }
@@ -40,18 +39,20 @@ export function EditProductModal({ product, open, onClose, onSuccess }: EditProd
     name: "",
     description: "",
     sku: "",
-    price: 0,
     lowStockAlert: 3,
   })
 
   useEffect(() => {
     if (product && open) {
+      console.log("[v0] Product data received:", product)
+      console.log("[v0] lowStockAlert from product:", product.lowStockAlert)
+      const lowStockValue = product.lowStockAlert ?? 3
+      console.log("[v0] Setting lowStockAlert to:", lowStockValue)
       setFormData({
         name: product.name,
         description: product.description || "",
         sku: product.sku || "",
-        price: product.price,
-        lowStockAlert: product.lowStockAlert,
+        lowStockAlert: lowStockValue,
       })
       setImagePreview(product.image)
       setImageFile(null)
@@ -105,11 +106,12 @@ export function EditProductModal({ product, open, onClose, onSuccess }: EditProd
         }
       }
 
+      console.log("[v0] Submitting lowStockAlert:", formData.lowStockAlert)
+
       const result = await updateProductInfo(product.id, {
         name: formData.name,
         description: formData.description || undefined,
         sku: formData.sku || undefined,
-        price: Number(formData.price),
         lowStockAlert: Number(formData.lowStockAlert),
         image: imageUrl || undefined,
       })
@@ -150,7 +152,6 @@ export function EditProductModal({ product, open, onClose, onSuccess }: EditProd
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Image Upload */}
           <div className="space-y-2">
             <Label>صورة المنتج</Label>
             <div className="flex flex-col sm:flex-row items-start gap-4">
@@ -188,7 +189,6 @@ export function EditProductModal({ product, open, onClose, onSuccess }: EditProd
             </div>
           </div>
 
-          {/* Product Name */}
           <div className="space-y-2">
             <Label htmlFor="name">اسم المنتج *</Label>
             <Input
@@ -200,7 +200,6 @@ export function EditProductModal({ product, open, onClose, onSuccess }: EditProd
             />
           </div>
 
-          {/* Description */}
           <div className="space-y-2">
             <Label htmlFor="description">الوصف</Label>
             <Textarea
@@ -212,32 +211,16 @@ export function EditProductModal({ product, open, onClose, onSuccess }: EditProd
             />
           </div>
 
-          {/* SKU and Price */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="sku">رمز المنتج (SKU)</Label>
-              <Input
-                id="sku"
-                value={formData.sku}
-                onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
-                placeholder="ABC123"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="price">السعر (درهم) *</Label>
-              <Input
-                id="price"
-                type="number"
-                step="0.01"
-                min="0"
-                value={formData.price}
-                onChange={(e) => setFormData({ ...formData, price: Number.parseFloat(e.target.value) || 0 })}
-                required
-              />
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="sku">رمز المنتج (SKU)</Label>
+            <Input
+              id="sku"
+              value={formData.sku}
+              onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
+              placeholder="ABC123"
+            />
           </div>
 
-          {/* Low Stock Alert */}
           <div className="space-y-2">
             <Label htmlFor="lowStockAlert">تنبيه المخزون المنخفض *</Label>
             <Input
@@ -251,7 +234,6 @@ export function EditProductModal({ product, open, onClose, onSuccess }: EditProd
             <p className="text-xs text-gray-500">سيتم تنبيهك عندما يصل المخزون لهذه الكمية أو أقل</p>
           </div>
 
-          {/* Read-only Stock Info */}
           <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
             <p className="text-sm font-semibold text-blue-900 mb-2">معلومات المخزون (للقراءة فقط)</p>
             <div className="grid grid-cols-2 gap-2 text-sm">
@@ -260,15 +242,12 @@ export function EditProductModal({ product, open, onClose, onSuccess }: EditProd
                 <span className="font-bold text-blue-600 mr-2">{product.stockQuantity}</span>
               </div>
               <div>
-                <span className="text-gray-600">القيمة الإجمالية:</span>
-                <span className="font-bold text-purple-600 mr-2">
-                  {(product.price * product.stockQuantity).toFixed(2)} د.م
-                </span>
+                <span className="text-gray-600">حد التنبيه الحالي:</span>
+                <span className="font-bold text-yellow-600 mr-2">{product.lowStockAlert}</span>
               </div>
             </div>
           </div>
 
-          {/* Actions */}
           <div className="flex gap-3 justify-end">
             <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
               إلغاء

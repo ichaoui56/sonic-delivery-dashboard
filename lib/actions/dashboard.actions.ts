@@ -47,7 +47,7 @@ export const getMerchantDashboardData = cache(async () => {
           (SELECT COALESCE(SUM("stockQuantity"), 0) FROM "Product" WHERE "merchantId" = m.id) as "totalStock",
           (SELECT COUNT(*) FROM "Product" WHERE "merchantId" = m.id AND "stockQuantity" > 0 AND "stockQuantity" <= "lowStockAlert") as "lowStockProducts",
           (SELECT COUNT(*) FROM "Product" WHERE "merchantId" = m.id AND "stockQuantity" = 0) as "outOfStockProducts",
-          (SELECT COALESCE(SUM(price * "stockQuantity"), 0) FROM "Product" WHERE "merchantId" = m.id) as "inventoryValue",
+          (SELECT COALESCE(SUM("stockQuantity"), 0) FROM "Product" WHERE "merchantId" = m.id) as "inventoryValue",
           (SELECT COALESCE(SUM(amount), 0) FROM "MoneyTransfer" WHERE "merchantId" = m.id) as "totalPaid"
         FROM "Merchant" m
         WHERE m."userId" = ${user.id}
@@ -83,7 +83,7 @@ export const getMerchantDashboardData = cache(async () => {
           p.name as "productName",
           p.image as "productImage",
           SUM(oi.quantity) as quantity,
-          SUM(oi.price * oi.quantity) as revenue
+          SUM(oi.quantity) as revenue
         FROM "OrderItem" oi
         JOIN "Product" p ON p.id = oi."productId"
         JOIN "Order" o ON o.id = oi."orderId"

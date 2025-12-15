@@ -460,17 +460,13 @@ export function OrdersTable({
                             </Badge>
                           ) : (
                             <>
-                              {item.originalPrice && item.originalPrice !== item.price && (
-                                <span className="line-through text-gray-400 ml-1">{item.originalPrice.toFixed(2)} د.م</span>
-                              )}
-                              {item.price.toFixed(2)} د.م × {item.quantity}
+                              
+                               قطعة  × {item.quantity}
                             </>
                           )}
                         </p>
                       </div>
-                      <p className="font-bold text-sm text-[#048dba]">
-                        {item.isFree ? "0.00" : (item.price * item.quantity).toFixed(2)} د.م
-                      </p>
+                      
                     </div>
                   ))}
                 </div>

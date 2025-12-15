@@ -224,7 +224,7 @@ export const getMerchantProducts = cache(async () => {
 
     const merchant = await prisma.merchant.findUnique({
       where: { userId: user.id },
-      select: { id: true }
+      select: { id: true },
     })
 
     if (!merchant) return []
@@ -241,16 +241,15 @@ export const getMerchantProducts = cache(async () => {
         name: true,
         image: true,
         sku: true,
-        price: true,
         stockQuantity: true,
       },
-      orderBy: { name: 'asc' },
+      orderBy: { name: "asc" },
       take: 100,
     })
 
     return products
   } catch (error) {
-    console.error('[v0] Error fetching products:', error)
+    console.error("[v0] Error fetching products:", error)
     return []
   }
 })
@@ -266,17 +265,8 @@ export async function createOrder(data: {
   items: {
     productId: number
     quantity: number
-    price: number
-    originalPrice?: number
-    isFree?: boolean
   }[]
-  discountType?: DiscountType
-  discountValue?: number
-  discountDescription?: string
-  originalTotalPrice?: number
-  totalDiscount?: number
-  buyXGetYConfig?: string
-  finalTotal?: number
+  totalPrice: number
 }) {
   try {
     const user = await getCurrentUser()
@@ -295,14 +285,8 @@ export async function createOrder(data: {
       return { success: false, message: "التاجر غير موجود" }
     }
 
-    // Calculate total price
-    const totalPrice = data.finalTotal ?? data.items.reduce((sum, item) => sum + item.price * item.quantity, 0)
-    const originalTotalPrice = data.originalTotalPrice ?? totalPrice
-    const totalDiscount = data.totalDiscount ?? 0
-
     const cityCode = getCityCode(data.city)
 
-    // Get the latest order for this specific city
     const latestOrder = await prisma.order.findFirst({
       where: {
         city: data.city,
@@ -321,16 +305,13 @@ export async function createOrder(data: {
 
     const orderCode = `OR-${cityCode}-${nextOrderNumber.toString().padStart(6, "0")}`
     const merchantBaseFee = merchant.baseFee || 25
-    const merchantEarning = totalPrice - merchantBaseFee
+    const merchantEarning = data.totalPrice - merchantBaseFee
 
     console.log(
-      `[v0] Order ${orderCode} - City: ${data.city} (${cityCode}) - Original: ${originalTotalPrice}, Discount: ${totalDiscount}, Final: ${totalPrice}, Merchant Earning: ${merchantEarning}`,
+      `[v0] Order ${orderCode} - City: ${data.city} (${cityCode}) - Total: ${data.totalPrice}, Merchant Earning: ${merchantEarning}`,
     )
 
-    // Validate stock availability
     for (const item of data.items) {
-      if (item.isFree) continue
-
       const product = await prisma.product.findUnique({
         where: { id: item.productId },
       })
@@ -352,23 +333,17 @@ export async function createOrder(data: {
         address: data.address,
         city: data.city,
         note: data.note,
-        totalPrice,
+        totalPrice: data.totalPrice,
         paymentMethod: data.paymentMethod,
         merchantEarning,
         merchantId: merchant.id,
-        discountType: data.discountType || null,
-        discountValue: data.discountValue || null,
-        discountDescription: data.discountDescription || null,
-        originalTotalPrice: originalTotalPrice,
-        totalDiscount: totalDiscount,
-        buyXGetYConfig: data.buyXGetYConfig || null,
         orderItems: {
           create: data.items.map((item) => ({
             productId: item.productId,
             quantity: item.quantity,
-            price: item.price,
-            originalPrice: item.originalPrice || item.price,
-            isFree: item.isFree || false,
+            price: 0,
+            originalPrice: 0,
+            isFree: false,
           })),
         },
       },
@@ -381,7 +356,6 @@ export async function createOrder(data: {
       },
     })
 
-    // Create notification for admin about new order
     await prisma.notification.create({
       data: {
         title: "طلب جديد",
@@ -392,7 +366,7 @@ export async function createOrder(data: {
       },
     })
 
-    console.log("[v0] Order created successfully with discount:", orderCode)
+    console.log("[v0] Order created successfully:", orderCode)
 
     revalidatePath("/merchant/orders")
     return { success: true, message: "تم إنشاء الطلب بنجاح", orderCode }

@@ -64,7 +64,6 @@ model Product {
   description    String?
   image          String?
   sku            String?        @unique
-  price          Float
   stockQuantity  Int            @default(0)
   deliveredCount Int            @default(0)
   lowStockAlert  Int            @default(3)
@@ -82,7 +81,6 @@ model Product {
   @@index([stockQuantity])
   @@index([isActive])
   @@index([createdAt(sort: Desc)])
-  @@index([price])
   @@index([lowStockAlert])
   @@index([deliveredCount])
   @@index([merchantId, createdAt(sort: Desc)])

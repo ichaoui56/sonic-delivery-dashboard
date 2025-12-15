@@ -26,7 +26,7 @@ type Transfer = {
   id: number
   transferCode: string
   status: string
-  deliveryCompany: string
+  deliveryCompany: string | null
   trackingNumber: string | null
   note: string | null
   createdAt: Date
@@ -373,10 +373,7 @@ export function TransfersClient({ initialTransfers }: { initialTransfers: Transf
                     <span className="text-gray-600">إجمالي القطع:</span>
                     <span className="font-medium">{totalQuantity.toLocaleString("en-US")}</span>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-600">القيمة التقديرية:</span>
-                    <span className="font-medium">{totalValue.toLocaleString("en-US")} DH</span>
-                  </div>
+                  
                   <div className="flex items-center justify-between">
                     <span className="text-gray-600">تاريخ الإنشاء:</span>
                     <span className="font-medium">
@@ -522,15 +519,6 @@ export function TransfersClient({ initialTransfers }: { initialTransfers: Transf
                           <div className="flex items-center gap-3 sm:gap-4 mt-1 text-xs sm:text-sm">
                             <span className="text-gray-600">
                               الكمية: <span className="font-medium">{item.quantity.toLocaleString("en-US")}</span>
-                            </span>
-                            <span className="text-gray-600">
-                              السعر: <span className="font-medium">{item.product.price.toLocaleString("en-US")} DH</span>
-                            </span>
-                            <span className="text-gray-600">
-                              المجموع:{" "}
-                              <span className="font-medium">
-                                {(item.product.price * item.quantity).toLocaleString("en-US")} DH
-                              </span>
                             </span>
                           </div>
                         </div>

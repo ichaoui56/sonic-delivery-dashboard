@@ -30,7 +30,6 @@ export async function getAllProductTransfers() {
               select: {
                 id: true,
                 name: true,
-                price: true,
                 image: true,
                 sku: true,
               },

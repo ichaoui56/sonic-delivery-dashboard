@@ -1,31 +1,22 @@
 "use client"
 
 import type React from "react"
-
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Plus, Trash2, Package, Truck, AlertCircle, X, Loader2, ImageIcon } from "lucide-react"
-import {
-  createProductTransfer,
-  createProduct,
-  getMerchantProductsForTransfer,
-  getMerchantProducts,
-  type ProductTransferItem,
-} from "@/lib/actions/product-transfer-actions"
+import { Plus, Trash2, Package, Truck, X, Loader2, ImageIcon } from "lucide-react"
+import { createProductTransfer, createProduct, type ProductTransferItem } from "@/lib/actions/product-transfer-actions"
 import { useRouter } from "next/navigation"
-import { OptimizedImage } from "./optimized-image"
+import { OptimizedImage } from "@/components/optimized-image"
 import { compressImage } from "@/lib/utils/image-compression"
-import { clientCache } from "@/lib/utils/client-cache"
 import { useToast } from "@/hooks/use-toast"
 
 type Product = {
   id: number
   name: string
-  price: number
   image?: string | null
   stockQuantity: number
 }
@@ -34,69 +25,27 @@ type TransferItemInput = {
   productId: number | null
   quantity: number
   name: string
-  price: number
   image?: string
-  newProduct?: {
-    name: string
-    description: string
-    price: number
-    sku: string
-    image?: string
-  }
 }
 
-export function CreateTransferForm() {
+export function CreateTransferClient({ initialProducts }: { initialProducts: Product[] }) {
   const { toast } = useToast()
   const router = useRouter()
-  const [products, setProducts] = useState<Product[]>([])
-  const [loading, setLoading] = useState(false)
+  const [products, setProducts] = useState<Product[]>(initialProducts)
   const [submitting, setSubmitting] = useState(false)
 
-  // Form state
   const [deliveryCompany, setDeliveryCompany] = useState("الشركة الوطنية للنقل")
   const [trackingNumber, setTrackingNumber] = useState("")
   const [note, setNote] = useState("")
   const [items, setItems] = useState<TransferItemInput[]>([])
 
-  // New product modal state
   const [showNewProductForm, setShowNewProductForm] = useState(false)
   const [newProductName, setNewProductName] = useState("")
   const [newProductDescription, setNewProductDescription] = useState("")
-  const [newProductPrice, setNewProductPrice] = useState("")
   const [newProductSku, setNewProductSku] = useState("")
   const [newProductImage, setNewProductImage] = useState("")
   const [uploadingImage, setUploadingImage] = useState(false)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
-
-  useEffect(() => {
-    loadProducts()
-  }, [])
-
-  const loadProducts = async () => {
-    const cacheKey = "merchant-products"
-    const cachedProducts = clientCache.get<Product[]>(cacheKey)
-
-    if (cachedProducts) {
-      console.log("[v0] Loading products from cache")
-      setProducts(cachedProducts)
-      return
-    }
-
-    setLoading(true)
-    const result = await getMerchantProductsForTransfer()
-    if (result.success && result.data) {
-      // Map the result to include a default price if missing
-      const productsWithPrice = result.data.map(product => ({
-        ...product,
-        price: 0, // Default price since it's required by the Product type
-        stockQuantity: product.stockQuantity || 0
-      }))
-      setProducts(productsWithPrice)
-      // Cache for 2 minutes
-      clientCache.set(cacheKey, productsWithPrice, 120000)
-    }
-    setLoading(false)
-  }
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -152,7 +101,7 @@ export function CreateTransferForm() {
   }
 
   const handleCreateProduct = async () => {
-    if (!newProductName || !newProductPrice) {
+    if (!newProductName) {
       toast({
         title: "بيانات ناقصة",
         description: "الرجاء ملء الحقول المطلوبة",
@@ -171,12 +120,17 @@ export function CreateTransferForm() {
     })
 
     if (result.success && result.data) {
-      clientCache.clear("merchant-products")
-      await loadProducts()
-      // Reset form
+      setProducts([
+        ...products,
+        {
+          id: result.data.id,
+          name: result.data.name,
+          image: result.data.image,
+          stockQuantity: 0,
+        },
+      ])
       setNewProductName("")
       setNewProductDescription("")
-      setNewProductPrice("")
       setNewProductSku("")
       setNewProductImage("")
       setImagePreview(null)
@@ -197,7 +151,7 @@ export function CreateTransferForm() {
   }
 
   const addItem = () => {
-    setItems([...items, { productId: null, quantity: 1, name: "", price: 0, image: "" }])
+    setItems([...items, { productId: null, quantity: 1, name: "", image: "" }])
   }
 
   const removeItem = (index: number) => {
@@ -213,7 +167,6 @@ export function CreateTransferForm() {
           ...newItems[index],
           productId: product.id,
           name: product.name,
-          price: product.price,
           image: product.image || undefined,
         }
       }
@@ -251,7 +204,6 @@ export function CreateTransferForm() {
       productId: item.productId!,
       quantity: item.quantity,
       name: item.name,
-      price: item.price,
       image: item.image,
     }))
 
@@ -263,7 +215,6 @@ export function CreateTransferForm() {
     })
 
     if (result.success) {
-      clientCache.invalidate("merchant")
       toast({
         title: "تم إنشاء الشحنة",
         description: result.message || "تم إنشاء الشحنة بنجاح",
@@ -283,7 +234,6 @@ export function CreateTransferForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 md:space-y-6">
-      {/* Transfer Details */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg md:text-xl">
@@ -327,7 +277,6 @@ export function CreateTransferForm() {
         </CardContent>
       </Card>
 
-      {/* Products */}
       <Card>
         <CardHeader>
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
@@ -351,7 +300,6 @@ export function CreateTransferForm() {
           </div>
         </CardHeader>
         <CardContent className="space-y-4 md:space-y-6">
-          {/* New Product Form */}
           {showNewProductForm && (
             <Card className="border-2 border-[#048dba]">
               <CardHeader>
@@ -368,16 +316,6 @@ export function CreateTransferForm() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>السعر *</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={newProductPrice}
-                      onChange={(e) => setNewProductPrice(e.target.value)}
-                      placeholder="0.00"
-                    />
-                  </div>
-                  <div className="space-y-2">
                     <Label>رمز المنتج (SKU)</Label>
                     <Input
                       value={newProductSku}
@@ -385,7 +323,7 @@ export function CreateTransferForm() {
                       placeholder="SKU-001"
                     />
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-2 md:col-span-2">
                     <Label>صورة المنتج</Label>
                     {!imagePreview && !newProductImage ? (
                       <div className="relative">
@@ -475,7 +413,6 @@ export function CreateTransferForm() {
             </Card>
           )}
 
-          {/* Transfer Items */}
           {items.length === 0 ? (
             <div className="text-center py-8 md:py-12 border-2 border-dashed border-gray-300 rounded-lg">
               <Package className="w-10 h-10 md:w-12 md:h-12 mx-auto mb-3 text-gray-400" />
@@ -509,29 +446,21 @@ export function CreateTransferForm() {
                               <option value="">اختر منتج</option>
                               {products.map((product) => (
                                 <option key={product.id} value={product.id}>
-                                  {product.name} - {product.price} درهم
+                                  {product.name}
                                 </option>
                               ))}
                             </select>
                           </div>
-                          <div className="grid grid-cols-2 gap-3">
-                            <div className="space-y-2">
-                              <Label className="text-sm">الكمية *</Label>
-                              <Input
-                                type="number"
-                                min="1"
-                                value={item.quantity}
-                                onChange={(e) => updateItem(index, "quantity", Number.parseInt(e.target.value))}
-                                required
-                                className="text-sm"
-                              />
-                            </div>
-                            <div className="space-y-2">
-                              <Label className="text-sm">الإجمالي</Label>
-                              <div className="h-10 px-3 rounded-md border border-input bg-gray-50 flex items-center font-semibold text-sm">
-                                {(item.price * item.quantity).toFixed(2)} درهم
-                              </div>
-                            </div>
+                          <div className="space-y-2">
+                            <Label className="text-sm">الكمية *</Label>
+                            <Input
+                              type="number"
+                              min="1"
+                              value={item.quantity}
+                              onChange={(e) => updateItem(index, "quantity", Number.parseInt(e.target.value))}
+                              required
+                              className="text-sm"
+                            />
                           </div>
                         </div>
                       </div>
@@ -554,56 +483,18 @@ export function CreateTransferForm() {
               </Button>
             </div>
           )}
-
-          {/* Summary */}
-          {items.length > 0 && (
-            <div className="bg-gray-50 rounded-lg p-4 space-y-2">
-              <div className="flex justify-between text-sm">
-                <span>عدد المنتجات:</span>
-                <span className="font-semibold">{items.length}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span>إجمالي الكميات:</span>
-                <span className="font-semibold">{items.reduce((sum, item) => sum + item.quantity, 0)}</span>
-              </div>
-              <div className="flex justify-between text-base md:text-lg font-bold border-t pt-2">
-                <span>القيمة الإجمالية:</span>
-                <span className="text-[#048dba]">
-                  {items.reduce((sum, item) => sum + item.price * item.quantity, 0).toFixed(2)} درهم
-                </span>
-              </div>
-            </div>
-          )}
         </CardContent>
       </Card>
 
-      {/* Submit */}
-      <div className="flex flex-col sm:flex-row gap-3 md:gap-4">
+      <div className="flex gap-4">
         <Button
           type="submit"
           disabled={submitting || items.length === 0}
-          className="flex-1 bg-[#048dba] text-white hover:bg-[#037a9f] h-11 md:h-12 text-base md:text-lg"
+          className="flex-1 bg-[#048dba] hover:bg-[#037ba0] min-h-[44px]"
         >
           {submitting ? "جاري الإنشاء..." : "إنشاء الشحنة"}
         </Button>
-        <Button type="button" variant="outline" onClick={() => router.back()} className="h-11 md:h-12 w-full sm:w-auto">
-          إلغاء
-        </Button>
       </div>
-
-      {/* Info Alert */}
-      <Card className="bg-blue-50 border-blue-200">
-        <CardContent className="p-3 md:p-4 flex gap-3">
-          <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-          <div className="text-xs md:text-sm text-blue-800">
-            <p className="font-semibold mb-1">ملاحظة هامة:</p>
-            <p>
-              سيتم تحديث مخزونك تلقائياً عند وصول الشحنة إلى مستودع الشركة بالداخلة. يمكنك تتبع حالة شحنتك من صفحة "تتبع
-              الشحنات".
-            </p>
-          </div>
-        </CardContent>
-      </Card>
     </form>
   )
 }

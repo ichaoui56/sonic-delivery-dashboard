@@ -434,10 +434,6 @@ export function TrackShipmentsTable({ transfers }: { transfers: Transfer[] }) {
                         {transfer.trackingNumber || "غير متوفر"}
                       </p>
                     </div>
-                    <div>
-                      <p className="text-xs md:text-sm text-gray-500 mb-1">القيمة الإجمالية</p>
-                      <p className="font-semibold text-[#048dba] text-sm md:text-base">{totalValue.toFixed(2)} درهم</p>
-                    </div>
                   </div>
 
                   {/* Timeline - Fixed and Dynamic */}
@@ -555,14 +551,10 @@ export function TrackShipmentsTable({ transfers }: { transfers: Transfer[] }) {
                           <div className="flex-1 min-w-0">
                             <p className="font-semibold text-sm md:text-base truncate">{item.product.name}</p>
                             <p className="text-xs md:text-sm text-gray-500">
-                              {item.product.price} درهم × {item.quantity}
+                              {item.product.price} قطعة  × {item.quantity}
                             </p>
                           </div>
-                          <div className="text-left w-full sm:w-auto">
-                            <p className="font-semibold text-[#048dba] text-sm md:text-base">
-                              {(item.product.price * item.quantity).toFixed(2)} درهم
-                            </p>
-                          </div>
+                         
                         </div>
                       ))}
                     </div>

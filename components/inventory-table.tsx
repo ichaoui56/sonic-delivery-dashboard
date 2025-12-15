@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { OptimizedImage } from "./optimized-image"
 import { EditProductModal } from "./edit-product-modal"
 import { Package, Search, Filter, X, ChevronDown, Edit2, AlertCircle } from "lucide-react"
+import { useRouter } from "next/navigation"
 
 type Product = {
   id: number
@@ -15,7 +16,6 @@ type Product = {
   description: string | null
   image: string | null
   sku: string | null
-  price: number
   stockQuantity: number
   deliveredCount: number
   lowStockAlert: number
@@ -24,6 +24,7 @@ type Product = {
 }
 
 export function InventoryTable({ products }: { products: Product[] }) {
+  const router = useRouter()
   const [searchTerm, setSearchTerm] = useState("")
   const [stockFilter, setStockFilter] = useState<string>("ALL")
   const [sortBy, setSortBy] = useState<string>("name")
@@ -69,12 +70,8 @@ export function InventoryTable({ products }: { products: Product[] }) {
           return b.stockQuantity - a.stockQuantity
         case "stock_low":
           return a.stockQuantity - b.stockQuantity
-        case "price_high":
-          return b.price - a.price
-        case "price_low":
-          return a.price - b.price
         case "value_high":
-          return b.price * b.stockQuantity - a.price * a.stockQuantity
+          return b.stockQuantity - a.stockQuantity
         case "delivered_high":
           return b.deliveredCount - a.deliveredCount
         case "newest":
@@ -88,7 +85,6 @@ export function InventoryTable({ products }: { products: Product[] }) {
   }, [products, searchTerm, stockFilter, sortBy])
 
   const stats = useMemo(() => {
-    const totalValue = products.reduce((sum, product) => sum + product.price * product.stockQuantity, 0)
     const totalStock = products.reduce((sum, product) => sum + product.stockQuantity, 0)
     const lowStockItems = products.filter((p) => p.stockQuantity > 0 && p.stockQuantity <= p.lowStockAlert).length
     const outOfStock = products.filter((p) => p.stockQuantity === 0).length
@@ -96,7 +92,6 @@ export function InventoryTable({ products }: { products: Product[] }) {
     return {
       total: products.length,
       totalStock,
-      totalValue,
       lowStockItems,
       outOfStock,
     }
@@ -111,12 +106,16 @@ export function InventoryTable({ products }: { products: Product[] }) {
   const hasActiveFilters = searchTerm !== "" || stockFilter !== "ALL" || sortBy !== "name"
 
   const handleEditProduct = (product: Product) => {
+    console.log("[v0] Opening edit modal for product:", product)
+    console.log("[v0] Product lowStockAlert:", product.lowStockAlert)
     setEditingProduct(product)
     setIsEditModalOpen(true)
   }
 
   const handleUpdateSuccess = () => {
-    window.location.reload()
+    router.refresh()
+    setEditingProduct(null)
+    setIsEditModalOpen(false)
   }
 
   return (
@@ -124,7 +123,6 @@ export function InventoryTable({ products }: { products: Product[] }) {
       <Card className="border-[#048dba]/20 shadow-sm">
         <CardContent className="p-3 sm:p-4">
           <div className="space-y-3">
-            {/* Search Bar */}
             <div className="relative">
               <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
               <Input
@@ -136,7 +134,6 @@ export function InventoryTable({ products }: { products: Product[] }) {
               />
             </div>
 
-            {/* Filter Toggle Button */}
             <Button
               variant="outline"
               onClick={() => setShowFilters(!showFilters)}
@@ -147,7 +144,6 @@ export function InventoryTable({ products }: { products: Product[] }) {
               <ChevronDown className={`w-4 h-4 mr-2 transition-transform ${showFilters ? "rotate-180" : ""}`} />
             </Button>
 
-            {/* Collapsible Filters */}
             {showFilters && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-gray-50 rounded-lg border border-gray-100">
                 <div className="space-y-1.5">
@@ -175,8 +171,6 @@ export function InventoryTable({ products }: { products: Product[] }) {
                     <option value="name">الاسم (أ-ي)</option>
                     <option value="stock_high">الكمية (الأعلى أولاً)</option>
                     <option value="stock_low">الكمية (الأقل أولاً)</option>
-                    <option value="price_high">السعر (الأعلى أولاً)</option>
-                    <option value="price_low">السعر (الأقل أولاً)</option>
                     <option value="value_high">القيمة (الأعلى أولاً)</option>
                     <option value="delivered_high">الأكثر توصيلاً</option>
                     <option value="newest">الأحدث</option>
@@ -185,7 +179,6 @@ export function InventoryTable({ products }: { products: Product[] }) {
               </div>
             )}
 
-            {/* Active Filters */}
             {hasActiveFilters && (
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs text-gray-600 font-medium">الفلاتر النشطة:</span>
@@ -215,7 +208,6 @@ export function InventoryTable({ products }: { products: Product[] }) {
         </CardContent>
       </Card>
 
-      {/* Results Count */}
       <div className="flex items-center justify-between px-1">
         <p className="text-xs sm:text-sm text-gray-600">
           عرض <span className="font-bold text-[#048dba]">{filteredAndSortedProducts.length}</span> من{" "}
@@ -241,14 +233,12 @@ export function InventoryTable({ products }: { products: Product[] }) {
           {filteredAndSortedProducts.map((product) => {
             const isLowStock = product.stockQuantity > 0 && product.stockQuantity <= product.lowStockAlert
             const isOutOfStock = product.stockQuantity === 0
-            const totalValue = product.price * product.stockQuantity
 
             return (
               <Card
                 key={product.id}
                 className="group overflow-hidden py-0 hover:shadow-xl transition-all duration-300 border-gray-200 hover:border-[#048dba]/50"
               >
-                {/* Product Image */}
                 <div className="relative w-full h-[300px] aspect-square bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl">
                   {product.image ? (
                     <OptimizedImage
@@ -264,7 +254,6 @@ export function InventoryTable({ products }: { products: Product[] }) {
                     </div>
                   )}
 
-                  {/* Status Badges */}
                   <div className="absolute top-2 right-2 flex flex-col gap-1">
                     {isOutOfStock && (
                       <Badge className="bg-red-500 text-white text-[10px] sm:text-xs shadow-md">نفذ</Badge>
@@ -272,14 +261,8 @@ export function InventoryTable({ products }: { products: Product[] }) {
                     {isLowStock && (
                       <Badge className="bg-yellow-500 text-white text-[10px] sm:text-xs shadow-md">منخفض</Badge>
                     )}
-                    {!product.isActive && (
-                      <Badge variant="secondary" className="text-[10px] sm:text-xs shadow-md">
-                        غير نشط
-                      </Badge>
-                    )}
                   </div>
 
-                  {/* Edit Button */}
                   <Button
                     size="sm"
                     onClick={() => handleEditProduct(product)}
@@ -290,10 +273,8 @@ export function InventoryTable({ products }: { products: Product[] }) {
                   </Button>
                 </div>
 
-                {/* Product Info */}
                 <CardContent className="p-3 sm:px-5 pt-0 space-y-3">
-                  {/* Title and SKU */}
-                 <div className="space-y-1.5">
+                  <div className="space-y-1.5">
                     <h3 className="font-bold text-base sm:text-lg text-gray-900 line-clamp-2 leading-snug">
                       {product.name}
                     </h3>
@@ -305,8 +286,7 @@ export function InventoryTable({ products }: { products: Product[] }) {
                     )}
                   </div>
 
-                  {/* Price and Stock - Side by Side */}
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 gap-2">
                     <div
                       className={`p-2 sm:p-2.5 rounded-lg border-2 ${
                         isOutOfStock
@@ -325,33 +305,25 @@ export function InventoryTable({ products }: { products: Product[] }) {
                         {product.stockQuantity}
                       </p>
                     </div>
-
-                    <div className="p-2 sm:p-2.5 rounded-lg border-2 bg-blue-50 border-blue-200">
-                      <p className="text-[10px] sm:text-xs text-gray-600 mb-0.5">السعر</p>
-                      <p className="text-base sm:text-lg font-bold text-blue-600 leading-none">
-                        {product.price}
-                        <span className="text-xs mr-0.5">د.م</span>
-                      </p>
-                    </div>
                   </div>
 
-                  {/* Additional Info */}
                   <div className="pt-2 border-t border-gray-100 space-y-1.5">
                     <div className="flex items-center justify-between text-[10px] sm:text-xs">
-                      <span className="text-gray-500">القيمة الإجمالية</span>
-                      <span className="font-bold text-purple-600">{totalValue.toFixed(0)} د.م</span>
+                      <span className="text-gray-500">تم التوصيل</span>
+                      <span className="font-bold text-green-600">{product.deliveredCount ?? 0} قطعة</span>
                     </div>
                     <div className="flex items-center justify-between text-[10px] sm:text-xs">
-                      <span className="text-gray-500">تم التوصيل</span>
-                      <span className="font-bold text-green-600">{product.deliveredCount} قطعة</span>
+                      <span className="text-gray-500">حد التنبيه</span>
+                      <span className="font-bold text-orange-600">{product.lowStockAlert ?? 3} قطعة</span>
                     </div>
                   </div>
 
-                  {/* Low Stock Warning */}
                   {isLowStock && (
                     <div className="flex items-start gap-1.5 p-2 bg-yellow-50 border border-yellow-200 rounded text-[10px] sm:text-xs">
                       <AlertCircle className="w-3 h-3 text-yellow-600 flex-shrink-0 mt-0.5" />
-                      <span className="text-yellow-800 leading-tight">تنبيه عند {product.lowStockAlert} قطعة</span>
+                      <span className="text-yellow-800 leading-tight">
+                        المخزون أقل من {product.lowStockAlert ?? 3} قطعة
+                      </span>
                     </div>
                   )}
                 </CardContent>
@@ -377,7 +349,7 @@ export function InventoryTable({ products }: { products: Product[] }) {
             <div className="flex-1 min-w-0">
               <p className="font-bold text-sm sm:text-base text-[#048dba] mb-1">نصائح إدارة المخزون</p>
               <ul className="space-y-1 text-[10px] sm:text-xs text-gray-700 leading-relaxed">
-                <li>• انقر على "تعديل" لتحديث معلومات المنتج (الاسم، السعر، الصورة)</li>
+                <li>• انقر على "تعديل" لتحديث معلومات المنتج (الاسم، الصورة، حد التنبيه)</li>
                 <li>• يتم تحديث المخزون تلقائياً عند وصول الشحنات</li>
                 <li>• لا يمكن التعديل اليدوي للكميات لضمان دقة المخزون</li>
               </ul>
@@ -398,3 +370,4 @@ export function InventoryTable({ products }: { products: Product[] }) {
     </div>
   )
 }
+  
