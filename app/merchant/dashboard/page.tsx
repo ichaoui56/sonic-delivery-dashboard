@@ -3,7 +3,8 @@ import { MerchantDashboardContent } from "@/components/merchant/dashboard/mercha
 import { Suspense } from "react"
 import { DashboardStatsSkeleton } from "@/components/skeletons/dashboard-stats-skeleton"
 
-export const revalidate = 30
+// Increase revalidation time
+export const revalidate = 60 // Cache for 60 seconds instead of 30
 
 export default function DashboardPage() {
   return (

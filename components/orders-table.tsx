@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -11,7 +11,8 @@ import { ar } from "date-fns/locale"
 import { updateOrderStatus } from "@/lib/actions/order.actions"
 import { useToast } from "@/hooks/use-toast"
 import type { OrderStatus } from "@prisma/client"
-import { Tag, TrendingDown } from "lucide-react"
+import { Tag, TrendingDown, Printer, ChevronRight, ChevronLeft } from "lucide-react"
+import { generateAndDownloadInvoice } from "@/lib/utils/pdf-client"
 
 type Order = {
   id: number
@@ -33,7 +34,6 @@ type Order = {
   originalTotalPrice: number | null
   totalDiscount: number | null
   buyXGetYConfig: string | null
-  // </CHANGE>
   orderItems: {
     id: number
     quantity: number
@@ -56,8 +56,6 @@ type Order = {
 const statusMap: Record<string, { label: string; color: string }> = {
   PENDING: { label: "قيد الانتظار", color: "bg-yellow-100 text-yellow-800 border-yellow-200" },
   ACCEPTED: { label: "مقبول", color: "bg-blue-100 text-blue-800 border-blue-200" },
-  PREPARING: { label: "قيد التحضير", color: "bg-purple-100 text-purple-800 border-purple-200" },
-  READY_FOR_DELIVERY: { label: "جاهز للتوصيل", color: "bg-cyan-100 text-cyan-800 border-cyan-200" },
   ASSIGNED_TO_DELIVERY: { label: "معين لعامل توصيل", color: "bg-indigo-100 text-indigo-800 border-indigo-200" },
   IN_TRANSIT: { label: "في الطريق", color: "bg-orange-100 text-orange-800 border-orange-200" },
   OUT_FOR_DELIVERY: { label: "في التوصيل", color: "bg-teal-100 text-teal-800 border-teal-200" },
@@ -73,60 +71,38 @@ const discountTypeLabels: Record<string, string> = {
   CUSTOM_PRICE: "سعر مخصص",
 }
 
-export function OrdersTable({ orders }: { orders: Order[] }) {
-  const [searchQuery, setSearchQuery] = useState("")
-  const [statusFilter, setStatusFilter] = useState<string>("ALL")
+export function OrdersTable({ 
+  orders, 
+  searchQuery, 
+  onSearchChange, 
+  statusFilter, 
+  onStatusChange, 
+  currentPage, 
+  totalPages, 
+  onPageChange 
+}: { 
+  orders: Order[]
+  searchQuery: string
+  onSearchChange: (value: string) => void
+  statusFilter: string
+  onStatusChange: (status: string) => void
+  currentPage: number
+  totalPages: number
+  onPageChange: (page: number) => void
+}) {
   const [updatingOrderId, setUpdatingOrderId] = useState<number | null>(null)
+  const [generatingPdfOrderId, setGeneratingPdfOrderId] = useState<number | null>(null)
   const { toast } = useToast()
 
-  const filteredOrders = useMemo(() => {
-    return orders.filter((order) => {
-      const matchesSearch =
-        order.orderCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        order.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        order.customerPhone.includes(searchQuery) ||
-        order.city.toLowerCase().includes(searchQuery.toLowerCase())
-
-      let matchesStatus = false
-      if (statusFilter === "ALL") {
-        matchesStatus = true
-      } else if (statusFilter === "IN_PROGRESS") {
-        matchesStatus = [
-          "ACCEPTED",
-          "PREPARING",
-          "READY_FOR_DELIVERY",
-          "ASSIGNED_TO_DELIVERY",
-          "IN_TRANSIT",
-          "OUT_FOR_DELIVERY",
-        ].includes(order.status)
-      } else if (statusFilter === "CANCELLED") {
-        matchesStatus = ["REJECTED", "CANCELLED"].includes(order.status)
-      } else {
-        matchesStatus = order.status === statusFilter
-      }
-
-      return matchesSearch && matchesStatus
-    })
-  }, [orders, searchQuery, statusFilter])
-
-  const stats = useMemo(() => {
-    return {
-      total: orders.length,
-      pending: orders.filter((o) => o.status === "PENDING").length,
-      inProgress: orders.filter((o) =>
-        [
-          "ACCEPTED",
-          "PREPARING",
-          "READY_FOR_DELIVERY",
-          "ASSIGNED_TO_DELIVERY",
-          "IN_TRANSIT",
-          "OUT_FOR_DELIVERY",
-        ].includes(o.status),
-      ).length,
-      delivered: orders.filter((o) => o.status === "DELIVERED").length,
-      cancelled: orders.filter((o) => ["REJECTED", "CANCELLED"].includes(o.status)).length,
-    }
-  }, [orders])
+  const stats = {
+    total: orders.length,
+    pending: orders.filter((o) => o.status === "PENDING").length,
+    inProgress: orders.filter((o) =>
+      ["ACCEPTED", "ASSIGNED_TO_DELIVERY", "IN_TRANSIT", "OUT_FOR_DELIVERY"].includes(o.status),
+    ).length,
+    delivered: orders.filter((o) => o.status === "DELIVERED").length,
+    cancelled: orders.filter((o) => ["REJECTED", "CANCELLED"].includes(o.status)).length,
+  }
 
   const handleStatusUpdate = async (orderId: number, newStatus: OrderStatus) => {
     setUpdatingOrderId(orderId)
@@ -136,6 +112,7 @@ export function OrdersTable({ orders }: { orders: Order[] }) {
         title: "✓ تم التحديث",
         description: result.message,
       })
+      onPageChange(1) // Reload first page after status change
     } else {
       toast({
         title: "✗ خطأ",
@@ -146,12 +123,54 @@ export function OrdersTable({ orders }: { orders: Order[] }) {
     setUpdatingOrderId(null)
   }
 
+  const handleGeneratePDF = async (order: Order) => {
+    setGeneratingPdfOrderId(order.id)
+    try {
+      const orderForPDF = {
+        orderCode: order.orderCode,
+        customerName: order.customerName,
+        customerPhone: order.customerPhone,
+        address: order.address,
+        city: order.city,
+        totalPrice: order.totalPrice,
+        paymentMethod: order.paymentMethod,
+        createdAt: order.createdAt,
+        orderItems: order.orderItems.map(item => ({
+          id: item.id,
+          quantity: item.quantity,
+          product: {
+            name: item.product.name
+          }
+        }))
+      }
+
+      const logoUrl = '/images/logo/logo.png'
+      const result = await generateAndDownloadInvoice(orderForPDF, "Your Store Name", logoUrl)
+
+      if (result.success) {
+        toast({
+          title: "✓ تم إنشاء الفاتورة",
+          description: "تم إنشاء الفاتورة بنجاح وتنزيلها",
+        })
+      } else {
+        throw new Error(result.error || 'Failed to generate PDF')
+      }
+    } catch (error) {
+      console.error("[v0] Error generating PDF:", error)
+      toast({
+        title: "✗ خطأ",
+        description: "فشل في إنشاء الفاتورة",
+        variant: "destructive",
+      })
+    } finally {
+      setGeneratingPdfOrderId(null)
+    }
+  }
+
   const getAvailableStatuses = (currentStatus: string) => {
     const allStatuses = [
       { value: "PENDING", label: "قيد الانتظار" },
       { value: "ACCEPTED", label: "مقبول" },
-      { value: "PREPARING", label: "قيد التحضير" },
-      { value: "READY_FOR_DELIVERY", label: "جاهز للتوصيل" },
       { value: "ASSIGNED_TO_DELIVERY", label: "معين لعامل توصيل" },
       { value: "IN_TRANSIT", label: "في الطريق" },
       { value: "OUT_FOR_DELIVERY", label: "في التوصيل" },
@@ -162,13 +181,90 @@ export function OrdersTable({ orders }: { orders: Order[] }) {
     return allStatuses.filter((status) => status.value !== currentStatus)
   }
 
+  const renderPagination = () => {
+    if (totalPages <= 1) return null
+
+    const pages = []
+    const maxVisiblePages = 5
+    let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2))
+    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1)
+
+    if (endPage - startPage + 1 < maxVisiblePages) {
+      startPage = Math.max(1, endPage - maxVisiblePages + 1)
+    }
+
+    for (let i = startPage; i <= endPage; i++) {
+      pages.push(i)
+    }
+
+    return (
+      <div className="flex items-center justify-center gap-2 mt-6">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => onPageChange(Math.max(1, currentPage - 1))}
+          disabled={currentPage === 1}
+        >
+          <ChevronRight className="w-4 h-4" />
+          السابق
+        </Button>
+
+        {startPage > 1 && (
+          <>
+            <Button
+              variant={currentPage === 1 ? "default" : "outline"}
+              size="sm"
+              onClick={() => onPageChange(1)}
+            >
+              1
+            </Button>
+            {startPage > 2 && <span className="px-2">...</span>}
+          </>
+        )}
+
+        {pages.map(page => (
+          <Button
+            key={page}
+            variant={currentPage === page ? "default" : "outline"}
+            size="sm"
+            onClick={() => onPageChange(page)}
+          >
+            {page}
+          </Button>
+        ))}
+
+        {endPage < totalPages && (
+          <>
+            {endPage < totalPages - 1 && <span className="px-2">...</span>}
+            <Button
+              variant={currentPage === totalPages ? "default" : "outline"}
+              size="sm"
+              onClick={() => onPageChange(totalPages)}
+            >
+              {totalPages}
+            </Button>
+          </>
+        )}
+
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
+          disabled={currentPage === totalPages}
+        >
+          التالي
+          <ChevronLeft className="w-4 h-4" />
+        </Button>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-4">
-      {/* ... existing stats cards ... */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <Card
           className={`cursor-pointer transition-all ${statusFilter === "ALL" ? "ring-2 ring-[#048dba]" : ""}`}
-          onClick={() => setStatusFilter("ALL")}
+          onClick={() => onStatusChange("ALL")}
         >
           <CardContent className="p-4">
             <p className="text-xs sm:text-sm text-gray-600 mb-1">إجمالي الطلبات</p>
@@ -177,7 +273,7 @@ export function OrdersTable({ orders }: { orders: Order[] }) {
         </Card>
         <Card
           className={`cursor-pointer transition-all ${statusFilter === "PENDING" ? "ring-2 ring-yellow-500" : ""}`}
-          onClick={() => setStatusFilter(statusFilter === "PENDING" ? "ALL" : "PENDING")}
+          onClick={() => onStatusChange(statusFilter === "PENDING" ? "ALL" : "PENDING")}
         >
           <CardContent className="p-4">
             <p className="text-xs sm:text-sm text-gray-600 mb-1">قيد الانتظار</p>
@@ -186,7 +282,7 @@ export function OrdersTable({ orders }: { orders: Order[] }) {
         </Card>
         <Card
           className={`cursor-pointer transition-all ${statusFilter === "DELIVERED" ? "ring-2 ring-green-500" : ""}`}
-          onClick={() => setStatusFilter(statusFilter === "DELIVERED" ? "ALL" : "DELIVERED")}
+          onClick={() => onStatusChange(statusFilter === "DELIVERED" ? "ALL" : "DELIVERED")}
         >
           <CardContent className="p-4">
             <p className="text-xs sm:text-sm text-gray-600 mb-1">مكتملة</p>
@@ -195,13 +291,7 @@ export function OrdersTable({ orders }: { orders: Order[] }) {
         </Card>
         <Card
           className={`cursor-pointer transition-all ${statusFilter === "CANCELLED" ? "ring-2 ring-red-500" : ""}`}
-          onClick={() => {
-            if (statusFilter === "CANCELLED") {
-              setStatusFilter("ALL")
-            } else {
-              setStatusFilter("CANCELLED")
-            }
-          }}
+          onClick={() => onStatusChange(statusFilter === "CANCELLED" ? "ALL" : "CANCELLED")}
         >
           <CardContent className="p-4">
             <p className="text-xs sm:text-sm text-gray-600 mb-1">ملغية</p>
@@ -210,7 +300,6 @@ export function OrdersTable({ orders }: { orders: Order[] }) {
         </Card>
       </div>
 
-      {/* ... existing search ... */}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <svg
@@ -230,37 +319,26 @@ export function OrdersTable({ orders }: { orders: Order[] }) {
             type="search"
             placeholder="ابحث عن طلب... (رقم الطلب، اسم العميل، المدينة)"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => onSearchChange(e.target.value)}
             className="pr-10 min-h-[44px]"
           />
         </div>
         {statusFilter !== "ALL" && (
-          <Button variant="outline" onClick={() => setStatusFilter("ALL")} className="min-h-[44px]">
+          <Button variant="outline" onClick={() => onStatusChange("ALL")} className="min-h-[44px]">
             مسح الفلتر
           </Button>
         )}
       </div>
 
-      <div className="text-sm text-gray-600">
-        عرض {filteredOrders.length} من {orders.length} طلب
-      </div>
-
-      {/* Orders List */}
       <div className="space-y-4">
-        {filteredOrders.map((order) => (
+        {orders.map((order) => (
           <Card key={order.id} className="hover:shadow-md transition-shadow">
             <CardContent className="p-4 sm:p-6">
-              {/* Header */}
               <div className="flex flex-col sm:flex-row justify-between items-start gap-3 mb-4">
                 <div className="flex items-start gap-3">
                   <div className="w-12 h-12 rounded-full bg-[#048dba]/10 flex items-center justify-center flex-shrink-0">
                     <svg className="w-6 h-6 text-[#048dba]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
-                      />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
                     </svg>
                   </div>
                   <div>
@@ -278,7 +356,6 @@ export function OrdersTable({ orders }: { orders: Order[] }) {
                           خصم {order.totalDiscount.toFixed(0)} د.م
                         </Badge>
                       )}
-                      {/* </CHANGE> */}
                     </div>
                     <p className="text-sm text-gray-500 mt-1">
                       {formatDistanceToNow(new Date(order.createdAt), { addSuffix: true, locale: ar })}
@@ -298,7 +375,6 @@ export function OrdersTable({ orders }: { orders: Order[] }) {
                   ) : (
                     <p className="text-2xl font-bold text-[#048dba]">{order.totalPrice.toFixed(2)} د.م</p>
                   )}
-                  {/* </CHANGE> */}
                   <p className="text-sm text-gray-500">ربحك: {order.merchantEarning.toFixed(2)} د.م</p>
                 </div>
               </div>
@@ -312,9 +388,7 @@ export function OrdersTable({ orders }: { orders: Order[] }) {
                     </span>
                     {order.discountValue && (
                       <span className="text-green-600">
-                        (
-                        {order.discountType === "PERCENTAGE" ? `${order.discountValue}%` : `${order.discountValue} د.م`}
-                        )
+                        ({order.discountType === "PERCENTAGE" ? `${order.discountValue}%` : `${order.discountValue} د.م`})
                       </span>
                     )}
                   </div>
@@ -323,9 +397,7 @@ export function OrdersTable({ orders }: { orders: Order[] }) {
                   )}
                 </div>
               )}
-              {/* </CHANGE> */}
 
-              {/* ... existing customer info ... */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-4 bg-gray-50 rounded-lg mb-4">
                 <div>
                   <p className="text-xs text-gray-500 mb-1">اسم العميل</p>
@@ -355,7 +427,6 @@ export function OrdersTable({ orders }: { orders: Order[] }) {
                 )}
               </div>
 
-              {/* Products */}
               <div>
                 <p className="text-sm font-semibold text-gray-700 mb-2">
                   المنتجات ({order.orderItems.length} {order.orderItems.length === 1 ? "منتج" : "منتجات"})
@@ -375,12 +446,7 @@ export function OrdersTable({ orders }: { orders: Order[] }) {
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-gray-400">
                             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
-                              />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                             </svg>
                           </div>
                         )}
@@ -395,14 +461,11 @@ export function OrdersTable({ orders }: { orders: Order[] }) {
                           ) : (
                             <>
                               {item.originalPrice && item.originalPrice !== item.price && (
-                                <span className="line-through text-gray-400 ml-1">
-                                  {item.originalPrice.toFixed(2)} د.م
-                                </span>
+                                <span className="line-through text-gray-400 ml-1">{item.originalPrice.toFixed(2)} د.م</span>
                               )}
                               {item.price.toFixed(2)} د.م × {item.quantity}
                             </>
                           )}
-                          {/* </CHANGE> */}
                         </p>
                       </div>
                       <p className="font-bold text-sm text-[#048dba]">
@@ -412,21 +475,17 @@ export function OrdersTable({ orders }: { orders: Order[] }) {
                   ))}
                 </div>
               </div>
+
             </CardContent>
           </Card>
         ))}
 
-        {filteredOrders.length === 0 && (
+        {orders.length === 0 && (
           <Card>
             <CardContent className="p-12 text-center">
               <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
                 <svg className="w-8 h-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-                  />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                 </svg>
               </div>
               <p className="text-gray-500">لا توجد طلبات</p>
@@ -434,6 +493,8 @@ export function OrdersTable({ orders }: { orders: Order[] }) {
           </Card>
         )}
       </div>
+
+      {renderPagination()}
     </div>
   )
 }

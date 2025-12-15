@@ -146,7 +146,7 @@ export function PaymentsDashboard() {
           <CardContent>
             <div className="text-2xl font-bold text-green-600 mb-1">+{data.totalAmountOwedByAdmin.toFixed(2)} د.م</div>
             <p className="text-xs text-gray-500">
-              سيتم دفعها لك من الإدارة (السعر - {data.merchantBaseFee} د.م رسوم - 15 د.م توصيل)
+              سيتم دفعها لك من الإدارة (السعر - {data.merchantBaseFee} د.م رسوم)
             </p>
           </CardContent>
         </Card>

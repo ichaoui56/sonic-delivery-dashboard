@@ -1,7 +1,7 @@
 import { DashboardLayoutWrapper } from "@/components/dashboard-layout-wrapper"
 import { PaymentsContent } from "@/components/merchant/payment/payments-content"
 
-export const revalidate = 10
+export const revalidate = 60
 
 export default function MerchantPaymentsPage() {
 

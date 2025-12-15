@@ -241,9 +241,9 @@ export function EditDeliveryManDialog({
                   <SelectValue placeholder="اختر المدينة" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="الداخلة">الداخلة</SelectItem>
-                  <SelectItem value="بوجدور">بوجدور</SelectItem>
-                  <SelectItem value="العيون">العيون</SelectItem>
+                  <SelectItem value="Dakhla">الداخلة</SelectItem>
+                  <SelectItem value="Boujdour">بوجدور</SelectItem>
+                  <SelectItem value="Laayoune">العيون</SelectItem>
                 </SelectContent>
               </Select>
             </div>

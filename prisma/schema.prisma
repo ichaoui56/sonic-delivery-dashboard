@@ -21,6 +21,11 @@ model User {
   deliveryMan   DeliveryMan?
   merchant      Merchant?
   notifications Notification[]
+  
+  @@index([email])
+  @@index([role])
+  @@index([createdAt(sort: Desc)])
+  @@index([phone])
 }
 
 model Admin {
@@ -45,6 +50,11 @@ model Merchant {
   orders           Order[]
   products         Product[]
   productTransfers ProductTransfer[]
+  
+  @@index([userId])
+  @@index([createdAt(sort: Desc)])
+  @@index([companyName])
+  @@index([balance])
 }
 
 model Product {
@@ -63,6 +73,20 @@ model Product {
   orderItems     OrderItem[]
   merchant       Merchant       @relation(fields: [merchantId], references: [id])
   TransferItem   TransferItem[]
+  
+  @@index([merchantId])
+  @@index([merchantId, isActive])
+  @@index([merchantId, stockQuantity])
+  @@index([merchantId, deliveredCount])
+  @@index([merchantId, isActive, stockQuantity])
+  @@index([stockQuantity])
+  @@index([isActive])
+  @@index([createdAt(sort: Desc)])
+  @@index([price])
+  @@index([lowStockAlert])
+  @@index([deliveredCount])
+  @@index([merchantId, createdAt(sort: Desc)])
+  @@index([name])
 }
 
 model ProductTransfer {
@@ -79,6 +103,15 @@ model ProductTransfer {
   updatedAt              DateTime       @updatedAt
   merchant               Merchant       @relation(fields: [merchantId], references: [id])
   transferItems          TransferItem[]
+  
+  @@index([merchantId])
+  @@index([merchantId, createdAt(sort: Desc)])
+  @@index([merchantId, status])
+  @@index([status])
+  @@index([trackingNumber])
+  @@index([createdAt(sort: Desc)])
+  @@index([deliveredToWarehouseAt])
+  @@index([merchantId, status, createdAt(sort: Desc)])
 }
 
 model TransferItem {
@@ -88,6 +121,11 @@ model TransferItem {
   quantity   Int
   product    Product         @relation(fields: [productId], references: [id])
   transfer   ProductTransfer @relation(fields: [transferId], references: [id])
+  
+  @@index([transferId])
+  @@index([productId])
+  @@index([transferId, productId])
+  @@index([quantity])
 }
 
 model Order {
@@ -104,13 +142,12 @@ model Order {
   status                 OrderStatus       @default(PENDING)
   merchantId             Int
   deliveryManId          Int?
-  discountType           DiscountType?     // Type of discount applied
-  discountValue          Float?            // Percentage or fixed amount value
-  discountDescription    String?           // Merchant's description of the promotion
-  originalTotalPrice     Float?            // Original price before discount
-  totalDiscount          Float?            // Total discount amount applied
-  buyXGetYConfig         String?           // JSON string for buy X get Y rules
-  // </CHANGE>
+  discountType           DiscountType?
+  discountValue          Float?
+  discountDescription    String?
+  originalTotalPrice     Float?
+  totalDiscount          Float?
+  buyXGetYConfig         String?
   createdAt              DateTime          @default(now())
   deliveredAt            DateTime?
   updatedAt              DateTime          @updatedAt
@@ -119,6 +156,28 @@ model Order {
   deliveryMan            DeliveryMan?      @relation(fields: [deliveryManId], references: [id])
   merchant               Merchant          @relation(fields: [merchantId], references: [id])
   orderItems             OrderItem[]
+  
+  @@index([merchantId])
+  @@index([merchantId, createdAt(sort: Desc)])
+  @@index([merchantId, status])
+  @@index([merchantId, status, createdAt(sort: Desc)])
+  @@index([deliveryManId])
+  @@index([deliveryManId, status])
+  @@index([deliveryManId, status, createdAt(sort: Desc)])
+  @@index([city])
+  @@index([city, status])
+  @@index([city, createdAt(sort: Desc)])
+  @@index([status])
+  @@index([createdAt(sort: Desc)])
+  @@index([orderCode])
+  @@index([customerPhone])
+  @@index([paymentMethod])
+  @@index([totalPrice])
+  @@index([merchantEarning])
+  @@index([deliveredAt])
+  @@index([merchantId, paymentMethod, status])
+  @@index([customerName])
+  @@index([address])
 }
 
 model DeliveryAttempt {
@@ -135,19 +194,32 @@ model DeliveryAttempt {
   order         Order         @relation(fields: [orderId], references: [id])
 
   @@unique([orderId, attemptNumber])
+  @@index([orderId])
+  @@index([deliveryManId])
+  @@index([attemptedAt(sort: Desc)])
+  @@index([orderId, attemptedAt(sort: Desc)])
+  @@index([status])
+  @@index([deliveryManId, attemptedAt(sort: Desc)])
 }
 
 model OrderItem {
-  id        Int     @id @default(autoincrement())
-  orderId   Int
-  productId Int
-  quantity  Int
-  price     Float
-  originalPrice Float? // Price before discount
-  isFree        Boolean @default(false) // Mark free items from promotions
-  // </CHANGE>
-  order     Order   @relation(fields: [orderId], references: [id])
-  product   Product @relation(fields: [productId], references: [id])
+  id            Int     @id @default(autoincrement())
+  orderId       Int
+  productId     Int
+  quantity      Int
+  price         Float
+  originalPrice Float?
+  isFree        Boolean @default(false)
+  order         Order   @relation(fields: [orderId], references: [id])
+  product       Product @relation(fields: [productId], references: [id])
+  
+  @@index([orderId])
+  @@index([productId])
+  @@index([orderId, productId])
+  @@index([quantity])
+  @@index([price])
+  @@index([orderId, isFree])
+  @@index([productId, orderId])
 }
 
 model DeliveryMan {
@@ -166,6 +238,15 @@ model DeliveryMan {
   assignedOrders       Order[]
   deliveryAttempts     DeliveryAttempt[]
   moneyTransfers       MoneyTransfer[]
+  
+  @@index([userId])
+  @@index([city])
+  @@index([city, active])
+  @@index([active])
+  @@index([createdAt(sort: Desc)])
+  @@index([totalEarned])
+  @@index([rating])
+  @@index([city, active, createdAt(sort: Desc)])
 }
 
 model MoneyTransfer {
@@ -180,6 +261,15 @@ model MoneyTransfer {
   createdAt     DateTime     @default(now())
   merchant      Merchant?    @relation(fields: [merchantId], references: [id])
   deliveryMan   DeliveryMan? @relation(fields: [deliveryManId], references: [id])
+  
+  @@index([merchantId])
+  @@index([merchantId, transferDate(sort: Desc)])
+  @@index([deliveryManId])
+  @@index([deliveryManId, transferDate(sort: Desc)])
+  @@index([transferDate(sort: Desc)])
+  @@index([amount])
+  @@index([merchantId, amount, transferDate(sort: Desc)])
+  @@index([deliveryManId, amount, transferDate(sort: Desc)])
 }
 
 model Notification {
@@ -193,6 +283,15 @@ model Notification {
   createdAt DateTime @default(now())
   order     Order?   @relation(fields: [orderId], references: [id])
   user      User     @relation(fields: [userId], references: [id])
+  
+  @@index([userId])
+  @@index([userId, isRead])
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([orderId])
+  @@index([isRead])
+  @@index([createdAt(sort: Desc)])
+  @@index([type])
+  @@index([userId, isRead, createdAt(sort: Desc)])
 }
 
 enum Role {
@@ -234,8 +333,8 @@ enum AttemptStatus {
 }
 
 enum DiscountType {
-  PERCENTAGE       // e.g., 10% off
-  FIXED_AMOUNT     // e.g., 50 MAD off
-  BUY_X_GET_Y      // e.g., Buy 2 Get 1 Free
-  CUSTOM_PRICE     // Manual price override
+  PERCENTAGE
+  FIXED_AMOUNT
+  BUY_X_GET_Y
+  CUSTOM_PRICE
 }

@@ -14,9 +14,9 @@ export default async function SupportPage() {
 
   // WhatsApp support number (replace with actual number)
   const whatsappNumber = "+212601717961" // Format: country code + number without +
-const whatsappMessage = encodeURIComponent(
-  `السلام عليكم، عندي مشكل فالحساب ديالي فسيت ويب ديال SONIC DELIVERY.\n\nسميتي: ${user.name || "ماشي معروف"}\nالإيميل: ${user.email || "ماشي معروف"}`,
-)
+  const whatsappMessage = encodeURIComponent(
+    `السلام عليكم، عندي مشكل فالحساب ديالي فسيت ويب ديال SONIC DELIVERY.\n\nسميتي: ${user.name || "ماشي معروف"}\nالإيميل: ${user.email || "ماشي معروف"}`,
+  )
   const whatsappLink = `https://wa.me/${whatsappNumber}?text=${whatsappMessage}`
 
   return (

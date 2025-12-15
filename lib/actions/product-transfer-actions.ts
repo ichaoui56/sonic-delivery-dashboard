@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/db"
 import { revalidateTag } from "next/cache"
 import { auth } from "@/auth"
+import { cache } from "react"
 
 export type ProductTransferItem = {
   productId: number
@@ -142,49 +143,54 @@ export async function createProduct(data: {
   }
 }
 
-export async function getMerchantProducts() {
+export const getMerchantProducts = cache(async () => {
   try {
-    const session = await auth()
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: 'غير مصرح' };
 
-    if (!session?.user || session.user.role !== "MERCHANT") {
-      return { success: false, error: "غير مصرح" }
-    }
-
+    const userId = parseInt(session.user.id);
+    
     const merchant = await prisma.merchant.findUnique({
-      where: { userId: Number.parseInt(session.user.id) },
-    })
+      where: { userId },
+      select: { id: true }
+    });
 
-    if (!merchant) {
-      return { success: false, error: "التاجر غير موجود" }
-    }
+    if (!merchant) return { success: false, error: 'التاجر غير موجود' };
 
     const products = await prisma.product.findMany({
       where: {
         merchantId: merchant.id,
-        deliveredCount: {
-          gt: 0,
-        },
+        deliveredCount: { gt: 0 }
       },
-      orderBy: { createdAt: "desc" },
-    })
+      select: {
+        id: true,
+        name: true,
+        image: true,
+        sku: true,
+        price: true,
+        stockQuantity: true,
+      },
+      orderBy: { name: 'asc' },
+      take: 100,
+    });
 
-    return { success: true, data: products }
+    return { success: true, data: products };
   } catch (error) {
-    console.error("Error fetching products:", error)
-    return { success: false, error: "فشل في جلب المنتجات" }
+    console.error('Error fetching products:', error);
+    return { success: false, error: 'فشل في جلب المنتجات' };
   }
-}
+});
 
-export async function getMerchantTransfers() {
+export const getMerchantTransfers = cache(async () => {
   try {
     const session = await auth()
-
     if (!session?.user || session.user.role !== "MERCHANT") {
       return { success: false, error: "غير مصرح" }
     }
 
     const merchant = await prisma.merchant.findUnique({
-      where: { userId: Number.parseInt(session.user.id) },
+      where: { userId: parseInt(session.user.id) },
+      select: { id: true }
     })
 
     if (!merchant) {
@@ -193,14 +199,34 @@ export async function getMerchantTransfers() {
 
     const transfers = await prisma.productTransfer.findMany({
       where: { merchantId: merchant.id },
-      include: {
+      select: {
+        id: true,
+        transferCode: true,
+        deliveryCompany: true,
+        trackingNumber: true,
+        note: true,
+        status: true,
+        shippedAt: true,
+        deliveredToWarehouseAt: true,
+        createdAt: true,
+        updatedAt: true,
         transferItems: {
-          include: {
-            product: true,
-          },
-        },
+          select: {
+            id: true,
+            quantity: true,
+            product: {
+              select: {
+                id: true,
+                name: true,
+                image: true,
+                price: true,
+              }
+            }
+          }
+        }
       },
       orderBy: { createdAt: "desc" },
+      take: 50, // Limit to 50 transfers
     })
 
     return { success: true, data: transfers }
@@ -208,7 +234,7 @@ export async function getMerchantTransfers() {
     console.error("Error fetching transfers:", error)
     return { success: false, error: "فشل في جلب الشحنات" }
   }
-}
+})
 
 export async function updateTransferStatus(
   transferId: number,
@@ -423,47 +449,60 @@ export async function getProductDetails(productId: number) {
   }
 }
 
-export async function getInventoryStats() {
+export const getInventoryStats = cache(async () => {
   try {
-    const session = await auth()
+    const session = await auth();
+    if (!session?.user?.id) return { success: false, error: 'غير مصرح' };
 
-    if (!session?.user || session.user.role !== "MERCHANT") {
-      return { success: false, error: "غير مصرح" }
-    }
-
+    const userId = parseInt(session.user.id);
+    
     const merchant = await prisma.merchant.findUnique({
-      where: { userId: Number.parseInt(session.user.id) },
-    })
+      where: { userId },
+      select: { id: true }
+    });
 
-    if (!merchant) {
-      return { success: false, error: "التاجر غير موجود" }
-    }
+    if (!merchant) return { success: false, error: 'التاجر غير موجود' };
 
-    const products = await prisma.product.findMany({
-      where: {
-        merchantId: merchant.id,
-        deliveredCount: {
-          gt: 0,
-        },
-      },
-    })
+    const [stats] = await prisma.$queryRaw<Array<{
+      totalProducts: number;
+      activeProducts: number;
+      totalStockQuantity: number;
+      totalInventoryValue: number;
+      totalDeliveredItems: number;
+      lowStockProducts: number;
+      outOfStockProducts: number;
+    }>>`
+      SELECT 
+        COUNT(*) as "totalProducts",
+        COUNT(CASE WHEN "isActive" = true THEN 1 END) as "activeProducts",
+        COALESCE(SUM("stockQuantity"), 0) as "totalStockQuantity",
+        COALESCE(SUM("price" * "stockQuantity"), 0) as "totalInventoryValue",
+        COALESCE(SUM("deliveredCount"), 0) as "totalDeliveredItems",
+        COUNT(CASE WHEN "stockQuantity" > 0 AND "stockQuantity" <= "lowStockAlert" THEN 1 END) as "lowStockProducts",
+        COUNT(CASE WHEN "stockQuantity" = 0 THEN 1 END) as "outOfStockProducts"
+      FROM "Product"
+      WHERE "merchantId" = ${merchant.id} AND "deliveredCount" > 0
+    `;
 
-    const stats = {
-      totalProducts: products.length,
-      activeProducts: products.filter((p) => p.isActive).length,
-      totalStockQuantity: products.reduce((sum, p) => sum + p.stockQuantity, 0),
-      totalInventoryValue: products.reduce((sum, p) => sum + p.price * p.stockQuantity, 0),
-      lowStockProducts: products.filter((p) => p.stockQuantity > 0 && p.stockQuantity <= p.lowStockAlert).length,
-      outOfStockProducts: products.filter((p) => p.stockQuantity === 0).length,
-      totalDeliveredItems: products.reduce((sum, p) => sum + p.deliveredCount, 0),
-    }
-
-    return { success: true, data: stats }
+    return {
+      success: true,
+      data: {
+        totalProducts: Number(stats.totalProducts),
+        activeProducts: Number(stats.activeProducts),
+        totalStockQuantity: Number(stats.totalStockQuantity),
+        totalInventoryValue: Number(stats.totalInventoryValue),
+        totalDeliveredItems: Number(stats.totalDeliveredItems),
+        lowStockProducts: Number(stats.lowStockProducts),
+        outOfStockProducts: Number(stats.outOfStockProducts),
+      }
+    };
   } catch (error) {
-    console.error("Error fetching inventory stats:", error)
-    return { success: false, error: "فشل في جلب إحصائيات المخزون" }
+    console.error('Error fetching inventory stats:', error);
+    return { success: false, error: 'فشل في جلب إحصائيات المخزون' };
   }
-}
+});
+
+
 
 export async function updateProductInfo(
   productId: number,

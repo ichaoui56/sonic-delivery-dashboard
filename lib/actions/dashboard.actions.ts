@@ -1,161 +1,190 @@
-"use server"
+import { cache } from 'react';
+import {prisma } from '@/lib/db';
+import { getCurrentUser } from './auth-actions';
 
-import db from "@/lib/db"
-import { getCurrentUser } from "./auth-actions"
-
-export async function getMerchantDashboardData() {
+export const getMerchantDashboardData = cache(async () => {
   try {
-    const user = await getCurrentUser()
-    if (!user) return null
+    const user = await getCurrentUser();
+    if (!user) return null;
 
-    const merchant = await db.merchant.findUnique({
-      where: { userId: user.id },
-      include: {
-        user: true,
-        orders: {
-          include: {
-            orderItems: {
-              include: {
-                product: true,
+    const [merchant, stats, last7Days, bestSelling, recentOrders] = await Promise.all([
+     prisma.merchant.findUnique({
+        where: { userId: user.id },
+        select: {
+          user: { 
+            select: { 
+              name: true,
+              email: true 
+            } 
+          },
+          companyName: true,
+          balance: true,
+        },
+      }),
+
+     prisma.$queryRaw<Array<{
+        totalOrders: number;
+        pendingOrders: number;
+        deliveredOrders: number;
+        cancelledOrders: number;
+        totalRevenue: number;
+        pendingRevenue: number;
+        totalProducts: number;
+        totalStock: number;
+        lowStockProducts: number;
+        outOfStockProducts: number;
+        inventoryValue: number;
+        totalPaid: number;
+      }>>`
+        SELECT 
+          (SELECT COUNT(*) FROM "Order" WHERE "merchantId" = m.id) as "totalOrders",
+          (SELECT COUNT(*) FROM "Order" WHERE "merchantId" = m.id AND status = 'PENDING') as "pendingOrders",
+          (SELECT COUNT(*) FROM "Order" WHERE "merchantId" = m.id AND status = 'DELIVERED') as "deliveredOrders",
+          (SELECT COUNT(*) FROM "Order" WHERE "merchantId" = m.id AND status IN ('CANCELLED', 'REJECTED')) as "cancelledOrders",
+          (SELECT COALESCE(SUM("totalPrice"), 0) FROM "Order" WHERE "merchantId" = m.id AND status = 'DELIVERED') as "totalRevenue",
+          (SELECT COALESCE(SUM("totalPrice"), 0) FROM "Order" WHERE "merchantId" = m.id AND status NOT IN ('DELIVERED', 'CANCELLED', 'REJECTED')) as "pendingRevenue",
+          (SELECT COUNT(*) FROM "Product" WHERE "merchantId" = m.id AND "deliveredCount" > 0) as "totalProducts",
+          (SELECT COALESCE(SUM("stockQuantity"), 0) FROM "Product" WHERE "merchantId" = m.id) as "totalStock",
+          (SELECT COUNT(*) FROM "Product" WHERE "merchantId" = m.id AND "stockQuantity" > 0 AND "stockQuantity" <= "lowStockAlert") as "lowStockProducts",
+          (SELECT COUNT(*) FROM "Product" WHERE "merchantId" = m.id AND "stockQuantity" = 0) as "outOfStockProducts",
+          (SELECT COALESCE(SUM(price * "stockQuantity"), 0) FROM "Product" WHERE "merchantId" = m.id) as "inventoryValue",
+          (SELECT COALESCE(SUM(amount), 0) FROM "MoneyTransfer" WHERE "merchantId" = m.id) as "totalPaid"
+        FROM "Merchant" m
+        WHERE m."userId" = ${user.id}
+      `,
+
+     prisma.$queryRaw<Array<{
+        date: string;
+        revenue: number;
+        orders: number;
+      }>>`
+        SELECT 
+          TO_CHAR(date_trunc('day', o."createdAt"), 'Dy') as date,
+          COALESCE(SUM(o."totalPrice"), 0) as revenue,
+          COUNT(*) as orders
+        FROM "Order" o
+        WHERE o."merchantId" = (SELECT id FROM "Merchant" WHERE "userId" = ${user.id})
+          AND o.status = 'DELIVERED'
+          AND o."createdAt" >= NOW() - INTERVAL '7 days'
+        GROUP BY date_trunc('day', o."createdAt")
+        ORDER BY date_trunc('day', o."createdAt") DESC
+        LIMIT 7
+      `,
+
+     prisma.$queryRaw<Array<{
+        productId: number;
+        productName: string;
+        productImage: string | null;
+        quantity: number;
+        revenue: number;
+      }>>`
+        SELECT 
+          p.id as "productId",
+          p.name as "productName",
+          p.image as "productImage",
+          SUM(oi.quantity) as quantity,
+          SUM(oi.price * oi.quantity) as revenue
+        FROM "OrderItem" oi
+        JOIN "Product" p ON p.id = oi."productId"
+        JOIN "Order" o ON o.id = oi."orderId"
+        WHERE o."merchantId" = (SELECT id FROM "Merchant" WHERE "userId" = ${user.id})
+          AND o.status = 'DELIVERED'
+          AND p."merchantId" = (SELECT id FROM "Merchant" WHERE "userId" = ${user.id})
+        GROUP BY p.id, p.name, p.image
+        ORDER BY quantity DESC
+        LIMIT 5
+      `,
+
+     prisma.order.findMany({
+        where: {
+          merchant: { userId: user.id },
+        },
+        select: {
+          id: true,
+          orderCode: true,
+          customerName: true,
+          totalPrice: true,
+          status: true,
+          createdAt: true,
+          orderItems: {
+            select: {
+              id: true,
+              product: {
+                select: {
+                  id: true,
+                  name: true,
+                  image: true,
+                },
               },
             },
+            take: 3,
           },
-          orderBy: { createdAt: "desc" },
         },
-        products: {
-          where: { isActive: true },
-        },
-        productTransfers: {
-          orderBy: { createdAt: "desc" },
-          take: 5,
-        },
-        moneyTransfers: {
-          orderBy: { transferDate: "desc" },
-          take: 5,
-        },
-      },
-    })
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+      }) as any, // Type assertion to avoid TypeScript errors
+    ]);
 
-    if (!merchant) return null
+    if (!merchant) return null;
 
-    // Orders statistics
-    const totalOrders = merchant.orders.length
-    const pendingOrders = merchant.orders.filter((o) => o.status === "PENDING").length
-    const deliveredOrders = merchant.orders.filter((o) => o.status === "DELIVERED").length
-    const cancelledOrders = merchant.orders.filter((o) => o.status === "CANCELLED" || o.status === "REJECTED").length
-
-    // Revenue statistics
-    const totalRevenue = merchant.orders
-      .filter((o) => o.status === "DELIVERED")
-      .reduce((sum, order) => sum + order.totalPrice, 0)
-
-    const pendingRevenue = merchant.orders
-      .filter((o) => o.status !== "DELIVERED" && o.status !== "CANCELLED" && o.status !== "REJECTED")
-      .reduce((sum, order) => sum + order.totalPrice, 0)
-
-    // Product statistics
-    const totalProducts = merchant.products.length
-    const totalStock = merchant.products.reduce((sum, p) => sum + p.stockQuantity, 0)
-    const lowStockProducts = merchant.products.filter((p) => p.stockQuantity <= p.lowStockAlert).length
-    const outOfStockProducts = merchant.products.filter((p) => p.stockQuantity === 0).length
-
-    const inventoryValue = merchant.products.reduce((sum, p) => sum + p.price * p.stockQuantity, 0)
-
-    // Transfer statistics
-    const totalTransfers = merchant.productTransfers.length
-    const pendingTransfers = merchant.productTransfers.filter((t) => t.status === "PENDING").length
-    const deliveredTransfers = merchant.productTransfers.filter((t) => t.status === "DELIVERED_TO_WAREHOUSE").length
-
-    // Payment statistics
-    const currentBalance = merchant.balance
-    const totalPaid = merchant.moneyTransfers.reduce((sum, t) => sum + t.amount, 0)
-
-    // Recent activity
-    const recentOrders = merchant.orders.slice(0, 5)
-
-    // Sales trend (last 7 days)
-    const last7Days = []
-    for (let i = 6; i >= 0; i--) {
-      const date = new Date()
-      date.setDate(date.getDate() - i)
-      date.setHours(0, 0, 0, 0)
-
-      const nextDate = new Date(date)
-      nextDate.setDate(nextDate.getDate() + 1)
-
-      const dayOrders = merchant.orders.filter(
-        (o) => o.createdAt >= date && o.createdAt < nextDate && o.status === "DELIVERED",
-      )
-
-      const dayRevenue = dayOrders.reduce((sum, o) => sum + o.totalPrice, 0)
-
-      last7Days.push({
-        date: date.toLocaleDateString("ar-EG", { weekday: "short" }),
-        revenue: dayRevenue,
-        orders: dayOrders.length,
-      })
-    }
-
-    // Best selling products
-    const productSales = new Map<number, { product: any; quantity: number; revenue: number }>()
-
-    merchant.orders
-      .filter((o) => o.status === "DELIVERED")
-      .forEach((order) => {
-        order.orderItems.forEach((item) => {
-          const current = productSales.get(item.productId) || {
-            product: item.product,
-            quantity: 0,
-            revenue: 0,
-          }
-          current.quantity += item.quantity
-          current.revenue += item.price * item.quantity
-          productSales.set(item.productId, current)
-        })
-      })
-
-    const bestSellingProducts = Array.from(productSales.values())
-      .sort((a, b) => b.quantity - a.quantity)
-      .slice(0, 5)
+    const statsData = stats[0] || {
+      totalOrders: 0,
+      pendingOrders: 0,
+      deliveredOrders: 0,
+      cancelledOrders: 0,
+      totalRevenue: 0,
+      pendingRevenue: 0,
+      totalProducts: 0,
+      totalStock: 0,
+      lowStockProducts: 0,
+      outOfStockProducts: 0,
+      inventoryValue: 0,
+      totalPaid: 0,
+    };
 
     return {
       merchant,
       stats: {
         orders: {
-          total: totalOrders,
-          pending: pendingOrders,
-          delivered: deliveredOrders,
-          cancelled: cancelledOrders,
+          total: Number(statsData.totalOrders),
+          pending: Number(statsData.pendingOrders),
+          delivered: Number(statsData.deliveredOrders),
+          cancelled: Number(statsData.cancelledOrders),
         },
         revenue: {
-          total: totalRevenue,
-          pending: pendingRevenue,
+          total: Number(statsData.totalRevenue),
+          pending: Number(statsData.pendingRevenue),
         },
         products: {
-          total: totalProducts,
-          totalStock,
-          lowStock: lowStockProducts,
-          outOfStock: outOfStockProducts,
-          inventoryValue,
-        },
-        transfers: {
-          total: totalTransfers,
-          pending: pendingTransfers,
-          delivered: deliveredTransfers,
+          total: Number(statsData.totalProducts),
+          totalStock: Number(statsData.totalStock),
+          lowStock: Number(statsData.lowStockProducts),
+          outOfStock: Number(statsData.outOfStockProducts),
+          inventoryValue: Number(statsData.inventoryValue),
         },
         payments: {
-          currentBalance,
-          totalPaid,
+          currentBalance: merchant.balance,
+          totalPaid: Number(statsData.totalPaid),
         },
       },
+      last7Days: last7Days.map(day => ({
+        date: day.date,
+        revenue: Number(day.revenue),
+        orders: Number(day.orders),
+      })),
+      bestSellingProducts: bestSelling.map(item => ({
+        product: {
+          id: Number(item.productId),
+          name: item.productName,
+          image: item.productImage,
+        },
+        quantity: Number(item.quantity),
+        revenue: Number(item.revenue),
+      })),
       recentOrders,
-      last7Days,
-      bestSellingProducts,
-      recentTransfers: merchant.productTransfers,
-      recentPayments: merchant.moneyTransfers,
-    }
+    };
   } catch (error) {
-    console.error("[v0] Error fetching dashboard data:", error)
-    return null
+    console.error('[v0] Error fetching dashboard data:', error);
+    return null;
   }
-}
+});

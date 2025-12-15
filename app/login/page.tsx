@@ -18,7 +18,7 @@ export default async function LoginPage() {
     } else if (userRole === "DELIVERYMAN") {
       redirect("/delivery/dashboard")
     } else if (userRole === "MERCHANT") {
-      redirect("/merchant/inventory")
+      redirect("/merchant/dashboard")
     }
   }
 

@@ -60,40 +60,30 @@ const statusMap: Record<string, { label: string; color: string; icon: string }> 
     color: "bg-amber-50 text-amber-700 border-amber-200", 
     icon: "⏳" 
   },
-  READY_FOR_DELIVERY: { 
-    label: "جاهز للتوصيل", 
-    color: "bg-blue-50 text-blue-700 border-blue-200", 
-    icon: "📦" 
+  ACCEPTED: { 
+    label: "مقبول", 
+    color: "bg-green-50 text-green-700 border-green-200", 
+    icon: "✓" 
   },
   ASSIGNED_TO_DELIVERY: { 
     label: "معين لك", 
     color: "bg-indigo-50 text-indigo-700 border-indigo-200", 
     icon: "👤" 
   },
-  IN_TRANSIT: { 
-    label: "في الطريق", 
-    color: "bg-orange-50 text-orange-700 border-orange-200", 
-    icon: "🚚" 
-  },
-  OUT_FOR_DELIVERY: { 
-    label: "في التوصيل", 
-    color: "bg-cyan-50 text-cyan-700 border-cyan-200", 
-    icon: "🏍️" 
-  },
   DELIVERED: { 
     label: "تم التسليم", 
     color: "bg-emerald-50 text-emerald-700 border-emerald-200", 
     icon: "✅" 
   },
-  REJECTED: { 
-    label: "مرفوض", 
-    color: "bg-red-50 text-red-700 border-red-200", 
-    icon: "❌" 
-  },
   REPORTED: { 
     label: "تم الإبلاغ", 
     color: "bg-yellow-50 text-yellow-700 border-yellow-200", 
     icon: "⚠️" 
+  },
+  REJECTED: { 
+    label: "مرفوض", 
+    color: "bg-red-50 text-red-700 border-red-200", 
+    icon: "❌" 
   },
   CANCELLED: { 
     label: "ملغي", 
@@ -131,7 +121,7 @@ export function DeliveryOrdersTable({ orders }: { orders: Order[] }) {
     // Tab-based filtering
     if (activeTab === "available") {
       filtered = filtered.filter(o => 
-        (o.status === "READY_FOR_DELIVERY" || o.status === "PENDING") && !o.deliveryManId
+        o.status === "ACCEPTED" && !o.deliveryManId
       )
     } else if (activeTab === "my-orders") {
       filtered = filtered.filter(o => o.deliveryManId)
@@ -170,15 +160,11 @@ export function DeliveryOrdersTable({ orders }: { orders: Order[] }) {
   // Advanced statistics
   const stats = useMemo(() => {
     const available = orders.filter((o) => 
-      (o.status === "READY_FOR_DELIVERY" || o.status === "PENDING") && !o.deliveryManId
+      o.status === "ACCEPTED" && !o.deliveryManId
     ).length
     
     const assigned = orders.filter((o) => 
       o.deliveryManId && o.status === "ASSIGNED_TO_DELIVERY"
-    ).length
-    
-    const inProgress = orders.filter((o) => 
-      ["IN_TRANSIT", "OUT_FOR_DELIVERY"].includes(o.status)
     ).length
     
     const delivered = orders.filter((o) => 
@@ -192,7 +178,6 @@ export function DeliveryOrdersTable({ orders }: { orders: Order[] }) {
     return {
       available,
       assigned,
-      inProgress,
       delivered,
       totalEarnings
     }
@@ -210,10 +195,23 @@ export function DeliveryOrdersTable({ orders }: { orders: Order[] }) {
 
   const handleAcceptOrder = async (orderId: number) => {
     setUpdatingOrderId(orderId)
+    
+    // First, check if order is in ACCEPTED status
+    const orderToAccept = orders.find(o => o.id === orderId);
+    if (orderToAccept && orderToAccept.status !== "ACCEPTED") {
+      toast.error("لا يمكن قبول هذا الطلب. يجب أن يكون في حالة مقبول أولاً من قبل الإدارة.")
+      setUpdatingOrderId(null)
+      return
+    }
+    
     const result = await acceptOrder(orderId)
 
     if (result.success) {
       toast.success(result.message)
+      // Refresh the page to show updated orders
+      setTimeout(() => {
+        window.location.reload()
+      }, 1000)
     } else {
       toast.error(result.message)
     }
@@ -234,6 +232,10 @@ export function DeliveryOrdersTable({ orders }: { orders: Order[] }) {
       setRejectDialogOpen(false)
       setRejectionReason("")
       setSelectedOrderId(null)
+      // Refresh the page to show updated orders
+      setTimeout(() => {
+        window.location.reload()
+      }, 1000)
     } else {
       toast.error(result.message)
     }
@@ -246,7 +248,10 @@ export function DeliveryOrdersTable({ orders }: { orders: Order[] }) {
 
     if (result.success) {
       toast.success(result.message)
-      window.location.reload()
+      // Refresh the page to show updated orders
+      setTimeout(() => {
+        window.location.reload()
+      }, 1000)
     } else {
       toast.error(result.message)
     }
@@ -296,7 +301,10 @@ export function DeliveryOrdersTable({ orders }: { orders: Order[] }) {
       setReportDialogOpen(false)
       setReportReason("")
       setSelectedOrderId(null)
-      window.location.reload()
+      // Refresh the page to show updated orders
+      setTimeout(() => {
+        window.location.reload()
+      }, 1000)
     } else {
       toast.error(result.message)
     }
@@ -316,16 +324,16 @@ export function DeliveryOrdersTable({ orders }: { orders: Order[] }) {
   return (
     <div className="space-y-6">
       {/* Statistics Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-        <Card className="border-l-4 border-l-blue-500">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card className="border-l-4 border-l-green-500">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-medium text-gray-600">متاحة للتوصيل</p>
                 <p className="text-2xl font-bold text-gray-900">{stats.available}</p>
               </div>
-              <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                <span className="text-blue-600 text-lg">📦</span>
+              <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                <span className="text-green-600 text-lg">📦</span>
               </div>
             </div>
           </CardContent>
@@ -340,20 +348,6 @@ export function DeliveryOrdersTable({ orders }: { orders: Order[] }) {
               </div>
               <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center">
                 <span className="text-indigo-600 text-lg">👤</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-l-4 border-l-orange-500">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-medium text-gray-600">قيد التوصيل</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.inProgress}</p>
-              </div>
-              <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
-                <span className="text-orange-600 text-lg">🚚</span>
               </div>
             </div>
           </CardContent>
@@ -556,7 +550,7 @@ export function DeliveryOrdersTable({ orders }: { orders: Order[] }) {
                   <p className="text-2xl font-bold text-blue-600">{order.totalPrice.toFixed(2)} د.م</p>
                   <div className="flex items-center gap-2 text-sm text-gray-500">
                     <span>ربحك:</span>
-                    <span className="font-semibold text-green-600">15.00 د.م</span>
+                    <span className="font-semibold text-green-600">15.00</span>
                   </div>
                   <Badge variant="outline" className="mt-1 bg-white">
                     {order.paymentMethod === "COD" ? "الدفع عند الاستلام" : "مدفوع مسبقاً"}
@@ -628,7 +622,7 @@ export function DeliveryOrdersTable({ orders }: { orders: Order[] }) {
 
               {/* Actions */}
               <div className="flex flex-col sm:flex-row gap-3">
-                {(order.status === "READY_FOR_DELIVERY" || order.status === "PENDING") && !order.deliveryManId && (
+                {order.status === "ACCEPTED" && !order.deliveryManId && (
                   <>
                     <Button
                       onClick={() => handleAcceptOrder(order.id)}

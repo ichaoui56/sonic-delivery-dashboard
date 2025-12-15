@@ -55,6 +55,7 @@ async function main() {
       rib: "1234567890123456789012",
       bankName: "البنك الشعبي",
       balance: 0,
+      baseFee: 20.00, // Base fee for Dakhla merchant
     },
   });
 
@@ -80,6 +81,7 @@ async function main() {
       rib: "2234567890123456789012",
       bankName: "بنك المغرب",
       balance: 0,
+      baseFee: 25.00, // Base fee for Boujdour merchant
     },
   });
 
@@ -105,6 +107,7 @@ async function main() {
       rib: "3234567890123456789012",
       bankName: "التجاري وفا بنك",
       balance: 0,
+      baseFee: 22.50, // Base fee for Laayoune merchant
     },
   });
 
@@ -128,10 +131,11 @@ async function main() {
     update: {},
     create: {
       userId: deliveryDakhla.id,
-      city: "الداخلة", // Added city field for Dakhla
+      city: "Dakhla", // Added city field for Dakhla
       vehicleType: "دراجة نارية",
       active: true,
       totalEarned: 0,
+      baseFee: 10.00
     },
   });
 
@@ -153,10 +157,11 @@ async function main() {
     update: {},
     create: {
       userId: deliveryBoujdour.id,
-      city: "بوجدور", // Added city field for Boujdour
+      city: "Boujdour", // Added city field for Boujdour
       vehicleType: "سيارة",
       active: true,
       totalEarned: 0,
+      baseFee: 12.00
     },
   });
 
@@ -178,10 +183,11 @@ async function main() {
     update: {},
     create: {
       userId: deliveryLaayoune.id,
-      city: "العيون", // Added city field for Laayoune
+      city: "Laayoune", // Added city field for Laayoune
       vehicleType: "دراجة نارية",
       active: true,
       totalEarned: 0,
+      baseFee: 13.00
     },
   });
 

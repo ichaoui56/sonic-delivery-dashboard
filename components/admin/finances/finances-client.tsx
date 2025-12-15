@@ -65,10 +65,15 @@ export function FinancesClient({ initialData }: { initialData: FinancialData | n
   }
 
   const filteredTransactions = initialData.transactions.filter((transaction) => {
+    const searchTermLower = searchTerm.toLowerCase()
+    const userName = transaction.relatedUser?.name?.toLowerCase() || ''
+    const reference = transaction.reference?.toLowerCase() || ''
+    const note = transaction.note?.toLowerCase() || ''
+    
     const matchesSearch = 
-      transaction.relatedUser.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (transaction.reference && transaction.reference.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (transaction.note && transaction.note.toLowerCase().includes(searchTerm.toLowerCase()))
+      userName.includes(searchTermLower) ||
+      reference.includes(searchTermLower) ||
+      note.includes(searchTermLower)
     
     const matchesType = filterType === "all" || transaction.type === filterType
     

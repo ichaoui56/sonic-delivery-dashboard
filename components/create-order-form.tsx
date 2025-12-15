@@ -50,9 +50,9 @@ type SelectedProduct = {
 }
 
 const CITIES = [
-  { value: "الداخلة", label: "الداخلة", code: "DA" },
-  { value: "بوجدور", label: "بوجدور", code: "BO" },
-  { value: "العيون", label: "العيون", code: "LA" },
+  { value: "Dakhla", label: "الداخلة", code: "DA" },
+  { value: "Boujdour", label: "بوجدور", code: "BO" },
+  { value: "Laayoune", label: "العيون", code: "LA" },
 ]
 
 export function CreateOrderForm({ products }: { products: Product[] }) {

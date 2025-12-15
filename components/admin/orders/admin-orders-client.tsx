@@ -13,8 +13,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Search, Filter, ArrowUpRight, Package, Truck, CheckCircle2, Clock, AlertCircle, XCircle } from 'lucide-react'
+import { Search, Filter, ArrowUpRight, Package, Truck, CheckCircle2, Clock, AlertCircle, XCircle, Printer } from 'lucide-react'
 import { UpdateOrderStatusDialog } from "./update-order-status-dialog"
+import { generateAndDownloadInvoice } from "@/lib/utils/pdf-client"
+import { useToast } from "@/hooks/use-toast"
+
+
 
 type Order = {
   id: number
@@ -23,22 +27,41 @@ type Order = {
   customerPhone: string
   address: string
   city: string
+  note: string | null
   totalPrice: number
+  paymentMethod: "COD" | "PREPAID"
   merchantEarning: number
   status: string
-  paymentMethod: string
-  createdAt: string
+  createdAt: Date
+  deliveredAt: Date | null
+  discountType: string | null
+  discountValue: number | null
+  discountDescription: string | null
+  originalTotalPrice: number | null
+  totalDiscount: number | null
+  buyXGetYConfig: string | null
+  orderItems: {
+    id: number
+    quantity: number
+    price: number
+    originalPrice: number | null
+    isFree: boolean
+    product: {
+      id: number
+      name: string
+      image: string | null
+    }
+  }[]
   merchant: {
     user: {
       name: string
     }
-  }
+  } | null
   deliveryMan: {
     user: {
       name: string
     }
   } | null
-  orderItems: any[]
 }
 
 export function AdminOrdersClient({ initialOrders }: { initialOrders: Order[] }) {
@@ -47,6 +70,8 @@ export function AdminOrdersClient({ initialOrders }: { initialOrders: Order[] })
   const [filterStatus, setFilterStatus] = useState<string>("all")
   const [filterPayment, setFilterPayment] = useState<string>("all")
   const [orders, setOrders] = useState(initialOrders)
+  const [generatingPdfOrderId, setGeneratingPdfOrderId] = useState<number | null>(null)
+  const { toast } = useToast()
 
   const cities = ["الداخلة", "بوجدور", "العيون"]
   const statuses = ["PENDING", "ACCEPTED", "ASSIGNED_TO_DELIVERY", "DELIVERED", "REPORTED", "REJECTED", "CANCELLED"]
@@ -71,18 +96,63 @@ export function AdminOrdersClient({ initialOrders }: { initialOrders: Order[] })
   }
 
   const filteredOrders = orders.filter((order) => {
-    const matchesSearch = 
-      order.orderCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    const searchLower = searchTerm.toLowerCase();
+    const matchesSearch =
+      order.orderCode.toLowerCase().includes(searchLower) ||
+      order.customerName.toLowerCase().includes(searchLower) ||
       order.customerPhone.includes(searchTerm) ||
-      order.merchant.user.name.toLowerCase().includes(searchTerm.toLowerCase())
-    
+      (order.merchant?.user?.name.toLowerCase().includes(searchLower) ?? false)
+
     const matchesCity = filterCity === "all" || order.city === filterCity
     const matchesStatus = filterStatus === "all" || order.status === filterStatus
     const matchesPayment = filterPayment === "all" || order.paymentMethod === filterPayment
-    
+
     return matchesSearch && matchesCity && matchesStatus && matchesPayment
   })
+
+  const handleGeneratePDF = async (order: Order) => {
+    setGeneratingPdfOrderId(order.id)
+    try {
+      const orderForPDF = {
+        orderCode: order.orderCode,
+        customerName: order.customerName,
+        customerPhone: order.customerPhone,
+        address: order.address,
+        city: order.city,
+        totalPrice: order.totalPrice,
+        paymentMethod: order.paymentMethod,
+        createdAt: order.createdAt,
+        orderItems: order.orderItems.map(item => ({
+          id: item.id,
+          quantity: item.quantity,
+          product: {
+            name: item.product.name
+          }
+        }))
+      }
+
+      const logoUrl = '/images/logo/logo.png'
+      const result = await generateAndDownloadInvoice(orderForPDF, "Your Store Name", logoUrl)
+
+      if (result.success) {
+        toast({
+          title: "✓ تم إنشاء الفاتورة",
+          description: "تم إنشاء الفاتورة بنجاح وتنزيلها",
+        })
+      } else {
+        throw new Error(result.error || 'Failed to generate PDF')
+      }
+    } catch (error) {
+      console.error("[v0] Error generating PDF:", error)
+      toast({
+        title: "✗ خطأ",
+        description: "فشل في إنشاء الفاتورة",
+        variant: "destructive",
+      })
+    } finally {
+      setGeneratingPdfOrderId(null)
+    }
+  }
 
   const stats = {
     total: orders.length,
@@ -120,7 +190,7 @@ export function AdminOrdersClient({ initialOrders }: { initialOrders: Order[] })
             </div>
           </CardContent>
         </Card>
-        
+
         <Card className="border-t-4 border-t-yellow-400 shadow-sm hover:shadow-md transition-shadow">
           <CardContent className="p-6">
             <div className="flex justify-between items-start">
@@ -178,7 +248,7 @@ export function AdminOrdersClient({ initialOrders }: { initialOrders: Order[] })
                 className="pr-10 border-gray-200 focus:border-[#048dba] focus:ring-[#048dba]"
               />
             </div>
-            
+
             <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0">
               <Select value={filterCity} onValueChange={setFilterCity}>
                 <SelectTrigger className="w-[140px]">
@@ -215,8 +285,8 @@ export function AdminOrdersClient({ initialOrders }: { initialOrders: Order[] })
                 </SelectContent>
               </Select>
 
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 size="icon"
                 onClick={() => {
                   setFilterCity("all")
@@ -238,7 +308,7 @@ export function AdminOrdersClient({ initialOrders }: { initialOrders: Order[] })
         <div className="flex justify-between items-center">
           <h2 className="text-lg font-semibold text-gray-900">قائمة الطلبات ({filteredOrders.length})</h2>
         </div>
-        
+
         <div className="grid gap-4">
           {filteredOrders.map((order) => (
             <Card key={order.id} className="hover:shadow-md transition-all duration-200 border-l-4 border-l-transparent hover:border-l-[#048dba] group">
@@ -267,7 +337,9 @@ export function AdminOrdersClient({ initialOrders }: { initialOrders: Order[] })
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                       <div>
                         <p className="text-gray-500 mb-1">التاجر</p>
-                        <p className="font-medium text-gray-900">{order.merchant.user.name}</p>
+                        <p className="font-medium text-gray-900">
+                          {order.merchant?.user?.name || "---"}
+                        </p>
                       </div>
                       <div>
                         <p className="text-gray-500 mb-1">المبلغ</p>
@@ -295,8 +367,8 @@ export function AdminOrdersClient({ initialOrders }: { initialOrders: Order[] })
                         التفاصيل
                       </Button>
                     </Link>
-                    
-                    <UpdateOrderStatusDialog 
+
+                    <UpdateOrderStatusDialog
                       orderId={order.id}
                       currentStatus={order.status}
                       orderCode={order.orderCode}
@@ -306,6 +378,16 @@ export function AdminOrdersClient({ initialOrders }: { initialOrders: Order[] })
                         تحديث الحالة
                       </Button>
                     </UpdateOrderStatusDialog>
+                    <div className="mt-4 pt-4 border-t flex justify-end">
+                      <Button
+                        onClick={() => handleGeneratePDF(order)}
+                        disabled={generatingPdfOrderId === order.id}
+                        className="bg-[#0586b5] hover:bg-[#047395] text-white"
+                      >
+                        <Printer className="w-4 h-4 ml-2" />
+                        {generatingPdfOrderId === order.id ? "جاري الإنشاء..." : "طباعة الفاتورة"}
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </CardContent>
