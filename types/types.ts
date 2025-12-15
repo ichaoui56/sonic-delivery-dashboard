@@ -148,7 +148,6 @@ export type MerchantDetail = {
   products: Array<{
     id: number
     name: string
-    price: number
     image: string | null
     stockQuantity: number
     isActive: boolean

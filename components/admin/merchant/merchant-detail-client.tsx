@@ -29,7 +29,6 @@ type MerchantDetail = {
   products: Array<{
     id: number
     name: string
-    price: number
     image: string | null
     stockQuantity: number
     isActive: boolean
@@ -314,7 +313,6 @@ export function MerchantDetailClient({ initialMerchant }: { initialMerchant: Mer
                               {product.isActive ? "نشط" : "غير نشط"}
                             </Badge>
                           </div>
-                          <p className="text-sm sm:text-base text-[#048dba] font-semibold">{product.price.toFixed(2)} د.م</p>
                           <p className="text-xs text-gray-500">المخزون: {product.stockQuantity}</p>
                           <p className="text-xs text-gray-400 mt-1">
                             {new Date(product.createdAt).toLocaleDateString("ar-MA")}

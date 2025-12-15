@@ -12,5 +12,17 @@ export async function TransfersContent() {
     )
   }
 
-  return <TransfersClient initialTransfers={result.data || []} />
+  // Transform the data to match the expected Transfer type
+  const transformedTransfers = result.data?.map(transfer => ({
+    ...transfer,
+    transferItems: transfer.transferItems.map(item => ({
+      ...item,
+      product: {
+        ...item.product,
+        price: 0 // Add default price since it's required but not in the API response
+      }
+    }))
+  })) || []
+
+  return <TransfersClient initialTransfers={transformedTransfers} />
 }

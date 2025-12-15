@@ -241,7 +241,6 @@ export async function getMerchantDetail(merchantId: number) {
           select: {
             id: true,
             name: true,
-            price: true,
             image: true,
             stockQuantity: true,
             isActive: true,
@@ -276,7 +275,6 @@ export async function getMerchantDetail(merchantId: number) {
                 product: {
                   select: {
                     name: true,
-                    price: true,
                   }
                 }
               }

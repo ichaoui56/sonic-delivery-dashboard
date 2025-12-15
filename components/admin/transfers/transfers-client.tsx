@@ -77,7 +77,7 @@ export function TransfersClient({ initialTransfers }: { initialTransfers: Transf
         transfer.transferCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
         transfer.merchant.user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         transfer.merchant.companyName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        transfer.deliveryCompany.toLowerCase().includes(searchQuery.toLowerCase())
+        (transfer.deliveryCompany?.toLowerCase() || '').includes(searchQuery.toLowerCase())
 
       const matchesStatus = statusFilter === "all" || transfer.status === statusFilter
       const matchesMerchant = merchantFilter === "all" || transfer.merchant.id.toString() === merchantFilter
