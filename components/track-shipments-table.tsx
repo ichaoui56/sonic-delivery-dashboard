@@ -31,6 +31,17 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 
+type TransferItem = {
+  id: number
+  quantity: number
+  product: {
+    id: number
+    name: string
+    price: number
+    image: string | null
+  }
+}
+
 type Transfer = {
   id: number
   transferCode: string
@@ -41,16 +52,7 @@ type Transfer = {
   createdAt: Date
   shippedAt: Date | null
   deliveredToWarehouseAt: Date | null
-  transferItems: Array<{
-    id: number
-    quantity: number
-    product: {
-      id: number
-      name: string
-      price: number
-      image: string | null
-    }
-  }>
+  transferItems: TransferItem[]
 }
 
 const statusConfig = {
@@ -58,6 +60,14 @@ const statusConfig = {
   IN_TRANSIT: { label: "في الطريق", color: "bg-blue-100 text-blue-800", icon: Truck },
   DELIVERED_TO_WAREHOUSE: { label: "تم التسليم", color: "bg-green-100 text-green-800", icon: CheckCircle },
   CANCELLED: { label: "تم الإلغاء", color: "bg-red-100 text-red-800", icon: XCircle },
+}
+
+type EditItem = {
+  id: number
+  productId: number
+  productName: string
+  productImage: string | null
+  quantity: number
 }
 
 export function TrackShipmentsTable({ transfers }: { transfers: Transfer[] }) {
@@ -68,6 +78,7 @@ export function TrackShipmentsTable({ transfers }: { transfers: Transfer[] }) {
   const { toast } = useToast()
   const router = useRouter()
   const [editingTransfer, setEditingTransfer] = useState<Transfer | null>(null)
+  const [editingItems, setEditingItems] = useState<EditItem[]>([])
   const [deletingTransferId, setDeletingTransferId] = useState<number | null>(null)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
@@ -133,21 +144,73 @@ export function TrackShipmentsTable({ transfers }: { transfers: Transfer[] }) {
   const hasActiveFilters = searchTerm !== "" || statusFilter !== "ALL" || dateFilter !== "ALL"
 
   const handleEdit = (transfer: Transfer) => {
+    if (transfer.status !== "PENDING") {
+      toast({
+        title: "غير مسموح",
+        description: "يمكن تعديل الشحنات فقط في حالة 'قيد الانتظار'",
+        variant: "destructive",
+      })
+      return
+    }
+
     setEditingTransfer(transfer)
     setEditDeliveryCompany(transfer.deliveryCompany || "")
     setEditTrackingNumber(transfer.trackingNumber || "")
     setEditNote(transfer.note || "")
+
+    // Initialize editing items
+    const items = transfer.transferItems.map(item => ({
+      id: item.id,
+      productId: item.product.id,
+      productName: item.product.name,
+      productImage: item.product.image,
+      quantity: item.quantity
+    }))
+    setEditingItems(items)
+
     setIsEditDialogOpen(true)
+  }
+
+  const handleQuantityChange = (itemId: number, newQuantity: number) => {
+    if (newQuantity < 1) return
+
+    setEditingItems(prev =>
+      prev.map(item =>
+        item.id === itemId ? { ...item, quantity: newQuantity } : item
+      )
+    )
+  }
+
+  const handleRemoveItem = (itemId: number) => {
+    setEditingItems(prev => prev.filter(item => item.id !== itemId))
   }
 
   const handleSubmitEdit = async () => {
     if (!editingTransfer) return
 
+    if (editingItems.length === 0) {
+      toast({
+        title: "خطأ",
+        description: "يجب أن تحتوي الشحنة على منتج واحد على الأقل",
+        variant: "destructive",
+      })
+      return
+    }
+
     setIsSubmitting(true)
+
+    const itemsForUpdate = editingItems.map(item => ({
+      productId: item.productId,
+      quantity: item.quantity,
+      name: item.productName,
+      image: item.productImage || ""
+    }))
+
     const result = await updateProductTransfer(editingTransfer.id, {
       deliveryCompany: editDeliveryCompany,
       trackingNumber: editTrackingNumber,
       note: editNote,
+      items: itemsForUpdate
     })
 
     if (result.success) {
@@ -158,6 +221,7 @@ export function TrackShipmentsTable({ transfers }: { transfers: Transfer[] }) {
       })
       setIsEditDialogOpen(false)
       setEditingTransfer(null)
+      setEditingItems([])
       router.refresh()
     } else {
       toast({
@@ -170,6 +234,15 @@ export function TrackShipmentsTable({ transfers }: { transfers: Transfer[] }) {
   }
 
   const handleDeleteClick = (transferId: number) => {
+    const transfer = transfers.find(t => t.id === transferId)
+    if (transfer && transfer.status !== "PENDING") {
+      toast({
+        title: "غير مسموح",
+        description: "يمكن حذف الشحنات فقط في حالة 'قيد الانتظار'",
+        variant: "destructive",
+      })
+      return
+    }
     setDeletingTransferId(transferId)
     setIsDeleteDialogOpen(true)
   }
@@ -374,7 +447,7 @@ export function TrackShipmentsTable({ transfers }: { transfers: Transfer[] }) {
             const StatusIcon = status.icon
             const totalItems = transfer.transferItems.reduce((sum, item) => sum + item.quantity, 0)
             const totalValue = transfer.transferItems.reduce((sum, item) => sum + item.product.price * item.quantity, 0)
-            const canEdit = transfer.status === "PENDING"
+            const canEditOrDelete = transfer.status === "PENDING"
 
             return (
               <Card key={transfer.id} className="py-0 overflow-hidden hover:shadow-lg transition-shadow">
@@ -398,7 +471,7 @@ export function TrackShipmentsTable({ transfers }: { transfers: Transfer[] }) {
                         <StatusIcon className="w-4 h-4" />
                         {status.label}
                       </Badge>
-                      {canEdit && (
+                      {canEditOrDelete && (
                         <div className="flex gap-1">
                           <Button
                             size="icon"
@@ -551,13 +624,19 @@ export function TrackShipmentsTable({ transfers }: { transfers: Transfer[] }) {
                           <div className="flex-1 min-w-0">
                             <p className="font-semibold text-sm md:text-base truncate">{item.product.name}</p>
                             <p className="text-xs md:text-sm text-gray-500">
-                              {item.product.price} قطعة  × {item.quantity}
+                              {item.quantity} قطعة
+                            </p>
+
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <p className="font-semibold text-sm md:text-base">
+                              الكمية: {item.quantity}
                             </p>
                           </div>
-                         
                         </div>
                       ))}
                     </div>
+
                   </div>
 
                   {/* Note */}
@@ -575,13 +654,19 @@ export function TrackShipmentsTable({ transfers }: { transfers: Transfer[] }) {
       )}
 
       {/* Edit Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+      <Dialog open={isEditDialogOpen} onOpenChange={(open) => {
+        setIsEditDialogOpen(open)
+        if (!open) {
+          setEditingTransfer(null)
+          setEditingItems([])
+        }
+      }}>
+        <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>تعديل معلومات الشحنة</DialogTitle>
             <DialogDescription>قم بتعديل معلومات الشحنة {editingTransfer?.transferCode}</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
+          <div className="space-y-6 py-4">
             <div className="space-y-2">
               <Label htmlFor="edit-delivery-company">شركة النقل</Label>
               <Input
@@ -600,6 +685,72 @@ export function TrackShipmentsTable({ transfers }: { transfers: Transfer[] }) {
                 placeholder="رقم التتبع"
               />
             </div>
+
+            {/* Products Section */}
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <Label className="text-lg font-semibold">المنتجات</Label>
+                <p className="text-sm text-gray-500">
+                  إجمالي القطع: {editingItems.reduce((sum, item) => sum + item.quantity, 0)}
+                </p>
+              </div>
+
+              {editingItems.length === 0 ? (
+                <div className="text-center py-6 border border-dashed border-gray-300 rounded-lg">
+                  <p className="text-gray-500">لم يتم إضافة منتجات</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {editingItems.map((item) => (
+                    <div key={item.id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
+                      <div className="flex items-center gap-3">
+                        {item.productImage && (
+                          <div className="relative w-12 h-12 rounded-lg overflow-hidden flex-shrink-0">
+                            <OptimizedImage
+                              src={item.productImage}
+                              alt={item.productName}
+                              fill
+                              className="object-cover"
+                            />
+                          </div>
+                        )}
+                        <div>
+                          <p className="font-semibold text-sm">{item.productName}</p>
+                          <p className="text-xs text-gray-500">المنتج #{item.productId}</p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2">
+
+                          <div className="w-12 text-center">
+                            <Input
+                              type="text"
+                              min="1"
+                              value={item.quantity}
+                              onChange={(e) => handleQuantityChange(item.id, parseInt(e.target.value) || 1)}
+                              className="text-center"
+                            />
+                          </div>
+
+                        </div>
+
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                          onClick={() => handleRemoveItem(item.id)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="edit-note">ملاحظات</Label>
               <Textarea
@@ -615,7 +766,7 @@ export function TrackShipmentsTable({ transfers }: { transfers: Transfer[] }) {
             <Button variant="outline" onClick={() => setIsEditDialogOpen(false)} disabled={isSubmitting}>
               إلغاء
             </Button>
-            <Button onClick={handleSubmitEdit} disabled={isSubmitting} className="bg-[#048dba] hover:bg-[#037a9f]">
+            <Button onClick={handleSubmitEdit} disabled={isSubmitting || editingItems.length === 0} className="bg-[#048dba] hover:bg-[#037a9f]">
               {isSubmitting ? "جاري الحفظ..." : "حفظ التغييرات"}
             </Button>
           </DialogFooter>
@@ -626,8 +777,14 @@ export function TrackShipmentsTable({ transfers }: { transfers: Transfer[] }) {
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>هل أنت متأكد؟</AlertDialogTitle>
-            <AlertDialogDescription>سيتم حذف هذه الشحنة نهائياً. لا يمكن التراجع عن هذا الإجراء.</AlertDialogDescription>
+            <AlertDialogTitle>هل أنت متأكد من حذف الشحنة؟</AlertDialogTitle>
+            <AlertDialogDescription>
+              سيتم حذف الشحنة رقم {deletingTransferId ? transfers.find(t => t.id === deletingTransferId)?.transferCode : ''} نهائياً.
+              <br />
+              <span className="font-semibold text-red-600 mt-2 block">
+                هذا الإجراء لا يمكن التراجع عنه.
+              </span>
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isSubmitting}>إلغاء</AlertDialogCancel>
@@ -636,7 +793,7 @@ export function TrackShipmentsTable({ transfers }: { transfers: Transfer[] }) {
               disabled={isSubmitting}
               className="bg-red-600 hover:bg-red-700"
             >
-              {isSubmitting ? "جاري الحذف..." : "حذف"}
+              {isSubmitting ? "جاري الحذف..." : "تأكيد الحذف"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { createOrder } from "@/lib/actions/order.actions"
 import { toast } from "sonner"
 import { OptimizedImage } from "./optimized-image"
-import { ShoppingCart, User, CreditCard, CheckCircle2, ArrowRight, ArrowLeft } from "lucide-react"
+import { ShoppingCart, User, CreditCard, CheckCircle2, ArrowRight, ArrowLeft, Trash2, Plus, Minus } from "lucide-react"
 
 type Product = {
   id: number
@@ -43,7 +43,7 @@ export function CreateOrderForm({ products }: { products: Product[] }) {
 
   const [selectedProducts, setSelectedProducts] = useState<SelectedProduct[]>([])
   const [searchQuery, setSearchQuery] = useState("")
-  const [totalPrice, setTotalPrice] = useState<string>("")
+  const [totalPrice, setTotalPrice] = useState("")
 
   const [formData, setFormData] = useState({
     customerName: "",
@@ -265,62 +265,212 @@ export function CreateOrderForm({ products }: { products: Product[] }) {
           {selectedProducts.length > 0 && (
             <Card>
               <CardHeader>
-                <CardTitle>المنتجات المختارة ({selectedProducts.length})</CardTitle>
+                <CardTitle className="flex items-center justify-between">
+                  <span>المنتجات المختارة ({selectedProducts.length})</span>
+                  <span className="text-sm font-normal text-gray-500">
+                    إجمالي القطع: {selectedProducts.reduce((sum, item) => sum + item.quantity, 0)}
+                  </span>
+                </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-2">
-                {selectedProducts.map((item) => (
-                  <div key={item.productId} className="flex items-center gap-3 p-3 border rounded-lg">
-                    <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
-                      {item.image ? (
-                        <OptimizedImage
-                          src={item.image}
-                          alt={item.name}
-                          width={64}
-                          height={64}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-gray-400">
-                          <ShoppingCart className="w-8 h-8" />
+              <CardContent>
+                {/* For very small screens (under 320px) */}
+                <div className="block sm:hidden space-y-3">
+                  {selectedProducts.map((item) => (
+                    <div
+                      key={item.productId}
+                      className="flex flex-col gap-2 p-3 border rounded-lg bg-gray-50/50"
+                    >
+                      <div className="flex items-start gap-2">
+                        <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
+                          {item.image ? (
+                            <OptimizedImage
+                              src={item.image}
+                              alt={item.name}
+                              width={48}
+                              height={48}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-gray-400">
+                              <ShoppingCart className="w-6 h-6" />
+                            </div>
+                          )}
                         </div>
-                      )}
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm line-clamp-2">{item.name}</p>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removeProduct(item.productId)}
+                          className="h-7 w-7 text-red-500 hover:text-red-700 flex-shrink-0"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                      
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            onClick={() => updateQuantity(item.productId, item.quantity - 1)}
+                            className="h-7 w-7"
+                          >
+                            <Minus className="w-3 h-3" />
+                          </Button>
+                          <span className="w-6 text-center font-medium text-sm">{item.quantity}</span>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            onClick={() => updateQuantity(item.productId, item.quantity + 1)}
+                            className="h-7 w-7"
+                          >
+                            <Plus className="w-3 h-3" />
+                          </Button>
+                        </div>
+                        <span className="text-sm font-medium px-2">
+                          الكمية: {item.quantity}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm line-clamp-2">{item.name}</p>
-                      <p className="text-sm text-gray-500">الكمية: {item.quantity}</p>
+                  ))}
+                </div>
+
+                {/* For small screens (320px - 639px) */}
+                <div className="hidden sm:block md:hidden space-y-2">
+                  {selectedProducts.map((item) => (
+                    <div
+                      key={item.productId}
+                      className="flex items-center gap-3 p-3 border rounded-lg bg-gray-50/50"
+                    >
+                      <div className="w-14 h-14 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
+                        {item.image ? (
+                          <OptimizedImage
+                            src={item.image}
+                            alt={item.name}
+                            width={56}
+                            height={56}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-gray-400">
+                            <ShoppingCart className="w-8 h-8" />
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm line-clamp-2">{item.name}</p>
+                        <p className="text-xs text-gray-500">الكمية: {item.quantity}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            onClick={() => updateQuantity(item.productId, item.quantity - 1)}
+                            className="h-8 w-8"
+                          >
+                            <Minus className="w-3.5 h-3.5" />
+                          </Button>
+                          <span className="w-8 text-center font-medium text-sm">{item.quantity}</span>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            onClick={() => updateQuantity(item.productId, item.quantity + 1)}
+                            className="h-8 w-8"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removeProduct(item.productId)}
+                          className="text-red-500 hover:text-red-700 h-8 w-8"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        onClick={() => updateQuantity(item.productId, item.quantity - 1)}
-                        className="h-8 w-8"
-                      >
-                        -
-                      </Button>
-                      <span className="w-8 text-center font-medium text-sm">{item.quantity}</span>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        onClick={() => updateQuantity(item.productId, item.quantity + 1)}
-                        className="h-8 w-8"
-                      >
-                        +
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => removeProduct(item.productId)}
-                        className="text-red-500 hover:text-red-700 h-8 w-8"
-                      >
-                        ×
-                      </Button>
+                  ))}
+                </div>
+
+                {/* For medium and larger screens (640px and up) */}
+                <div className="hidden md:block space-y-2">
+                  {selectedProducts.map((item) => (
+                    <div
+                      key={item.productId}
+                      className="flex items-center gap-4 p-3 border rounded-lg bg-gray-50/50 hover:bg-gray-50 transition-colors"
+                    >
+                      <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
+                        {item.image ? (
+                          <OptimizedImage
+                            src={item.image}
+                            alt={item.name}
+                            width={64}
+                            height={64}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-gray-400">
+                            <ShoppingCart className="w-8 h-8" />
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm md:text-base line-clamp-2">{item.name}</p>
+                        <p className="text-xs text-gray-500 hidden sm:block">المنتج #{item.productId}</p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            onClick={() => updateQuantity(item.productId, item.quantity - 1)}
+                            className="h-9 w-9"
+                          >
+                            <Minus className="w-4 h-4" />
+                          </Button>
+                          <div className="w-14 text-center">
+                            <Input
+                              type="number"
+                              min="1"
+                              value={item.quantity}
+                              onChange={(e) => updateQuantity(item.productId, parseInt(e.target.value) || 1)}
+                              className="text-center h-9"
+                            />
+                          </div>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            onClick={() => updateQuantity(item.productId, item.quantity + 1)}
+                            className="h-9 w-9"
+                          >
+                            <Plus className="w-4 h-4" />
+                          </Button>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removeProduct(item.productId)}
+                          className="text-red-500 hover:text-red-700 hover:bg-red-50 h-9 w-9"
+                        >
+                          <Trash2 className="w-4.5 h-4.5" />
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </CardContent>
             </Card>
           )}
@@ -330,10 +480,10 @@ export function CreateOrderForm({ products }: { products: Product[] }) {
               type="button"
               onClick={() => setCurrentStep(2)}
               disabled={!canProceedToStep2}
-              className="bg-[#048dba] hover:bg-[#037ba0]"
+              className="bg-[#048dba] hover:bg-[#037ba0] min-h-[44px] px-6 text-sm sm:text-base"
             >
-              التالي
-              <ArrowRight className="w-4 h-4 mr-2" />
+              <span className="hidden xs:inline">التالي</span>
+              <ArrowRight className="w-4 h-4 xs:mr-2" /> التالي 
             </Button>
           </div>
         </div>
@@ -458,19 +608,19 @@ export function CreateOrderForm({ products }: { products: Product[] }) {
             </CardContent>
           </Card>
 
-          <div className="flex gap-4">
-            <Button type="button" variant="outline" onClick={() => setCurrentStep(1)} className="flex-1">
-              <ArrowLeft className="w-4 h-4 ml-2" />
-              السابق
+          <div className="flex flex-col xs:flex-row gap-3">
+            <Button type="button" variant="outline" onClick={() => setCurrentStep(1)} className="flex-1 min-h-[44px]">
+              <ArrowLeft className="w-4 h-4 xs:ml-2" /> سابق  
+              <span className="hidden xs:inline">السابق</span>
             </Button>
             <Button
               type="button"
               onClick={() => setCurrentStep(3)}
               disabled={!canProceedToStep3}
-              className="flex-1 bg-[#048dba] hover:bg-[#037ba0]"
+              className="flex-1 min-h-[44px] bg-[#048dba] hover:bg-[#037ba0]"
             >
-              التالي
-              <ArrowRight className="w-4 h-4 mr-2" />
+              <span className="hidden xs:inline">التالي</span>
+              <ArrowRight className="w-4 h-4 xs:mr-2" /> التالي 
             </Button>
           </div>
         </div>
@@ -480,7 +630,7 @@ export function CreateOrderForm({ products }: { products: Product[] }) {
         <div className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>ملخص الطلب</CardTitle>
+              <CardTitle>ملخص الطلب :</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
@@ -541,15 +691,15 @@ export function CreateOrderForm({ products }: { products: Product[] }) {
             </CardContent>
           </Card>
 
-          <div className="flex gap-4">
-            <Button type="button" variant="outline" onClick={() => setCurrentStep(2)} className="flex-1">
-              <ArrowLeft className="w-4 h-4 ml-2" />
-              السابق
+          <div className="flex flex-col xs:flex-row gap-3">
+            <Button type="button" variant="outline" onClick={() => setCurrentStep(2)} className="flex-1 min-h-[44px]">
+              <ArrowLeft className="w-4 h-4 xs:ml-2" /> سابق 
+              <span className="hidden xs:inline">السابق</span>
             </Button>
             <Button
               type="submit"
               disabled={loading || !totalPrice || Number.parseFloat(totalPrice) <= 0}
-              className="flex-1 bg-green-500 hover:bg-green-600"
+              className="flex-1 min-h-[44px] bg-green-500 hover:bg-green-600"
             >
               {loading ? "جاري الإنشاء..." : "تأكيد الطلب"}
             </Button>

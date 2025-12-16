@@ -312,10 +312,6 @@ export function InventoryTable({ products }: { products: Product[] }) {
                       <span className="text-gray-500">تم التوصيل</span>
                       <span className="font-bold text-green-600">{product.deliveredCount ?? 0} قطعة</span>
                     </div>
-                    <div className="flex items-center justify-between text-[10px] sm:text-xs">
-                      <span className="text-gray-500">حد التنبيه</span>
-                      <span className="font-bold text-orange-600">{product.lowStockAlert ?? 3} قطعة</span>
-                    </div>
                   </div>
 
                   {isLowStock && (

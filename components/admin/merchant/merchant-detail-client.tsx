@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ArrowLeft, Edit, DollarSign, Package, ShoppingCart, TrendingUp, Phone, Mail, Building, CreditCard, Calendar, Eye, FileText } from 'lucide-react'
+import { ArrowLeft, Edit, DollarSign, Package, ShoppingCart, TrendingUp, Phone, Mail, Building, CreditCard, Calendar, Eye, FileText, Box, Truck, CheckCircle, Clock, XCircle } from 'lucide-react'
 import { EditMerchantDialog } from "./edit-merchant-dialog"
 import { AddPaymentDialog } from "./add-payment-dialog"
 
@@ -49,6 +49,12 @@ type MerchantDetail = {
     transferCode: string
     status: string
     createdAt: string
+    transferItems: Array<{
+      quantity: number
+      product: {
+        name: string
+      }
+    }>
   }>
   moneyTransfers: Array<{
     id: number
@@ -71,6 +77,56 @@ export function MerchantDetailClient({ initialMerchant }: { initialMerchant: Mer
     deliveredOrders: merchant.orders.filter(o => o.status === "DELIVERED").length,
     totalTransfers: merchant.productTransfers.length,
     totalPayments: merchant.moneyTransfers.filter(mt => mt.amount < 0).length,
+  }
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "PENDING":
+        return (
+          <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200 text-xs">
+            <Clock className="w-3 h-3 ml-1" />
+            قيد الانتظار
+          </Badge>
+        )
+      case "PROCESSING":
+        return (
+          <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs">
+            <Truck className="w-3 h-3 ml-1" />
+            قيد المعالجة
+          </Badge>
+        )
+      case "COMPLETED":
+        return (
+          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-xs">
+            <CheckCircle className="w-3 h-3 ml-1" />
+            مكتمل
+          </Badge>
+        )
+      case "CANCELLED":
+        return (
+          <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 text-xs">
+            <XCircle className="w-3 h-3 ml-1" />
+            ملغي
+          </Badge>
+        )
+      default:
+        return <Badge className="text-xs">{status}</Badge>
+    }
+  }
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case "PENDING":
+        return <Clock className="w-4 h-4 text-yellow-600" />
+      case "PROCESSING":
+        return <Truck className="w-4 h-4 text-blue-600" />
+      case "COMPLETED":
+        return <CheckCircle className="w-4 h-4 text-green-600" />
+      case "CANCELLED":
+        return <XCircle className="w-4 h-4 text-red-600" />
+      default:
+        return <Box className="w-4 h-4 text-gray-600" />
+    }
   }
 
   return (
@@ -315,7 +371,7 @@ export function MerchantDetailClient({ initialMerchant }: { initialMerchant: Mer
                           </div>
                           <p className="text-xs text-gray-500">المخزون: {product.stockQuantity}</p>
                           <p className="text-xs text-gray-400 mt-1">
-                            {new Date(product.createdAt).toLocaleDateString("ar-MA")}
+                            {new Date(product.createdAt).toLocaleDateString("en-US")}
                           </p>
                         </div>
                       </div>
@@ -366,7 +422,7 @@ export function MerchantDetailClient({ initialMerchant }: { initialMerchant: Mer
                           <div>
                             <Badge className="bg-[#048dba] text-xs">{order.status}</Badge>
                             <p className="text-xs text-gray-400 mt-1">
-                              {new Date(order.createdAt).toLocaleDateString("ar-MA")}
+                              {new Date(order.createdAt).toLocaleDateString("eu-US")}
                             </p>
                           </div>
                         </div>
@@ -378,40 +434,106 @@ export function MerchantDetailClient({ initialMerchant }: { initialMerchant: Mer
             </Card>
           </TabsContent>
 
-          {/* Transfers Tab - Responsive */}
+          {/* Transfers Tab - Enhanced with product details */}
           <TabsContent value="transfers">
             <Card>
               <CardHeader className="p-3 sm:p-6">
                 <CardTitle className="text-base sm:text-lg flex items-center gap-2">
-                  <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-[#048dba]" />
+                  <Truck className="w-4 h-4 sm:w-5 sm:h-5 text-[#048dba]" />
                   طلبات نقل المنتجات
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-3 sm:p-6">
                 {merchant.productTransfers.length === 0 ? (
                   <div className="text-center py-8 text-gray-500">
-                    <TrendingUp className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+                    <Truck className="w-12 h-12 mx-auto mb-2 text-gray-300" />
                     <p className="text-sm">لا توجد طلبات نقل حالياً</p>
                   </div>
                 ) : (
-                  <div className="space-y-3">
-                    {merchant.productTransfers.map((transfer) => (
-                      <div key={transfer.id} className="p-3 sm:p-4 border border-gray-200 rounded-lg hover:shadow-md hover:border-[#048dba]/50 transition-all">
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                          <div>
-                            <p className="font-semibold text-sm sm:text-base">{transfer.transferCode}</p>
+                  <div className="space-y-4">
+                    {merchant.productTransfers.map((transfer) => {
+                      const totalQuantity = transfer.transferItems.reduce((sum: number, tp) => sum + tp.quantity, 0)
+                      const totalProducts = transfer.transferItems.length
+                      
+                      return (
+                        <div key={transfer.id} className="p-3 sm:p-4 border border-gray-200 rounded-lg hover:shadow-md hover:border-[#048dba]/30 transition-all bg-white">
+                          {/* Transfer Header */}
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 pb-3 border-b border-gray-100">
+                            <div className="flex items-center gap-2 sm:gap-3">
+                              <div className="flex items-center gap-2">
+                                {getStatusIcon(transfer.status)}
+                                <div>
+                                  <p className="font-semibold text-sm sm:text-base text-gray-800">{transfer.transferCode}</p>
+                                  <p className="text-xs text-gray-500">
+                                    {new Date(transfer.createdAt).toLocaleDateString("ar-EG", {
+                                      weekday: 'long',
+                                      year: 'numeric',
+                                      month: 'long',
+                                      day: 'numeric',
+                                      hour: '2-digit',
+                                      minute: '2-digit',
+                                      numberingSystem: 'latn'
+                                    })}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {getStatusBadge(transfer.status)}
+                            </div>
                           </div>
-                          <div>
-                            <Badge className="bg-[#048dba] text-xs">{transfer.status}</Badge>
+
+                          {/* Transfer Summary */}
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+                            <div className="bg-blue-50 p-3 rounded-lg">
+                              <p className="text-xs text-blue-600 mb-1">إجمالي المنتجات</p>
+                              <p className="font-bold text-lg text-blue-700">{totalProducts}</p>
+                            </div>
+                            <div className="bg-green-50 p-3 rounded-lg">
+                              <p className="text-xs text-green-600 mb-1">إجمالي الكمية</p>
+                              <p className="font-bold text-lg text-green-700">{totalQuantity}</p>
+                            </div>
+                            <div className="bg-purple-50 p-3 rounded-lg">
+                              <p className="text-xs text-purple-600 mb-1">رقم الطلب</p>
+                              <p className="font-bold text-sm text-purple-700 font-mono">{transfer.transferCode}</p>
+                            </div>
+                            <div className="bg-gray-50 p-3 rounded-lg">
+                              <p className="text-xs text-gray-600 mb-1">تاريخ الطلب</p>
+                              <p className="font-semibold text-sm text-gray-700">
+                                {new Date(transfer.createdAt).toLocaleDateString("en-US")}
+                              </p>
+                            </div>
                           </div>
-                          <div className="col-span-2 sm:col-span-1">
-                            <p className="text-xs text-gray-400">
-                              {new Date(transfer.createdAt).toLocaleDateString("ar-MA")}
+
+                          {/* Products List */}
+                          <div className="mb-4">
+                            <p className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                              <Package className="w-4 h-4 text-gray-500" />
+                              المنتجات المنقولة:
                             </p>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                              {transfer.transferItems.map((tp, index) => (
+                                <div key={index} className="flex items-center gap-3 p-3 border border-gray-100 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors">
+                                  <div className="w-12 h-12 sm:w-16 sm:h-16 bg-[#048dba]/10 rounded border-2 border-white flex items-center justify-center">
+                                    <Package className="w-6 h-6 sm:w-8 sm:h-8 text-[#048dba]" />
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-start justify-between gap-2">
+                                      <p className="font-semibold text-sm sm:text-base text-gray-800 truncate">
+                                        {tp.product.name}
+                                      </p>
+                                      <Badge variant="outline" className="bg-white text-xs font-bold">
+                                        {tp.quantity} وحدة
+                                      </Badge>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 )}
               </CardContent>
@@ -441,7 +563,7 @@ export function MerchantDetailClient({ initialMerchant }: { initialMerchant: Mer
                           <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 gap-3">
                             <div>
                               <p className="text-xs text-gray-400 mb-1">
-                                {new Date(transfer.createdAt).toLocaleDateString("ar-MA")}
+                                {new Date(transfer.createdAt).toLocaleDateString("en-US")}
                               </p>
                               <p className="font-semibold text-base sm:text-lg text-red-600">
                                 -{Math.abs(transfer.amount).toFixed(2)} د.م

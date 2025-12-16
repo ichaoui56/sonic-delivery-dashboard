@@ -169,10 +169,7 @@ export function AdminOrdersClient({ initialOrders }: { initialOrders: Order[] })
           <h1 className="text-3xl font-bold text-gray-900">إدارة الطلبات</h1>
           <p className="text-gray-500 mt-1">لوحة تحكم شاملة لمتابعة وإدارة جميع الطلبات</p>
         </div>
-        <Button className="bg-[#048dba] hover:bg-[#037296]">
-          <ArrowUpRight className="w-4 h-4 ml-2" />
-          تصدير التقرير
-        </Button>
+        
       </div>
 
       {/* Stats Cards */}

@@ -595,62 +595,20 @@ export async function deleteProductTransfer(transferId: number) {
       return { success: false, error: "لا يمكن حذف شحنة تم شحنها أو تسليمها" }
     }
 
+    // Start transaction
     await prisma.$transaction(async (tx) => {
-      const productsToDelete: number[] = []
-      const productsToUpdate: { id: number; quantity: number }[] = []
-
-      // Process each product in the transfer
-      for (const item of transfer.transferItems) {
-        // Check if this product appears in any other transfers
-        const otherTransferItems = await tx.transferItem.count({
-          where: {
-            productId: item.productId,
-            transferId: {
-              not: transferId,
-            },
-          },
-        })
-
-        if (otherTransferItems === 0) {
-          // Product only exists in this transfer, mark for deletion
-          productsToDelete.push(item.productId)
-        } else if (transfer.status === "DELIVERED_TO_WAREHOUSE") {
-          // Product exists in other transfers and was delivered, mark for stock adjustment
-          productsToUpdate.push({ id: item.productId, quantity: item.quantity })
-        }
-        // If status is PENDING and product exists elsewhere, no stock adjustment needed
-      }
-
+      // First, delete all transfer items
       await tx.transferItem.deleteMany({
         where: { transferId },
       })
 
-      for (const productId of productsToDelete) {
-        await tx.product.delete({
-          where: { id: productId },
-        })
-      }
-
-      for (const { id, quantity } of productsToUpdate) {
-        await tx.product.update({
-          where: { id },
-          data: {
-            stockQuantity: {
-              decrement: quantity,
-            },
-            deliveredCount: {
-              decrement: quantity,
-            },
-          },
-        })
-      }
-
-      // Delete transfer
+      // Then delete the transfer itself
       await tx.productTransfer.delete({
         where: { id: transferId },
       })
     })
 
+    // Revalidate caches
     revalidateTag(`merchant-transfers-${merchant.id}`)
     revalidateTag(`merchant-products-${merchant.id}`)
 
@@ -693,7 +651,11 @@ export async function updateProductTransfer(
       where: { id: transferId },
       include: {
         merchant: true,
-        transferItems: true,
+        transferItems: {
+          include: {
+            product: true,
+          },
+        },
       },
     })
 
@@ -711,7 +673,24 @@ export async function updateProductTransfer(
       return { success: false, error: "لا يمكن تحديث شحنة تم شحنها أو تسليمها" }
     }
 
-    // Update transfer
+    // If items are provided, validate they exist
+    if (data.items && data.items.length > 0) {
+      for (const item of data.items) {
+        const product = await prisma.product.findUnique({
+          where: { id: item.productId },
+        })
+
+        if (!product) {
+          return { success: false, error: `المنتج #${item.productId} غير موجود` }
+        }
+
+        if (product.merchantId !== merchant.id) {
+          return { success: false, error: `المنتج #${item.productId} لا ينتمي للتاجر` }
+        }
+      }
+    }
+
+    // Update transfer in transaction
     const updatedTransfer = await prisma.$transaction(async (tx) => {
       // Update basic transfer info
       const updated = await tx.productTransfer.update({
@@ -721,6 +700,9 @@ export async function updateProductTransfer(
           trackingNumber: data.trackingNumber !== undefined ? data.trackingNumber : transfer.trackingNumber,
           note: data.note !== undefined ? data.note : transfer.note,
           updatedAt: new Date(),
+        },
+        include: {
+          transferItems: true,
         },
       })
 
@@ -745,6 +727,7 @@ export async function updateProductTransfer(
     })
 
     revalidateTag(`merchant-transfers-${merchant.id}`)
+    revalidateTag(`merchant-products-${merchant.id}`)
 
     return {
       success: true,

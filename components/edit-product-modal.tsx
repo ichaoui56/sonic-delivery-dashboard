@@ -221,18 +221,6 @@ export function EditProductModal({ product, open, onClose, onSuccess }: EditProd
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="lowStockAlert">تنبيه المخزون المنخفض *</Label>
-            <Input
-              id="lowStockAlert"
-              type="number"
-              min="0"
-              value={formData.lowStockAlert}
-              onChange={(e) => setFormData({ ...formData, lowStockAlert: Number.parseInt(e.target.value) || 0 })}
-              required
-            />
-            <p className="text-xs text-gray-500">سيتم تنبيهك عندما يصل المخزون لهذه الكمية أو أقل</p>
-          </div>
 
           <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
             <p className="text-sm font-semibold text-blue-900 mb-2">معلومات المخزون (للقراءة فقط)</p>
@@ -240,10 +228,6 @@ export function EditProductModal({ product, open, onClose, onSuccess }: EditProd
               <div>
                 <span className="text-gray-600">الكمية الحالية:</span>
                 <span className="font-bold text-blue-600 mr-2">{product.stockQuantity}</span>
-              </div>
-              <div>
-                <span className="text-gray-600">حد التنبيه الحالي:</span>
-                <span className="font-bold text-yellow-600 mr-2">{product.lowStockAlert}</span>
               </div>
             </div>
           </div>

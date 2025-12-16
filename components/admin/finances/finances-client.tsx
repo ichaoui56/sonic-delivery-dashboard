@@ -105,10 +105,7 @@ export function FinancesClient({ initialData }: { initialData: FinancialData | n
           <h1 className="text-3xl font-bold text-gray-900">الإدارة المالية</h1>
           <p className="text-gray-500 mt-1">نظرة شاملة على الأمور المالية والمعاملات</p>
         </div>
-        <Button variant="outline">
-          <Download className="w-4 h-4 ml-2" />
-          تصدير التقرير
-        </Button>
+       
       </div>
 
       {/* Financial Summary Cards */}
