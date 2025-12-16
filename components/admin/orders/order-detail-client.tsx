@@ -332,7 +332,12 @@ export function OrderDetailClient({ order }: OrderDetailProps) {
                 }
 
                 const logoUrl = '/images/logo/logo.png'
-                const result = await generateAndDownloadInvoice(orderForPDF, "Your Store Name", logoUrl)
+                const result = await generateAndDownloadInvoice(
+                  orderForPDF,
+                  order.merchant?.user?.name || "—",
+                  order.merchant?.user?.phone || undefined,
+                  logoUrl
+                )
 
                 if (result.success) {
                   toast({
@@ -392,7 +397,12 @@ export function OrderDetailClient({ order }: OrderDetailProps) {
                 }
 
                 const logoUrl = '/images/logo/logo.png'
-                const result = await viewInvoice(orderForPDF, "Your Store Name", logoUrl)
+                const result = await viewInvoice(
+                  orderForPDF,
+                  order.merchant?.user?.name || "—",
+                  order.merchant?.user?.phone || undefined,
+                  logoUrl
+                )
 
                 if (!result.success) {
                   throw new Error(result.error || 'Failed to open PDF')
@@ -604,15 +614,7 @@ export function OrderDetailClient({ order }: OrderDetailProps) {
                         </Badge>
                       )}
                     </div>
-                    <div className="text-left flex-shrink-0">
-                      <p className="font-bold text-[#048dba] text-sm sm:text-base">{item.price.toFixed(2)} د.م</p>
-                      <p className="text-gray-500 text-[10px] sm:text-xs">للقطعة</p>
-                      {item.originalPrice && item.originalPrice !== item.price && (
-                        <p className="text-gray-400 text-[10px] sm:text-xs line-through">
-                          {item.originalPrice.toFixed(2)} د.م
-                        </p>
-                      )}
-                    </div>
+                   
                   </div>
                 ))}
                 <Separator className="my-2 sm:my-4" />
@@ -632,10 +634,7 @@ export function OrderDetailClient({ order }: OrderDetailProps) {
                   </>
                 )}
                 
-                <div className="flex justify-between items-center pt-1 sm:pt-2">
-                  <span className="font-semibold text-gray-700 text-sm sm:text-base">المجموع الكلي</span>
-                  <span className="text-lg sm:text-xl font-bold text-[#048dba]">{order.totalPrice.toFixed(2)} د.م</span>
-                </div>
+               
               </div>
             </CardContent>
           </Card>

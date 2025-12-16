@@ -132,7 +132,12 @@ export function AdminOrdersClient({ initialOrders }: { initialOrders: Order[] })
       }
 
       const logoUrl = '/images/logo/logo.png'
-      const result = await generateAndDownloadInvoice(orderForPDF, "Your Store Name", logoUrl)
+      const result = await generateAndDownloadInvoice(
+        orderForPDF,
+        order.merchant?.user?.name || "—",
+        undefined,
+        logoUrl
+      )
 
       if (result.success) {
         toast({

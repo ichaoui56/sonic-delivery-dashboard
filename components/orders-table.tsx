@@ -145,7 +145,7 @@ export function OrdersTable({
       }
 
       const logoUrl = '/images/logo/logo.png'
-      const result = await generateAndDownloadInvoice(orderForPDF, "Your Store Name", logoUrl)
+      const result = await generateAndDownloadInvoice(orderForPDF, "—", undefined, logoUrl)
 
       if (result.success) {
         toast({

@@ -85,10 +85,12 @@ const loadLogoAsBase64 = async (logoUrl: string): Promise<string> => {
 };
 
 // Generate invoice PDF document definition
-export const createInvoicePDF = (order: OrderForPDF, merchantName: string, logoBase64?: string) => {
+export const createInvoicePDF = (order: OrderForPDF, merchantName: string, merchantPhone?: string, logoBase64?: string) => {
     const customerFirstName = order.customerName.split(' ')[0] || order.customerName;
     const cityName = order.city;  // Use the city name directly from the order
     const address = order.address || customerFirstName;
+
+    const sellerPhone = merchantPhone?.trim() ? merchantPhone.trim() : '—';
 
     // Document definition with logo
     const docDefinition = {
@@ -114,7 +116,7 @@ export const createInvoicePDF = (order: OrderForPDF, merchantName: string, logoB
                         width: '70%',
                         stack: [
                             {
-                                text: `Vendeur: ${merchantName} ( 0600000000 )`,
+                                text: `Vendeur: ${merchantName} ( ${sellerPhone} )`,
                                 fontSize: 9,
                                 bold: false,
                                 margin: [0, 0, 0, 3],
@@ -158,7 +160,7 @@ export const createInvoicePDF = (order: OrderForPDF, merchantName: string, logoB
 
             // Company name
             {
-                text: 'SEBBAR-LIVRAISON',
+                text: 'SONIC-DELIVERY',
                 fontSize: 12,
                 bold: true,
                 alignment: 'center',
@@ -305,45 +307,45 @@ export const createInvoicePDF = (order: OrderForPDF, merchantName: string, logoB
             // Payment info
             {
                 columns: [
-                    {
-                        width: '50%',
-                        columns: [
-                            {
-                                width: '40%',
-                                text: 'Ouvrir:',
-                                fontSize: 9,
-                                bold: true
-                            },
-                            {
-                                width: '60%',
-                                text: order.paymentMethod === "COD" ? "Oui" : "Non",
-                                fontSize: 9
-                            }
-                        ]
-                    },
-                    {
-                        width: '50%',
-                        columns: [
-                            {
-                                width: '40%',
-                                text: 'Fragile :',
-                                fontSize: 9,
-                                bold: true
-                            },
-                            {
-                                width: '60%',
-                                text: 'Non',
-                                fontSize: 9
-                            }
-                        ]
-                    }
+                    // {
+                    //     width: '50%',
+                    //     columns: [
+                    //         {
+                    //             width: '40%',
+                    //             text: 'Ouvrir:',
+                    //             fontSize: 9,
+                    //             bold: true
+                    //         },
+                    //         {
+                    //             width: '60%',
+                    //             text: order.paymentMethod === "COD" ? "Oui" : "Non",
+                    //             fontSize: 9
+                    //         }
+                    //     ]
+                    // },
+                    // {
+                    //     width: '50%',
+                    //     columns: [
+                    //         {
+                    //             width: '40%',
+                    //             text: 'Fragile :',
+                    //             fontSize: 9,
+                    //             bold: true
+                    //         },
+                    //         {
+                    //             width: '60%',
+                    //             text: 'Non',
+                    //             fontSize: 9
+                    //         }
+                    //     ]
+                    // }
                 ],
                 margin: [0, 0, 0, 8]
             },
 
             // Total price
             {
-                text: `Crbt: ${order.totalPrice.toFixed(0)} Dhs`,
+                text: `Prix Total: ${order.totalPrice.toFixed(0)} Dhs`,
                 fontSize: 16,
                 bold: true,
                 alignment: 'center',
@@ -370,10 +372,10 @@ export const createInvoicePDF = (order: OrderForPDF, merchantName: string, logoB
                 columns: [
                     // Left side: Website
                     {
-                        width: '50%',
+                        width: '60%',
                         stack: [
                             {
-                                text: 'Web site: https://sebbarlivraison.com/demo/',
+                                text: 'Web site: https://sonic-delivery.up.railway.app/login',
                                 fontSize: 7,
                                 alignment: 'left',
                                 margin: [0, 0, 0, 2]
@@ -388,14 +390,14 @@ export const createInvoicePDF = (order: OrderForPDF, merchantName: string, logoB
                     },
                     // Right side: Logo (small) and phone
                     {
-                        width: '50%',
+                        width: '40%',
                         stack: [
                             // Small logo in footer
                             ...(logoBase64 ? [{
                                 image: logoBase64,
                                 width: 30,
                                 alignment: 'right',
-                                margin: [0, 0, 0, 2]
+                                margin: [0, 5, 0, 5]
                             }] : []),
                             {
                                 text: 'Telephone: 0600000000',
@@ -408,6 +410,8 @@ export const createInvoicePDF = (order: OrderForPDF, merchantName: string, logoB
                 ],
                 margin: [0, 0, 0, 0]
             }
+
+            
 
             // Alternative simple footer without logo:
             /*
@@ -440,7 +444,7 @@ export const createInvoicePDF = (order: OrderForPDF, merchantName: string, logoB
 };
 
 // Generate PDF and download directly (client-side)
-export const downloadInvoicePDF = async (order: OrderForPDF, merchantName: string, logoUrl?: string) => {
+export const downloadInvoicePDF = async (order: OrderForPDF, merchantName: string, merchantPhone?: string, logoUrl?: string) => {
     try {
         const pdfMake = await loadPdfMake();
         
@@ -454,7 +458,7 @@ export const downloadInvoicePDF = async (order: OrderForPDF, merchantName: strin
             }
         }
 
-        const docDefinition = createInvoicePDF(order, merchantName, logoBase64);
+        const docDefinition = createInvoicePDF(order, merchantName, merchantPhone, logoBase64);
         const fileName = `invoice-${order.orderCode}.pdf`;
 
         // Define fonts
