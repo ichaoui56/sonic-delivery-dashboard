@@ -166,6 +166,8 @@ export const getMerchantProducts = cache(async () => {
         image: true,
         sku: true,
         stockQuantity: true,
+        deliveredCount: true,
+        lowStockAlert: true,
       },
       orderBy: { name: 'asc' },
       take: 100,

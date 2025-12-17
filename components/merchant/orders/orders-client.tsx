@@ -101,6 +101,7 @@ export function OrdersClient({
         currentPage={currentPage}
         totalPages={totalPages}
         onPageChange={handlePageChange}
+        enableMerchantEditDelete
       />
     </div>
   )

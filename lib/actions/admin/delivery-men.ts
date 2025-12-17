@@ -133,11 +133,14 @@ export async function createDeliveryMan(data: {
 
 export async function updateDeliveryMan(deliveryManId: number, data: {
   name: string
+  email: string
   phone: string | null
   image: string | null
   vehicleType: string | null
   city: string | null
   active: boolean
+  baseFee: number
+  newPassword?: string | null
 }) {
   try {
     const session = await auth()
@@ -145,17 +148,22 @@ export async function updateDeliveryMan(deliveryManId: number, data: {
       return { success: false, error: "غير مصرح" }
     }
 
+    const passwordUpdate = data.newPassword ? await bcrypt.hash(data.newPassword, 10) : null
+
     const deliveryMan = await prisma.deliveryMan.update({
       where: { id: deliveryManId },
       data: {
         vehicleType: data.vehicleType,
         city: data.city,
         active: data.active,
+        baseFee: data.baseFee,
         user: {
           update: {
             name: data.name,
+            email: data.email,
             phone: data.phone,
             image: data.image,
+            ...(passwordUpdate ? { password: passwordUpdate } : {}),
           },
         },
       },
@@ -327,6 +335,11 @@ export async function getDeliveryManDetail(id: number) {
       return { success: false, error: "موظف التوصيل غير موجود" }
     }
 
+    const deliveryAttemptsWithFlag = deliveryMan.deliveryAttempts.map((attempt: any) => ({
+      ...attempt,
+      wasSuccessful: attempt.status === "SUCCESSFUL",
+    }))
+
     const moneyTransfers = await prisma.moneyTransfer.findMany({
       where: { deliveryManId: id },
       select: {
@@ -340,7 +353,7 @@ export async function getDeliveryManDetail(id: number) {
       orderBy: { createdAt: "desc" },
     })
 
-    return { success: true, data: { ...deliveryMan, moneyTransfers } }
+    return { success: true, data: { ...deliveryMan, deliveryAttempts: deliveryAttemptsWithFlag, moneyTransfers } }
   } catch (error) {
     console.error("[v0] Error fetching delivery man detail:", error)
     return { success: false, error: "حدث خطأ أثناء جلب البيانات" }

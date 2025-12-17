@@ -10,6 +10,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ArrowLeft, Edit, DollarSign, Package, ShoppingCart, TrendingUp, Phone, Mail, Building, CreditCard, Calendar, Truck, MapPin, Eye, FileText } from 'lucide-react'
 import { EditDeliveryManDialog } from "./edit-deliveryman-dialog"
 import { AddPaymentDialog } from "./add-payment-dialog"
+import { formatDistanceToNow } from "date-fns"
+import { ar } from "date-fns/locale"
 
 type DeliveryManDetail = {
   id: number
@@ -66,7 +68,7 @@ export function DeliveryManDetailClient({ initialDeliveryMan }: { initialDeliver
   const [deliveryMan, setDeliveryMan] = useState(initialDeliveryMan)
   const router = useRouter()
 
-  const successRate = deliveryMan.totalDeliveries > 0 
+  const successRate = deliveryMan.totalDeliveries > 0
     ? ((deliveryMan.successfulDeliveries / deliveryMan.totalDeliveries) * 100).toFixed(1)
     : "0"
 
@@ -84,8 +86,8 @@ export function DeliveryManDetailClient({ initialDeliveryMan }: { initialDeliver
         <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-3 sm:py-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-2 sm:gap-4">
-              <Button 
-                variant="ghost" 
+              <Button
+                variant="ghost"
                 size="sm"
                 onClick={() => router.back()}
                 className="hover:bg-[#048dba]/10"
@@ -98,12 +100,12 @@ export function DeliveryManDetailClient({ initialDeliveryMan }: { initialDeliver
               </div>
             </div>
             <div className="flex gap-2 sm:gap-3 flex-wrap">
-              <EditDeliveryManDialog 
-                deliveryMan={deliveryMan} 
+              <EditDeliveryManDialog
+                deliveryMan={deliveryMan}
                 onSuccess={(updated) => setDeliveryMan({ ...deliveryMan, ...updated })}
               >
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   size="sm"
                   className="border-[#048dba] text-[#048dba] hover:bg-[#048dba] hover:text-white flex-1 sm:flex-none text-xs sm:text-sm"
                 >
@@ -113,7 +115,7 @@ export function DeliveryManDetailClient({ initialDeliveryMan }: { initialDeliver
                 </Button>
               </EditDeliveryManDialog>
               <AddPaymentDialog deliveryManId={deliveryMan.id} deliveryManName={deliveryMan.user.name}>
-                <Button 
+                <Button
                   size="sm"
                   className="bg-[#048dba] hover:bg-[#037a9e] text-white flex-1 sm:flex-none text-xs sm:text-sm"
                 >
@@ -148,7 +150,7 @@ export function DeliveryManDetailClient({ initialDeliveryMan }: { initialDeliver
                   </p>
                   <div className="flex items-center gap-2">
                     <p className="font-semibold text-sm sm:text-base lg:text-lg truncate">{deliveryMan.user.name}</p>
-                    <Badge 
+                    <Badge
                       variant={deliveryMan.active ? "default" : "secondary"}
                       className={`${deliveryMan.active ? 'bg-[#048dba]' : ''} text-xs shrink-0`}
                     >
@@ -257,15 +259,15 @@ export function DeliveryManDetailClient({ initialDeliveryMan }: { initialDeliver
         {/* Tabs - Responsive with added payments tab */}
         <Tabs defaultValue="orders" className="w-full">
           <TabsList className="grid w-full grid-cols-3 bg-gray-100 p-1 h-auto gap-1">
-            <TabsTrigger 
-              value="orders" 
+            <TabsTrigger
+              value="orders"
               className="text-xs sm:text-sm data-[state=active]:bg-[#048dba] data-[state=active]:text-white py-2"
             >
               <span className="hidden sm:inline">الطلبات المسندة</span>
               <span className="sm:hidden">طلبات</span>
               <span className="mr-1">({deliveryMan.assignedOrders.length})</span>
             </TabsTrigger>
-            <TabsTrigger 
+            <TabsTrigger
               value="attempts"
               className="text-xs sm:text-sm data-[state=active]:bg-[#048dba] data-[state=active]:text-white py-2"
             >
@@ -273,7 +275,7 @@ export function DeliveryManDetailClient({ initialDeliveryMan }: { initialDeliver
               <span className="sm:hidden">محاولات</span>
               <span className="mr-1">({deliveryMan.deliveryAttempts.length})</span>
             </TabsTrigger>
-            <TabsTrigger 
+            <TabsTrigger
               value="payments"
               className="text-xs sm:text-sm data-[state=active]:bg-[#048dba] data-[state=active]:text-white py-2"
             >
@@ -301,8 +303,8 @@ export function DeliveryManDetailClient({ initialDeliveryMan }: { initialDeliver
                 ) : (
                   <div className="space-y-3">
                     {deliveryMan.assignedOrders.map((order) => (
-                      <div 
-                        key={order.id} 
+                      <div
+                        key={order.id}
                         className="p-3 sm:p-4 border border-gray-200 rounded-lg hover:shadow-md hover:border-[#048dba]/50 cursor-pointer transition-all"
                         onClick={() => router.push(`/admin/orders/${order.id}`)}
                       >
@@ -322,7 +324,7 @@ export function DeliveryManDetailClient({ initialDeliveryMan }: { initialDeliver
                           <div>
                             <Badge className="bg-[#048dba] text-xs">{order.status}</Badge>
                             <p className="text-xs text-gray-400 mt-1">
-                              {new Date(order.createdAt).toLocaleDateString("ar-MA")}
+                              {new Date(order.createdAt).toLocaleDateString("en-US")}
                             </p>
                           </div>
                         </div>
@@ -353,27 +355,22 @@ export function DeliveryManDetailClient({ initialDeliveryMan }: { initialDeliver
                   <div className="space-y-3">
                     {deliveryMan.deliveryAttempts.map((attempt) => (
                       <div key={attempt.id} className="p-3 sm:p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow">
-                        <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-4 gap-3">
+                        <div className="flex flex-col justify-between items-start gap-5 md:flex-row md:items-center ">
                           <div>
                             <p className="font-semibold text-sm sm:text-base">{attempt.order.orderCode}</p>
                             <p className="text-xs text-gray-600 truncate">{attempt.order.customerName}</p>
                           </div>
                           <div>
-                            <Badge 
-                              variant={attempt.wasSuccessful ? "default" : "secondary"}
-                              className={`${attempt.wasSuccessful ? 'bg-green-600' : 'bg-red-600'} text-xs`}
-                            >
-                              {attempt.wasSuccessful ? "ناجحة" : "فاشلة"}
-                            </Badge>
-                          </div>
-                          <div>
-                            <p className="text-xs text-gray-400">
-                              {new Date(attempt.attemptedAt).toLocaleDateString("ar-MA")}
+                            <p className="text-sm text-gray-500">
+                              {new Date(attempt.attemptedAt).toLocaleDateString("en-US")}
+                            </p>
+                            <p className="text-sm text-gray-500 mt-1">
+                              {formatDistanceToNow(new Date(attempt.attemptedAt), { addSuffix: true, locale: ar })}
                             </p>
                           </div>
                           <div>
                             {attempt.notes && (
-                              <p className="text-xs text-gray-600 line-clamp-1">{attempt.notes}</p>
+                              <p className="text-sm text-gray-600 line-clamp-1">{attempt.notes}</p>
                             )}
                           </div>
                         </div>
@@ -408,7 +405,7 @@ export function DeliveryManDetailClient({ initialDeliveryMan }: { initialDeliver
                           <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 gap-3">
                             <div>
                               <p className="text-xs text-gray-400 mb-1">
-                                {new Date(transfer.createdAt).toLocaleDateString("ar-MA")}
+                                {new Date(transfer.createdAt).toLocaleDateString("en-US")}
                               </p>
                               <p className="font-semibold text-base sm:text-lg text-red-600">
                                 -{Math.abs(transfer.amount).toFixed(2)} د.م
@@ -427,7 +424,7 @@ export function DeliveryManDetailClient({ initialDeliveryMan }: { initialDeliver
                               </div>
                             )}
                           </div>
-                          
+
                           {transfer.invoiceImage && (
                             <div className="pt-3 border-t border-gray-100">
                               <p className="text-xs text-gray-500 mb-2 flex items-center gap-1">

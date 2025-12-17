@@ -14,13 +14,14 @@ import { Label } from "@/components/ui/label"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { updateMerchant } from "@/lib/actions/admin/merchant"
 import { compressImage } from "@/lib/utils/image-compression"
-import { Loader2, Upload } from 'lucide-react'
+import { Eye, EyeOff, Loader2, Upload } from 'lucide-react'
 
 type Merchant = {
   id: number
   companyName: string | null
   rib: string | null
   bankName: string | null
+  baseFee: number
   user: {
     id: number
     name: string
@@ -45,10 +46,14 @@ export function EditMerchantDialog({
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
 
   const [name, setName] = useState(merchant.user.name)
+  const [email, setEmail] = useState(merchant.user.email)
   const [phone, setPhone] = useState(merchant.user.phone || "")
   const [companyName, setCompanyName] = useState(merchant.companyName || "")
   const [rib, setRib] = useState(merchant.rib || "")
   const [bankName, setBankName] = useState(merchant.bankName || "")
+  const [baseFee, setBaseFee] = useState(String(merchant.baseFee ?? 0))
+  const [newPassword, setNewPassword] = useState("")
+  const [showNewPassword, setShowNewPassword] = useState(false)
   const [profileImage, setProfileImage] = useState<string | null>(merchant.user.image)
   const [imagePreview, setImagePreview] = useState<string | null>(merchant.user.image)
 
@@ -59,11 +64,14 @@ export function EditMerchantDialog({
 
     const result = await updateMerchant(merchant.id, {
       name,
+      email,
       phone: phone || null,
       image: profileImage,
       companyName: companyName || null,
       rib: rib || null,
       bankName: bankName || null,
+      baseFee: Number.parseFloat(baseFee) || 0,
+      newPassword: newPassword.trim() ? newPassword : null,
     })
 
     if (result.success) {
@@ -193,13 +201,13 @@ export function EditMerchantDialog({
               />
             </div>
 
-            {/* Email (Read-only) */}
+            {/* Email */}
             <div>
               <Label>البريد الإلكتروني</Label>
               <Input
-                value={merchant.user.email}
-                disabled
-                className="bg-gray-100"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={isLoading}
               />
             </div>
 
@@ -246,6 +254,40 @@ export function EditMerchantDialog({
                 onChange={(e) => setBankName(e.target.value)}
                 disabled={isLoading}
               />
+            </div>
+
+            <div>
+              <Label htmlFor="editBaseFee">رسوم التاجر (Base Fee)</Label>
+              <Input
+                id="editBaseFee"
+                inputMode="decimal"
+                value={baseFee}
+                onChange={(e) => setBaseFee(e.target.value)}
+                disabled={isLoading}
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="editNewPassword">كلمة مرور جديدة (اختياري)</Label>
+              <div className="relative">
+                <Input
+                  id="editNewPassword"
+                  type={showNewPassword ? "text" : "password"}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  disabled={isLoading}
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowNewPassword((v) => !v)}
+                  disabled={isLoading}
+                  className="absolute inset-y-0 right-0 flex items-center px-3 text-gray-500"
+                  aria-label={showNewPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"}
+                >
+                  {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
           </div>
 

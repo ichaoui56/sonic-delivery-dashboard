@@ -21,13 +21,14 @@ import {
 } from "@/components/ui/select"
 import { updateDeliveryMan } from "@/lib/actions/admin/delivery-men"
 import { compressImage } from "@/lib/utils/image-compression"
-import { Loader2, Upload } from 'lucide-react'
+import { Eye, EyeOff, Loader2, Upload } from 'lucide-react'
 
 type DeliveryMan = {
   id: number
   vehicleType: string | null
   city: string | null
   active: boolean
+  baseFee: number
   user: {
     id: number
     name: string
@@ -52,10 +53,14 @@ export function EditDeliveryManDialog({
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
 
   const [name, setName] = useState(deliveryMan.user.name)
+  const [email, setEmail] = useState(deliveryMan.user.email)
   const [phone, setPhone] = useState(deliveryMan.user.phone || "")
   const [vehicleType, setVehicleType] = useState(deliveryMan.vehicleType || "")
   const [city, setCity] = useState(deliveryMan.city || "")
   const [active, setActive] = useState(deliveryMan.active ? "true" : "false")
+  const [baseFee, setBaseFee] = useState(String(deliveryMan.baseFee ?? 0))
+  const [newPassword, setNewPassword] = useState("")
+  const [showNewPassword, setShowNewPassword] = useState(false)
   const [profileImage, setProfileImage] = useState<string | null>(deliveryMan.user.image)
   const [imagePreview, setImagePreview] = useState<string | null>(deliveryMan.user.image)
 
@@ -66,11 +71,14 @@ export function EditDeliveryManDialog({
 
     const result = await updateDeliveryMan(deliveryMan.id, {
       name,
+      email,
       phone: phone || null,
       image: profileImage,
       vehicleType: vehicleType || null,
       city: city || null,
       active: active === "true",
+      baseFee: Number.parseFloat(baseFee) || 0,
+      newPassword: newPassword.trim() ? newPassword : null,
     })
 
     if (result.success) {
@@ -190,7 +198,7 @@ export function EditDeliveryManDialog({
           <div className="grid grid-cols-2 gap-4">
             {/* Name */}
             <div>
-              <Label htmlFor="editDMName">الاسم الكامل *</Label>
+              <Label className="mb-2" htmlFor="editDMName">الاسم الكامل *</Label>
               <Input
                 id="editDMName"
                 value={name}
@@ -200,19 +208,19 @@ export function EditDeliveryManDialog({
               />
             </div>
 
-            {/* Email (Read-only) */}
+            {/* Email */}
             <div>
-              <Label>البريد الإلكتروني</Label>
+              <Label className="mb-2">البريد الإلكتروني</Label>
               <Input
-                value={deliveryMan.user.email}
-                disabled
-                className="bg-gray-100"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={isLoading}
               />
             </div>
 
             {/* Phone */}
             <div>
-              <Label htmlFor="editDMPhone">رقم الهاتف</Label>
+              <Label className="mb-2" htmlFor="editDMPhone">رقم الهاتف</Label>
               <Input
                 id="editDMPhone"
                 type="tel"
@@ -224,7 +232,7 @@ export function EditDeliveryManDialog({
 
             {/* Vehicle Type */}
             <div>
-              <Label htmlFor="editDMVehicle">نوع المركبة</Label>
+              <Label className="mb-2" htmlFor="editDMVehicle">نوع المركبة</Label>
               <Input
                 id="editDMVehicle"
                 value={vehicleType}
@@ -235,7 +243,7 @@ export function EditDeliveryManDialog({
 
             {/* City */}
             <div>
-              <Label htmlFor="editDMCity">المدينة *</Label>
+              <Label className="mb-2" htmlFor="editDMCity">المدينة *</Label>
               <Select value={city} onValueChange={setCity} disabled={isLoading}>
                 <SelectTrigger>
                   <SelectValue placeholder="اختر المدينة" />
@@ -250,7 +258,7 @@ export function EditDeliveryManDialog({
 
             {/* Active Status */}
             <div>
-              <Label htmlFor="editDMActive">الحالة</Label>
+              <Label className="mb-2" htmlFor="editDMActive">الحالة</Label>
               <Select value={active} onValueChange={setActive} disabled={isLoading}>
                 <SelectTrigger>
                   <SelectValue />
@@ -260,6 +268,40 @@ export function EditDeliveryManDialog({
                   <SelectItem value="false">غير نشط</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            <div>
+              <Label className="mb-2" htmlFor="editDMBaseFee">رسوم عامل التوصيل (Base Fee)</Label>
+              <Input
+                id="editDMBaseFee"
+                inputMode="decimal"
+                value={baseFee}
+                onChange={(e) => setBaseFee(e.target.value)}
+                disabled={isLoading}
+              />
+            </div>
+
+            <div>
+              <Label className="mb-2" htmlFor="editDMNewPassword">كلمة مرور جديدة (اختياري)</Label>
+              <div className="relative">
+                <Input
+                  id="editDMNewPassword"
+                  type={showNewPassword ? "text" : "password"}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  disabled={isLoading}
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowNewPassword((v) => !v)}
+                  disabled={isLoading}
+                  className="absolute inset-y-0 right-0 flex items-center px-3 text-gray-500"
+                  aria-label={showNewPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"}
+                >
+                  {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
           </div>
 

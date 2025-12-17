@@ -490,7 +490,7 @@ export function OrderDetailClient({ order }: OrderDetailProps) {
         {/* Main Info Column */}
         <div className="lg:col-span-2 space-y-4 sm:space-y-6">
           {/* Complete Timeline - Fully Responsive */}
-          <Card className="shadow-sm">
+          {/* <Card className="shadow-sm">
             <CardHeader className="p-3 sm:p-6">
               <CardTitle className="flex items-center gap-2 text-sm sm:text-lg">
                 <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-[#048dba]" />
@@ -501,24 +501,21 @@ export function OrderDetailClient({ order }: OrderDetailProps) {
               <div className="relative space-y-4 sm:space-y-8">
                 {timelineEvents.map((event, index) => (
                   <div key={index} className="relative flex items-start gap-3 sm:gap-4">
-                    {/* Timeline line */}
                     {index !== timelineEvents.length - 1 && (
                       <div className="absolute left-[15px] sm:left-[17px] top-8 bottom-0 w-0.5 bg-gray-200" />
                     )}
                     
-                    {/* Icon */}
+                    
                     <div className={`${event.bgColor} rounded-full p-1.5 sm:p-2 z-10 flex-shrink-0`}>
                       {getEventIcon(event)}
                     </div>
                     
-                    {/* Content */}
                     <div className="flex-1 min-w-0">
                       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-1 sm:gap-0">
                         <div className="flex-1 min-w-0">
                           <p className="font-semibold text-gray-900 text-sm sm:text-base truncate">{event.title}</p>
                           <p className="text-gray-600 text-xs sm:text-sm mt-0.5 line-clamp-2">{event.description}</p>
                           
-                          {/* Additional details for specific events */}
                           {event.type === 'DELIVERY_ATTEMPT' && event.attemptData && (
                             <div className="mt-1.5 sm:mt-2 space-y-1 sm:space-y-2">
                               <div className="flex items-center gap-1.5 text-xs sm:text-sm">
@@ -571,7 +568,6 @@ export function OrderDetailClient({ order }: OrderDetailProps) {
                   </div>
                 ))}
                 
-                {/* No events message */}
                 {timelineEvents.length === 0 && (
                   <div className="text-center py-4 sm:py-8 text-gray-500 text-sm sm:text-base">
                     لا توجد أحداث مسجلة لهذا الطلب بعد
@@ -579,7 +575,7 @@ export function OrderDetailClient({ order }: OrderDetailProps) {
                 )}
               </div>
             </CardContent>
-          </Card>
+          </Card> */}
 
           {/* Products Card - Responsive */}
           <Card className="border-t-4 border-t-[#048dba] shadow-sm">

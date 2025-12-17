@@ -18,6 +18,7 @@ type MerchantDetail = {
   totalEarned: number
   rib: string | null
   bankName: string | null
+  baseFee: number
   user: {
     id: number
     name: string
@@ -53,6 +54,7 @@ type MerchantDetail = {
       quantity: number
       product: {
         name: string
+        image: string | null
       }
     }>
   }>
@@ -514,8 +516,8 @@ export function MerchantDetailClient({ initialMerchant }: { initialMerchant: Mer
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                               {transfer.transferItems.map((tp, index) => (
                                 <div key={index} className="flex items-center gap-3 p-3 border border-gray-100 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors">
-                                  <div className="w-12 h-12 sm:w-16 sm:h-16 bg-[#048dba]/10 rounded border-2 border-white flex items-center justify-center">
-                                    <Package className="w-6 h-6 sm:w-8 sm:h-8 text-[#048dba]" />
+                                  <div className="w-12 h-12 sm:w-16 sm:h-16 bg-[#048dba]/10 rounded-xl border-2 border-white flex items-center justify-center">
+                                    <img src={tp.product.image || '/placeholder.png'} className="w-full h-full object-contain rounded-xl"  alt={tp.product.name} width={64} height={64} />
                                   </div>
                                   <div className="flex-1 min-w-0">
                                     <div className="flex items-start justify-between gap-2">

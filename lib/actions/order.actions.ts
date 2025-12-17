@@ -376,6 +376,115 @@ export async function createOrder(data: {
   }
 }
 
+export async function updateMerchantOrder(
+  orderId: number,
+  data: {
+    customerName: string
+    customerPhone: string
+    address: string
+    city: string
+    note?: string | null
+    paymentMethod: "COD" | "PREPAID"
+    totalPrice: number
+  },
+) {
+  try {
+    const user = await getCurrentUser()
+    if (!user || user.role !== "MERCHANT") {
+      return { success: false, message: "غير مصرح" }
+    }
+
+    const merchant = await prisma.merchant.findUnique({
+      where: { userId: user.id },
+      select: { id: true, baseFee: true },
+    })
+
+    if (!merchant) {
+      return { success: false, message: "التاجر غير موجود" }
+    }
+
+    const existing = await prisma.order.findFirst({
+      where: { id: orderId, merchantId: merchant.id },
+      select: { id: true, status: true },
+    })
+
+    if (!existing) {
+      return { success: false, message: "الطلب غير موجود" }
+    }
+
+    if (existing.status !== "PENDING") {
+      return { success: false, message: "لا يمكن تعديل الطلب بعد تغيير حالته" }
+    }
+
+    const merchantBaseFee = merchant.baseFee || 25
+    const merchantEarning = data.totalPrice - merchantBaseFee
+
+    await prisma.order.update({
+      where: { id: orderId },
+      data: {
+        customerName: data.customerName,
+        customerPhone: data.customerPhone,
+        address: data.address,
+        city: data.city,
+        note: data.note ?? null,
+        paymentMethod: data.paymentMethod,
+        totalPrice: data.totalPrice,
+        merchantEarning,
+      },
+    })
+
+    revalidatePath("/merchant/orders")
+    return { success: true, message: "تم تعديل الطلب بنجاح" }
+  } catch (error) {
+    console.error("[v0] Error updating merchant order:", error)
+    return { success: false, message: "فشل في تعديل الطلب" }
+  }
+}
+
+export async function deleteMerchantOrder(orderId: number) {
+  try {
+    const user = await getCurrentUser()
+    if (!user || user.role !== "MERCHANT") {
+      return { success: false, message: "غير مصرح" }
+    }
+
+    const merchant = await prisma.merchant.findUnique({
+      where: { userId: user.id },
+      select: { id: true },
+    })
+
+    if (!merchant) {
+      return { success: false, message: "التاجر غير موجود" }
+    }
+
+    const existing = await prisma.order.findFirst({
+      where: { id: orderId, merchantId: merchant.id },
+      select: { id: true, status: true },
+    })
+
+    if (!existing) {
+      return { success: false, message: "الطلب غير موجود" }
+    }
+
+    if (existing.status !== "PENDING") {
+      return { success: false, message: "لا يمكن حذف الطلب بعد تغيير حالته" }
+    }
+
+    await prisma.$transaction([
+      prisma.orderItem.deleteMany({ where: { orderId } }),
+      prisma.notification.deleteMany({ where: { orderId } }),
+      prisma.deliveryAttempt.deleteMany({ where: { orderId } }),
+      prisma.order.delete({ where: { id: orderId } }),
+    ])
+
+    revalidatePath("/merchant/orders")
+    return { success: true, message: "تم حذف الطلب بنجاح" }
+  } catch (error) {
+    console.error("[v0] Error deleting merchant order:", error)
+    return { success: false, message: "فشل في حذف الطلب" }
+  }
+}
+
 // Handle delivered order updates
 async function handleDeliveredOrder(order: any) {
   // Get merchant and delivery man data
@@ -546,7 +655,7 @@ export async function updateOrderStatus(orderId: number, newStatus: OrderStatus,
       case "REJECTED":
         attemptNotes = `رفض الطلب${notes ? ` - ${notes}` : ''}`
         attemptStatus = "REFUSED"
-        break
+        break 
       case "CANCELLED":
         attemptNotes = `إلغاء الطلب${notes ? ` - ${notes}` : ''}`
         attemptStatus = "REFUSED"

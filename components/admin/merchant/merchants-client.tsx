@@ -27,6 +27,7 @@ type Merchant = {
   totalEarned: number
   rib: string | null
   bankName: string | null
+  baseFee: number
   user: {
     id: number
     name: string
@@ -90,7 +91,6 @@ export function MerchantsClient({ initialMerchants }: { initialMerchants: Mercha
             {filteredMerchants.map((merchant) => (
               <div
                 key={merchant.id}
-                onClick={() => router.push(`/admin/merchants/${merchant.id}`)}
                 className="border rounded-lg hover:shadow-md cursor-pointer transition-all p-3 sm:p-4 hover:border-[#048dba]"
               >
                 {/* Mobile & Tablet Layout */}
@@ -115,15 +115,29 @@ export function MerchantsClient({ initialMerchants }: { initialMerchants: Mercha
                         </div>
                       </div>
                     </div>
-                    
+                     <div className="flex gap-2 w-full sm:w-auto">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="flex-1 sm:flex-none border-[#048dba] text-[#048dba] hover:bg-[#048dba] hover:text-white text-xs"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            router.push(`/admin/merchants/${merchant.id}`)
+                          }}
+                        >
+                          <Eye className="w-3 h-3 sm:w-4 sm:h-4 ml-1" />
+                          <span className="hidden xs:inline">عرض التفاصيل</span>
+                          <span className="xs:hidden">تفاصيل</span>
+                        </Button>
+                      </div>
                     {/* Action Buttons - Hidden on smallest screens, shown as icons */}
                     <div className="hidden xs:flex gap-1 sm:gap-2 flex-shrink-0">
                       <EditMerchantDialog merchant={merchant} onSuccess={(updated) => {
                         setMerchants(merchants.map(m => m.id === updated.id ? updated : m))
                       }}>
-                        <Button 
-                          size="sm" 
-                          variant="outline" 
+                        <Button
+                          size="sm"
+                          variant="outline"
                           onClick={(e) => e.stopPropagation()}
                           className="h-8 px-2 sm:px-3 text-xs border-[#048dba] text-[#048dba] hover:bg-[#048dba] hover:text-white"
                         >
@@ -132,14 +146,15 @@ export function MerchantsClient({ initialMerchants }: { initialMerchants: Mercha
                         </Button>
                       </EditMerchantDialog>
                       <AddPaymentDialog merchantId={merchant.id} merchantName={merchant.user.name}>
-                        <Button 
-                          size="sm" 
-                          className="bg-green-600 hover:bg-green-700 h-8 px-2 sm:px-3 text-xs" 
+                        <Button
+                          size="sm"
+                          className="bg-green-600 hover:bg-green-700 h-8 px-2 sm:px-3 text-xs"
                           onClick={(e) => e.stopPropagation()}
                         >
                           <DollarSign className="w-3 h-3 sm:w-4 sm:h-4" />
                         </Button>
                       </AddPaymentDialog>
+                       
                     </div>
                   </div>
 
@@ -170,9 +185,9 @@ export function MerchantsClient({ initialMerchants }: { initialMerchants: Mercha
                     <EditMerchantDialog merchant={merchant} onSuccess={(updated) => {
                       setMerchants(merchants.map(m => m.id === updated.id ? updated : m))
                     }}>
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
+                      <Button
+                        size="sm"
+                        variant="outline"
                         onClick={(e) => e.stopPropagation()}
                         className="flex-1 h-8 text-xs border-[#048dba] text-[#048dba] hover:bg-[#048dba] hover:text-white"
                       >
@@ -181,9 +196,9 @@ export function MerchantsClient({ initialMerchants }: { initialMerchants: Mercha
                       </Button>
                     </EditMerchantDialog>
                     <AddPaymentDialog merchantId={merchant.id} merchantName={merchant.user.name}>
-                      <Button 
-                        size="sm" 
-                        className="flex-1 bg-[#048dba] hover:bg-[#037299] h-8 text-xs" 
+                      <Button
+                        size="sm"
+                        className="flex-1 bg-[#048dba] hover:bg-[#037299] h-8 text-xs"
                         onClick={(e) => e.stopPropagation()}
                       >
                         <DollarSign className="w-3 h-3 ml-1" />

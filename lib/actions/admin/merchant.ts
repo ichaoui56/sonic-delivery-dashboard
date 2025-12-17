@@ -132,11 +132,14 @@ export async function createMerchant(data: {
 
 export async function updateMerchant(merchantId: number, data: {
   name: string
+  email: string
   phone: string | null
   image: string | null
   companyName: string | null
   rib: string | null
   bankName: string | null
+  baseFee: number
+  newPassword?: string | null
 }) {
   try {
     const session = await auth()
@@ -144,17 +147,22 @@ export async function updateMerchant(merchantId: number, data: {
       return { success: false, error: "غير مصرح" }
     }
 
+    const passwordUpdate = data.newPassword ? await bcrypt.hash(data.newPassword, 10) : null
+
     const merchant = await prisma.merchant.update({
       where: { id: merchantId },
       data: {
         companyName: data.companyName,
         rib: data.rib,
         bankName: data.bankName,
+        baseFee: data.baseFee,
         user: {
           update: {
             name: data.name,
+            email: data.email,
             phone: data.phone,
             image: data.image,
+            ...(passwordUpdate ? { password: passwordUpdate } : {}),
           },
         },
       },

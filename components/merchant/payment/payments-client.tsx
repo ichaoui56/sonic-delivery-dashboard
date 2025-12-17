@@ -55,16 +55,22 @@ export function PaymentsClient({ initialData }: { initialData: PaymentData }) {
 
   const data = initialData
 
-  const filteredPayments = data.paymentHistory.filter(
-    (payment) =>
-      payment.reference?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      payment.note?.toLowerCase().includes(searchQuery.toLowerCase()),
-  )
+  const deliveredOrdersCount = data.deliveredOrders.length
+  const totalAfterBaseFees = data.totalRevenue - data.merchantBaseFee * deliveredOrdersCount
+
+  const normalizedSearch = searchQuery.trim().toLowerCase()
+
+  const filteredPayments = data.paymentHistory.filter((payment) => {
+    if (!normalizedSearch) return true
+    const ref = (payment.reference ?? "").toLowerCase()
+    const note = (payment.note ?? "").toLowerCase()
+    return ref.includes(normalizedSearch) || note.includes(normalizedSearch)
+  })
 
   const filteredOrders = data.deliveredOrders.filter(
     (order) =>
-      order.orderCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      order.customerName.toLowerCase().includes(searchQuery.toLowerCase()),
+      order.orderCode.toLowerCase().includes(normalizedSearch) ||
+      order.customerName.toLowerCase().includes(normalizedSearch),
   )
 
   const prepaidOrders = filteredOrders.filter((o) => o.paymentMethod === "PREPAID")
@@ -88,13 +94,22 @@ export function PaymentsClient({ initialData }: { initialData: PaymentData }) {
             <p className="text-xs opacity-75 mt-1">من جميع الطلبات المسلمة</p>
           </CardContent>
         </Card>
-
+        <Card className="bg-orange-500 text-white border-0">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-xs sm:text-sm font-medium opacity-90">إجمالي بعد الرسوم</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-xl sm:text-2xl font-bold">{formatNumber(totalAfterBaseFees)} د.م</div>
+            <p className="text-xs opacity-75 mt-1">
+              ({formatNumber(data.merchantBaseFee)} د.م × {deliveredOrdersCount} طلب)
+            </p>
+          </CardContent>
+        </Card>
         <Card
-          className={`border-0 ${
-            data.currentBalance >= 0
+          className={`border-0 ${data.currentBalance >= 0
               ? "bg-green-500"
               : "bg-red-500"
-          } text-white`}
+            } text-white`}
         >
           <CardHeader className="pb-2">
             <CardTitle className="text-xs sm:text-sm font-medium opacity-90">
@@ -122,17 +137,7 @@ export function PaymentsClient({ initialData }: { initialData: PaymentData }) {
           </CardContent>
         </Card>
 
-        <Card className="bg-orange-500 text-white border-0">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs sm:text-sm font-medium opacity-90">الرصيد الصافي</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-xl sm:text-2xl font-bold">
-              {formatNumber(data.currentBalance - data.totalPaidByAdmin)} د.م
-            </div>
-            <p className="text-xs opacity-75 mt-1">بعد خصم المدفوعات</p>
-          </CardContent>
-        </Card>
+
       </div>
 
       {/* Breakdown Cards */}
@@ -330,11 +335,11 @@ export function PaymentsClient({ initialData }: { initialData: PaymentData }) {
                         تم التسليم:{" "}
                         {order.deliveredAt
                           ? new Date(order.deliveredAt).toLocaleDateString("ar-EG", {
-                              year: "numeric",
-                              month: "long",
-                              day: "numeric",
-                              numberingSystem: "latn",
-                            })
+                            year: "numeric",
+                            month: "long",
+                            day: "numeric",
+                            numberingSystem: "latn",
+                          })
                           : "غير محدد"}
                       </p>
                     </div>
@@ -342,9 +347,8 @@ export function PaymentsClient({ initialData }: { initialData: PaymentData }) {
                       <div className="text-base font-medium text-gray-500">السعر الكلي</div>
                       <div className="text-lg font-bold text-gray-900">{formatNumber(order.totalPrice)} د.م</div>
                       <div
-                        className={`text-sm font-medium mt-1 ${
-                          order.merchantEarning >= 0 ? "text-green-600" : "text-red-600"
-                        }`}
+                        className={`text-sm font-medium mt-1 ${order.merchantEarning >= 0 ? "text-green-600" : "text-red-600"
+                          }`}
                       >
                         {order.merchantEarning >= 0 ? "ربحك: +" : "مستحق عليك: "}
                         {formatNumber(Math.abs(order.merchantEarning))} د.م
@@ -373,7 +377,7 @@ export function PaymentsClient({ initialData }: { initialData: PaymentData }) {
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-gray-900 truncate">{item.product.name}</p>
                           <p className="text-xs text-gray-500">
-                            {item.quantity} × قطعة 
+                            {item.quantity} × قطعة
                           </p>
                         </div>
                       </div>
@@ -390,22 +394,22 @@ export function PaymentsClient({ initialData }: { initialData: PaymentData }) {
       {((filterType === "payments" && filteredPayments.length === 0) ||
         (filterType === "orders" && filteredOrders.length === 0) ||
         (filterType === "all" && filteredPayments.length === 0 && filteredOrders.length === 0)) && (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <svg className="w-16 h-16 text-gray-300 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={1.5}
-                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-              />
-            </svg>
-            <p className="text-gray-500 text-center">
-              لا توجد {filterType === "payments" ? "تحويلات مالية" : "طلبات"} متاحة
-            </p>
-          </CardContent>
-        </Card>
-      )}
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <svg className="w-16 h-16 text-gray-300 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.5}
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
+              </svg>
+              <p className="text-gray-500 text-center">
+                لا توجد {filterType === "payments" ? "تحويلات مالية" : "طلبات"} متاحة
+              </p>
+            </CardContent>
+          </Card>
+        )}
     </div>
   )
 }

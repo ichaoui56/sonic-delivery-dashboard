@@ -7,7 +7,7 @@ export const getMerchantPaymentData = cache(async () => {
     const user = await getCurrentUser();
     if (!user) return null;
 
-    const [merchant, paymentData, deliveredOrders] = await Promise.all([
+    const [merchant, deliveredOrders] = await Promise.all([
       prisma.merchant.findUnique({
         where: { userId: user.id },
         select: {
@@ -24,40 +24,6 @@ export const getMerchantPaymentData = cache(async () => {
           },
         },
       }),
-
-      prisma.$queryRaw<Array<{
-        totalRevenue: number;
-        totalAmountOwedByAdmin: number;
-        totalAmountOwedToCompany: number;
-        totalPaidByAdmin: number;
-      }>>`
-        SELECT 
-          COALESCE(SUM(
-            CASE 
-              WHEN o.status = 'DELIVERED' THEN o."totalPrice"
-              ELSE 0
-            END
-          ), 0) as "totalRevenue",
-          COALESCE(SUM(
-            CASE 
-              WHEN o.status = 'DELIVERED' AND o."paymentMethod" = 'COD' THEN o."merchantEarning"
-              ELSE 0
-            END
-          ), 0) as "totalAmountOwedByAdmin",
-          COALESCE(SUM(
-            CASE 
-              WHEN o.status = 'DELIVERED' AND o."paymentMethod" = 'PREPAID' THEN ABS(o."merchantEarning")
-              ELSE 0
-            END
-          ), 0) as "totalAmountOwedToCompany",
-          COALESCE(SUM(mt.amount), 0) as "totalPaidByAdmin"
-        FROM "Merchant" m
-        LEFT JOIN "Order" o ON o."merchantId" = m.id
-        LEFT JOIN "MoneyTransfer" mt ON mt."merchantId" = m.id
-        WHERE m."userId" = ${user.id}
-        GROUP BY m.id
-      `,
-
       prisma.order.findMany({
         where: {
           merchant: { userId: user.id },
@@ -95,26 +61,65 @@ export const getMerchantPaymentData = cache(async () => {
 
     if (!merchant) return null;
 
+    // IMPORTANT:
+    // Do NOT join Orders and MoneyTransfers in a single aggregation query.
+    // Doing so creates a cartesian product (orders x transfers), which multiplies sums.
+    const [ordersAgg, codAgg, prepaidAgg, transfersAgg] = await Promise.all([
+      prisma.order.aggregate({
+        where: {
+          merchantId: merchant.id,
+          status: 'DELIVERED',
+        },
+        _sum: {
+          totalPrice: true,
+        },
+      }),
+
+      prisma.order.aggregate({
+        where: {
+          merchantId: merchant.id,
+          status: 'DELIVERED',
+          paymentMethod: 'COD',
+        },
+        _sum: {
+          merchantEarning: true,
+        },
+      }),
+
+      prisma.order.aggregate({
+        where: {
+          merchantId: merchant.id,
+          status: 'DELIVERED',
+          paymentMethod: 'PREPAID',
+        },
+        _sum: {
+          merchantEarning: true,
+        },
+      }),
+
+      prisma.moneyTransfer.aggregate({
+        where: {
+          merchantId: merchant.id,
+        },
+        _sum: {
+          amount: true,
+        },
+      }),
+    ]);
+
     const paymentHistory = await prisma.moneyTransfer.findMany({
       where: { merchantId: merchant.id },
       orderBy: { transferDate: 'desc' },
       take: 20,
     });
 
-    const data = paymentData[0] || {
-      totalRevenue: 0,
-      totalAmountOwedByAdmin: 0,
-      totalAmountOwedToCompany: 0,
-      totalPaidByAdmin: 0,
-    };
-
     return {
-      totalRevenue: Number(data.totalRevenue),
+      totalRevenue: Number(ordersAgg._sum.totalPrice ?? 0),
       currentBalance: merchant.balance,
-      totalPaidByAdmin: Number(data.totalPaidByAdmin),
+      totalPaidByAdmin: Number(transfersAgg._sum.amount ?? 0),
       merchantBaseFee: merchant.baseFee,
-      totalAmountOwedByAdmin: Number(data.totalAmountOwedByAdmin),
-      totalAmountOwedToCompany: Number(data.totalAmountOwedToCompany),
+      totalAmountOwedByAdmin: Number(codAgg._sum.merchantEarning ?? 0),
+      totalAmountOwedToCompany: Math.abs(Number(prepaidAgg._sum.merchantEarning ?? 0)),
       paymentHistory,
       deliveredOrders,
     };

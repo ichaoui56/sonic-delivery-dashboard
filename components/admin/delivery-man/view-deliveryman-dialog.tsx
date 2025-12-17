@@ -136,7 +136,7 @@ export function ViewDeliveryManDialog({
                             التاجر: {order.merchant.user.name}
                           </p>
                           <p className="text-xs text-gray-400">
-                            {new Date(order.createdAt).toLocaleDateString("ar-MA")}
+                            {new Date(order.createdAt).toLocaleDateString("en-US")}
                           </p>
                         </div>
                         <div className="text-right">

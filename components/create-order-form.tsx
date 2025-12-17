@@ -31,9 +31,9 @@ type SelectedProduct = {
 }
 
 const CITIES = [
-  { value: "Dakhla", label: "الداخلة", code: "DA" },
-  { value: "Boujdour", label: "بوجدور", code: "BO" },
-  { value: "Laayoune", label: "العيون", code: "LA" },
+  { value: "Boujdour", label: "Boujdour", code: "BO" },
+  { value: "Dakhla", label: "Dakhla", code: "DA" },
+  { value: "Laayoune", label: "Laayoune", code: "LA" },
 ]
 
 export function CreateOrderForm({ products }: { products: Product[] }) {

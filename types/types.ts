@@ -137,6 +137,7 @@ export type MerchantDetail = {
   totalEarned: number
   rib: string | null
   bankName: string | null
+  baseFee: number
   user: {
     id: number
     name: string

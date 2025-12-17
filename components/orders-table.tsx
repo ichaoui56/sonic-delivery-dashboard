@@ -5,13 +5,43 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { OptimizedImage } from "./optimized-image"
 import { formatDistanceToNow } from "date-fns"
 import { ar } from "date-fns/locale"
 import { updateOrderStatus } from "@/lib/actions/order.actions"
+import { deleteMerchantOrder, updateMerchantOrder } from "@/lib/actions/order.actions"
 import { useToast } from "@/hooks/use-toast"
 import type { OrderStatus } from "@prisma/client"
-import { Tag, TrendingDown, Printer, ChevronRight, ChevronLeft } from "lucide-react"
+import { Tag, TrendingDown, Printer, ChevronRight, ChevronLeft, Pencil, Trash2 } from "lucide-react"
 import { generateAndDownloadInvoice } from "@/lib/utils/pdf-client"
 
 type Order = {
@@ -71,16 +101,23 @@ const discountTypeLabels: Record<string, string> = {
   CUSTOM_PRICE: "سعر مخصص",
 }
 
-export function OrdersTable({ 
-  orders, 
-  searchQuery, 
-  onSearchChange, 
-  statusFilter, 
-  onStatusChange, 
-  currentPage, 
-  totalPages, 
-  onPageChange 
-}: { 
+const CITIES: Array<{ value: string; label: string }> = [
+  { value: "Boujdour", label: "Boujdour" },
+  { value: "Dakhla", label: "Dakhla" },
+  { value: "Laayoune", label: "Laayoune" },
+]
+
+export function OrdersTable({
+  orders,
+  searchQuery,
+  onSearchChange,
+  statusFilter,
+  onStatusChange,
+  currentPage,
+  totalPages,
+  onPageChange,
+  enableMerchantEditDelete = false,
+}: {
   orders: Order[]
   searchQuery: string
   onSearchChange: (value: string) => void
@@ -89,10 +126,23 @@ export function OrdersTable({
   currentPage: number
   totalPages: number
   onPageChange: (page: number) => void
+  enableMerchantEditDelete?: boolean
 }) {
   const [updatingOrderId, setUpdatingOrderId] = useState<number | null>(null)
   const [generatingPdfOrderId, setGeneratingPdfOrderId] = useState<number | null>(null)
+  const [editingOrderId, setEditingOrderId] = useState<number | null>(null)
+  const [deletingOrderId, setDeletingOrderId] = useState<number | null>(null)
   const { toast } = useToast()
+
+  const [editForm, setEditForm] = useState<{
+    customerName: string
+    customerPhone: string
+    address: string
+    city: string
+    note: string
+    paymentMethod: "COD" | "PREPAID"
+    totalPrice: string
+  } | null>(null)
 
   const stats = {
     total: orders.length,
@@ -460,17 +510,259 @@ export function OrdersTable({
                             </Badge>
                           ) : (
                             <>
-                              
-                               قطعة  × {item.quantity}
+
+                              قطعة  × {item.quantity}
                             </>
                           )}
                         </p>
                       </div>
-                      
+
                     </div>
                   ))}
                 </div>
               </div>
+
+              {enableMerchantEditDelete && order.status === "PENDING" && (
+                <div className="mt-4 flex flex-wrap gap-2 justify-end">
+                  <>
+                    <Dialog
+                      open={editingOrderId === order.id}
+                      onOpenChange={(open) => {
+                        if (!open) {
+                          setEditingOrderId(null)
+                          setEditForm(null)
+                          return
+                        }
+                        setEditingOrderId(order.id)
+                        setEditForm({
+                          customerName: order.customerName,
+                          customerPhone: order.customerPhone,
+                          address: order.address,
+                          city: order.city,
+                          note: order.note ?? "",
+                          paymentMethod: order.paymentMethod,
+                          totalPrice: String(order.totalPrice),
+                        })
+                      }}
+                    >
+                      <DialogTrigger asChild>
+                        <Button variant="outline" className="min-h-[40px]">
+                          <Pencil className="w-4 h-4 ml-2" />
+                          تعديل
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="max-w-lg">
+                        <DialogHeader>
+                          <DialogTitle>تعديل الطلب</DialogTitle>
+                          <DialogDescription>
+                            يمكنك تعديل الطلب فقط عندما تكون الحالة قيد الانتظار.
+                          </DialogDescription>
+                        </DialogHeader>
+
+                        {editForm && (
+                          <div className="grid gap-4">
+                            <div className="flex gap-2">
+                              <div className="flex-1">
+                                <Label className="mb-2" htmlFor={`customerName-${order.id}`}>اسم العميل</Label>
+                                <Input
+                                  id={`customerName-${order.id}`}
+                                  value={editForm.customerName}
+                                  onChange={(e) =>
+                                    setEditForm((p) => (p ? { ...p, customerName: e.target.value } : p))
+                                  }
+                                />
+                              </div>
+
+                              <div className="flex-1">
+                                <Label className="mb-2" htmlFor={`customerPhone-${order.id}`}>رقم الهاتف</Label>
+                                <Input
+                                  id={`customerPhone-${order.id}`}
+                                  value={editForm.customerPhone}
+                                  onChange={(e) =>
+                                    setEditForm((p) => (p ? { ...p, customerPhone: e.target.value } : p))
+                                  }
+                                />
+                              </div>
+                            </div>
+
+                            <div className="flex gap-5">
+                              <div className="grid gap-2">
+                                <Label htmlFor={`city-${order.id}`}>المدينة</Label>
+                                <Select
+                                  value={editForm.city}
+                                  onValueChange={(value) => setEditForm((p) => (p ? { ...p, city: value } : p))}
+                                >
+                                  <SelectTrigger id={`city-${order.id}`}>
+                                    <SelectValue placeholder="اختر المدينة" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {CITIES.map((c) => (
+                                      <SelectItem key={c.value} value={c.value}>
+                                        {c.label}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+
+
+                            <div className="grid gap-2">
+                              <Label htmlFor={`paymentMethod-${order.id}`}>طريقة الدفع</Label>
+                              <Select
+                                value={editForm.paymentMethod}
+                                onValueChange={(value) =>
+                                  setEditForm((p) =>
+                                    p ? { ...p, paymentMethod: value as "COD" | "PREPAID" } : p,
+                                  )
+                                }
+                              >
+                                <SelectTrigger id={`paymentMethod-${order.id}`}>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="COD">الدفع عند الاستلام</SelectItem>
+                                  <SelectItem value="PREPAID">مدفوع مسبقاً</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+
+                            <div className="grid gap-2">
+                              <Label htmlFor={`totalPrice-${order.id}`}>السعر الإجمالي</Label>
+                              <Input
+                                id={`totalPrice-${order.id}`}
+                                inputMode="decimal"
+                                value={editForm.totalPrice}
+                                onChange={(e) =>
+                                  setEditForm((p) => (p ? { ...p, totalPrice: e.target.value } : p))
+                                }
+                              />
+                            </div>
+
+                            </div>
+                            <div className="grid gap-2">
+                              <Label htmlFor={`address-${order.id}`}>العنوان</Label>
+                              <Textarea
+                                id={`address-${order.id}`}
+                                value={editForm.address}
+                                onChange={(e) =>
+                                  setEditForm((p) => (p ? { ...p, address: e.target.value } : p))
+                                }
+                              />
+                            </div>
+
+
+                            <div className="grid gap-2">
+                              <Label htmlFor={`note-${order.id}`}>ملاحظات</Label>
+                              <Textarea
+                                id={`note-${order.id}`}
+                                value={editForm.note}
+                                onChange={(e) => setEditForm((p) => (p ? { ...p, note: e.target.value } : p))}
+                                rows={2}
+                              />
+                            </div>
+                          </div>
+                        )}
+
+                        <DialogFooter>
+                          <Button
+                            variant="outline"
+                            onClick={() => {
+                              setEditingOrderId(null)
+                              setEditForm(null)
+                            }}
+                          >
+                            إلغاء
+                          </Button>
+                          <Button
+                            className="bg-[#048dba] hover:bg-[#037ba0]"
+                            disabled={editingOrderId === null || !editForm}
+                            onClick={async () => {
+                              if (!editForm) return
+                              setUpdatingOrderId(order.id)
+                              try {
+                                const totalPrice = Number.parseFloat(editForm.totalPrice)
+                                const result = await updateMerchantOrder(order.id, {
+                                  customerName: editForm.customerName,
+                                  customerPhone: editForm.customerPhone,
+                                  address: editForm.address,
+                                  city: editForm.city,
+                                  note: editForm.note,
+                                  paymentMethod: editForm.paymentMethod,
+                                  totalPrice,
+                                })
+                                if (!result.success) {
+                                  throw new Error(result.message)
+                                }
+                                toast({ title: "✓ تم التعديل", description: result.message })
+                                setEditingOrderId(null)
+                                setEditForm(null)
+                              } catch (e) {
+                                toast({
+                                  title: "✗ خطأ",
+                                  description: e instanceof Error ? e.message : "فشل في تعديل الطلب",
+                                  variant: "destructive",
+                                })
+                              } finally {
+                                setUpdatingOrderId(null)
+                              }
+                            }}
+                          >
+                            حفظ التعديلات
+                          </Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
+
+                    <AlertDialog
+                      open={deletingOrderId === order.id}
+                      onOpenChange={(open) => {
+                        setDeletingOrderId(open ? order.id : null)
+                      }}
+                    >
+                      <AlertDialogTrigger asChild>
+                        <Button variant="destructive" className="min-h-[40px]">
+                          <Trash2 className="w-4 h-4 ml-2" />
+                          حذف
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>حذف الطلب</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            هل أنت متأكد أنك تريد حذف هذا الطلب؟ لا يمكن التراجع عن هذا الإجراء.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>إلغاء</AlertDialogCancel>
+                          <AlertDialogAction
+                            className="bg-red-600 hover:bg-red-700"
+                            onClick={async () => {
+                              setDeletingOrderId(order.id)
+                              try {
+                                const result = await deleteMerchantOrder(order.id)
+                                if (!result.success) {
+                                  throw new Error(result.message)
+                                }
+                                toast({ title: "✓ تم الحذف", description: result.message })
+                              } catch (e) {
+                                toast({
+                                  title: "✗ خطأ",
+                                  description: e instanceof Error ? e.message : "فشل في حذف الطلب",
+                                  variant: "destructive",
+                                })
+                              } finally {
+                                setDeletingOrderId(null)
+                              }
+                            }}
+                          >
+                            حذف نهائي
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </>
+                </div>
+              )}
 
             </CardContent>
           </Card>
