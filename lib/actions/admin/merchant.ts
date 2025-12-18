@@ -335,7 +335,7 @@ export async function addMoneyTransfer(merchantId: number, data: {
       return { success: false, error: "غير مصرح" }
     }
 
-    const transfer = await prisma.$transaction(async (tx) => {
+    const transfer = await prisma.$transaction(async (tx:any) => {
       console.log("[v0] Creating money transfer in database...")
       const moneyTransfer = await tx.moneyTransfer.create({
         data: {
