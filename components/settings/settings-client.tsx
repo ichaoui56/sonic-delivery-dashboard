@@ -10,6 +10,7 @@ import { updateMerchantProfile, updateUserProfile } from "@/lib/actions/settings
 import { useRouter } from 'next/navigation'
 import { compressImage } from "@/lib/utils/image-compression"
 import { Loader2, Upload, X } from 'lucide-react'
+import Link from "next/link"
 
 interface MerchantSettingsData {
   user: {
@@ -145,7 +146,7 @@ export function SettingsClient({ initialData }: SettingsClientProps) {
 
       const formData = new FormData()
       formData.set("file", compressedFile)
-      
+
       console.log("[v0] Sending request to /api/files...")
 
       const response = await fetch("/api/files", {
@@ -163,13 +164,13 @@ export function SettingsClient({ initialData }: SettingsClientProps) {
 
       const responseData = await response.json()
       console.log("[v0] Response data:", responseData)
-      
+
       // The API returns the URL directly as a JSON string
       const url = typeof responseData === 'string' ? responseData : responseData.url
       console.log("[v0] Upload successful, URL:", url)
-      
+
       setProfileImage(url)
-      
+
       console.log("[v0] Auto-saving profile image to database...")
       const result = await updateUserProfile({
         name: userName,
@@ -205,7 +206,7 @@ export function SettingsClient({ initialData }: SettingsClientProps) {
 
     try {
       console.log("[v0] Removing profile image from database...")
-      
+
       const result = await updateUserProfile({
         name: userName,
         phone: userPhone || null,
@@ -241,9 +242,8 @@ export function SettingsClient({ initialData }: SettingsClientProps) {
 
       {message && (
         <div
-          className={`p-4 rounded-lg ${
-            message.type === "success" ? "bg-green-50 text-green-800 border border-green-200" : "bg-red-50 text-red-800 border border-red-200"
-          }`}
+          className={`p-4 rounded-lg ${message.type === "success" ? "bg-green-50 text-green-800 border border-green-200" : "bg-red-50 text-red-800 border border-red-200"
+            }`}
         >
           {message.text}
         </div>
@@ -355,9 +355,9 @@ export function SettingsClient({ initialData }: SettingsClientProps) {
               />
             </div>
 
-            <Button 
-              type="submit" 
-              disabled={isLoading || uploadingImage} 
+            <Button
+              type="submit"
+              disabled={isLoading || uploadingImage}
               className="w-full bg-[#048dba] hover:bg-[#048dba]/80"
             >
               {isLoading ? "جاري الحفظ..." : "حفظ التغييرات"}
@@ -457,17 +457,18 @@ export function SettingsClient({ initialData }: SettingsClientProps) {
           <p className="text-sm text-gray-600">
             لتغيير كلمة المرور أو إعدادات الأمان الخاصة بك، يرجى الاتصال بالدعم الفني.
           </p>
-          <Button variant="outline" className="w-full md:w-auto">
-            <svg className="w-4 h-4 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z"
-              />
-            </svg>
-            الاتصال بالدعم
-          </Button>
+          <Link href="/merchant/support">
+            <Button variant="outline" className="w-full md:w-auto">
+              <svg className="w-4 h-4 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z"
+                />
+              </svg>
+              الاتصال بالدعم
+            </Button></Link>
         </div>
       </Card>
     </div>

@@ -283,6 +283,7 @@ export async function getMerchantDetail(merchantId: number) {
                 product: {
                   select: {
                     name: true,
+                    image: true,
                   }
                 }
               }

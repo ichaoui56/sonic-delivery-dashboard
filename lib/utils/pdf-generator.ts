@@ -37,6 +37,7 @@ export type OrderForPDF = {
     customerPhone: string;
     address: string;
     city: string;
+    note: string;
     totalPrice: number;
     paymentMethod: "COD" | "PREPAID";
     createdAt: Date;
@@ -58,10 +59,7 @@ const formatDate = (date: Date) => {
 // Format phone number function
 const formatPhone = (phone: string) => {
     const digits = phone.replace(/\D/g, '');
-    if (digits.length >= 6) {
-        return `${digits.substring(0, 2)}-${digits.substring(2, 4)}-${digits.substring(4, 6)}`;
-    }
-    return digits || '07-85-';
+    return digits || '06-00-00-00-00';
 };
 
 // Function to load image as base64
@@ -89,7 +87,7 @@ export const createInvoicePDF = (order: OrderForPDF, merchantName: string, merch
     const customerFirstName = order.customerName.split(' ')[0] || order.customerName;
     const cityName = order.city;  // Use the city name directly from the order
     const address = order.address || customerFirstName;
-
+    const note = order.note || 'Aucun';
     const sellerPhone = merchantPhone?.trim() ? merchantPhone.trim() : '—';
 
     // Document definition with logo
@@ -266,7 +264,7 @@ export const createInvoicePDF = (order: OrderForPDF, merchantName: string, merch
                     },
                     {
                         width: '70%',
-                        text: `${customerFirstName}${customerFirstName}`,
+                        text: `${note}`,
                         fontSize: 9
                     }
                 ],
@@ -288,18 +286,45 @@ export const createInvoicePDF = (order: OrderForPDF, merchantName: string, merch
                 margin: [0, 0, 0, 4]
             },
 
-            // Products
             {
-                text: 'Produit:',
-                fontSize: 9,
-                bold: true,
-                margin: [0, 0, 0, 2]
+                columns: [
+                    {
+                        width: '30%',
+                        text: 'Produits:',
+                        fontSize: 9,
+                        bold: true
+                    },
+                    {
+                        width: '70%',
+                        text: `${order.orderItems.map(item => `${item.product.name} x (${item.quantity})`).join(', ')}`,
+                        fontSize: 9,
+                        margin: [0, 0, 0, 1]
+                    }
+                ],
+                margin: [0, 0, 0, 4]
             },
-            ...order.orderItems.map(item => ({
-                text: `${item.product.name} (${item.quantity})`,
-                fontSize: 9,
-                margin: [0, 0, 0, 1]
-            })),
+
+            // Products
+            // {
+            //     columns: [
+            //         {
+            //             text: 'Produit:',
+            //             fontSize: 9,
+            //             bold: true,
+            //         },
+            //         {
+            //             ...order.orderItems.map(item => ({
+            //                 text: `${item.product.name} (${item.quantity})`,
+            //                 fontSize: 9,
+            //                 // margin: [0, 0, 0, 1]
+            //             })),
+            //         }
+
+            //     ],
+            //     margin: [0, 0, 0, 2]
+
+
+            // },
 
             // Spacing
             { text: '', margin: [0, 0, 0, 4] },
@@ -411,7 +436,7 @@ export const createInvoicePDF = (order: OrderForPDF, merchantName: string, merch
                 margin: [0, 0, 0, 0]
             }
 
-            
+
 
             // Alternative simple footer without logo:
             /*
@@ -447,7 +472,7 @@ export const createInvoicePDF = (order: OrderForPDF, merchantName: string, merch
 export const downloadInvoicePDF = async (order: OrderForPDF, merchantName: string, merchantPhone?: string, logoUrl?: string) => {
     try {
         const pdfMake = await loadPdfMake();
-        
+
         // Load logo as base64 if URL is provided
         let logoBase64 = '';
         if (logoUrl) {
