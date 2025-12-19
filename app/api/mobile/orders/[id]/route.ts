@@ -6,7 +6,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
   try {
     const { deliveryMan } = await requireDeliveryManAuth(request)
     const orderId = Number.parseInt(params.id, 10)
-    if (!Number.isFinite(orderId)) return jsonError("Invalid id", 400)
+    if (!Number.isFinite(orderId)) return jsonError("Not found", 404)
 
     const order = await prisma.order.findUnique({
       where: { id: orderId },

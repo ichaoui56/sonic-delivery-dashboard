@@ -1,20 +1,14 @@
 import { prisma } from "@/lib/db"
-import { jsonError, jsonOk } from "@/lib/mobile/http"
 import { requireDeliveryManAuth } from "@/lib/mobile/deliveryman-auth"
+import { jsonError, jsonOk } from "@/lib/mobile/http"
 
 export async function GET(request: Request) {
   try {
     const { deliveryMan } = await requireDeliveryManAuth(request)
 
-    const url = new URL(request.url)
-    const takeParam = url.searchParams.get("take")
-    const take = takeParam ? Number.parseInt(takeParam, 10) : 100
-    const limitedTake = Number.isFinite(take) ? Math.min(Math.max(take, 1), 100) : 100
-
     const orders = await prisma.order.findMany({
       where: {
         city: deliveryMan.city || undefined,
-        status: { in: ["PENDING", "ACCEPTED", "ASSIGNED_TO_DELIVERY", "DELIVERED", "CANCELLED", "REPORTED", "REJECTED"] },
       },
       include: {
         orderItems: {
@@ -54,7 +48,7 @@ export async function GET(request: Request) {
         },
       },
       orderBy: { createdAt: "desc" },
-      take: limitedTake,
+      take: 5,
     })
 
     return jsonOk({ orders })
