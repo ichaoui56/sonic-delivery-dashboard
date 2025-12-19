@@ -66,6 +66,13 @@ export async function POST(request: Request) {
       },
     })
   } catch (e) {
+    console.error("/api/mobile/auth/login error", e)
+
+    const message = e instanceof Error ? e.message : ""
+    if (message.includes("Missing MOBILE_JWT_SECRET") || message.includes("Missing JWT_SECRET")) {
+      return jsonError("Server misconfigured", 500)
+    }
+
     return jsonError("Internal Server Error", 500)
   }
 }

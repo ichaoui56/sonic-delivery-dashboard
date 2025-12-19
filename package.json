@@ -76,6 +76,10 @@
   },
   "name": "factory-dashboard",
   "version": "0.1.0",
+  "packageManager": "pnpm@9.15.9",
+  "engines": {
+    "node": ">=20"
+  },
   "private": true,
   "scripts": {
     "dev": "next dev",
