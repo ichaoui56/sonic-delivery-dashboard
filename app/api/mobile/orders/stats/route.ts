@@ -1,150 +1,156 @@
 import { prisma } from "@/lib/db"
 import { jsonError, jsonOk } from "@/lib/mobile/http"
 import { requireDeliveryManAuth } from "@/lib/mobile/deliveryman-auth"
-import { OrderStatus } from "@prisma/client"
 
 export async function GET(request: Request) {
   try {
     const { deliveryMan } = await requireDeliveryManAuth(request)
 
-    const url = new URL(request.url)
-    const takeParam = url.searchParams.get("take")
-    const skipParam = url.searchParams.get("skip")
-    const statusFilter = url.searchParams.get("status")
-    
-    const take = takeParam ? Number.parseInt(takeParam, 10) : 50
-    const skip = skipParam ? Number.parseInt(skipParam, 10) : 0
-    const limitedTake = Number.isFinite(take) ? Math.min(Math.max(take, 1), 100) : 50
+    // Get current month range
+    const now = new Date()
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59)
 
-    // Define status mapping for frontend
-    const statusMap: Record<string, OrderStatus[]> = {
-      "All": ["ACCEPTED", "ASSIGNED_TO_DELIVERY", "DELIVERED", "REPORTED", "REJECTED", "CANCELLED"],
-      "Delivered": ["DELIVERED"],
-      "Reported": ["REPORTED"],
-      "Cancelled": ["CANCELLED", "REJECTED"]
-    }
-
-    const statuses = statusFilter && statusMap[statusFilter] 
-      ? statusMap[statusFilter] 
-      : ["DELIVERED", "REPORTED", "CANCELLED", "REJECTED"] as OrderStatus[]
-
-    // Debug logging
-    console.log('History query params:', {
-      deliveryManId: deliveryMan.id,
-      city: deliveryMan.city,
-      statusFilter,
-      statuses,
-      take: limitedTake,
-      skip
-    })
-
-    const orders = await prisma.order.findMany({
+    // Total statistics
+    const totalOrders = await prisma.order.count({
       where: {
-        OR: [
-          { deliveryManId: deliveryMan.id },
-          { 
-            city: deliveryMan.city || undefined,
-            status: { in: ["ACCEPTED", "ASSIGNED_TO_DELIVERY"] as OrderStatus[] }
-          }
-        ],
-        status: { in: statuses }
-      },
-      include: {
-        orderItems: {
-          include: {
-            product: {
-              select: {
-                id: true,
-                name: true,
-                image: true,
-                sku: true,
-              },
-            },
-          },
-        },
-        merchant: {
-          select: {
-            id: true,
-            companyName: true,
-            user: {
-              select: {
-                name: true,
-                phone: true,
-              },
-            },
-          },
-        },
-        deliveryMan: {
-          select: {
-            id: true,
-            user: {
-              select: {
-                name: true,
-                phone: true,
-              },
-            },
-          },
-        },
-        deliveryAttemptHistory: {
-          orderBy: { attemptedAt: "desc" },
-          take: 1,
-        },
-      },
-      orderBy: { createdAt: "desc" },
-      take: limitedTake,
-      skip: skip,
-    })
-
-    console.log('Found orders:', orders.length)
-
-    const formattedOrders = orders.map(order => {
-      const itemsCount = order.orderItems.reduce((sum: number, item) => sum + item.quantity, 0)
-      const deliveryTime = order.deliveryAttemptHistory[0]?.attemptedAt?.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
-      
-      return {
-        id: order.id,
-        orderId: order.id,
-        orderCode: order.orderCode,
-        customerName: order.customerName,
-        deliveryAddress: order.address,
-        city: order.city,
-        status: getFrontendStatus(order.status),
-        date: order.createdAt.toISOString().split('T')[0],
-        amount: `$${order.totalPrice.toFixed(2)}`,
-        totalPrice: order.totalPrice,
-        itemsCount: itemsCount,
-        deliveryTime: deliveryTime,
-        note: order.note || '',
-        customerPhone: order.customerPhone,
-        paymentMethod: order.paymentMethod,
-        merchant: order.merchant,
-        orderItems: order.orderItems,
-        createdAt: order.createdAt.toISOString(),
-        deliveredAt: order.deliveredAt?.toISOString() || null,
+        deliveryManId: deliveryMan.id,
+        createdAt: {
+          gte: startOfMonth,
+          lte: endOfMonth
+        }
       }
     })
 
-    console.log('Formatted orders count:', formattedOrders.length)
+    const deliveredOrders = await prisma.order.count({
+      where: {
+        deliveryManId: deliveryMan.id,
+        status: "DELIVERED",
+        createdAt: {
+          gte: startOfMonth,
+          lte: endOfMonth
+        }
+      }
+    })
 
-    return jsonOk({ 
-      orders: formattedOrders,
-      hasMore: orders.length === limitedTake,
-      totalCount: formattedOrders.length
+    const cancelledOrders = await prisma.order.count({
+      where: {
+        deliveryManId: deliveryMan.id,
+        status: { in: ["CANCELLED", "REJECTED"] },
+        createdAt: {
+          gte: startOfMonth,
+          lte: endOfMonth
+        }
+      }
+    })
+
+    const reportedOrders = await prisma.order.count({
+      where: {
+        deliveryManId: deliveryMan.id,
+        status: "REPORTED",
+        createdAt: {
+          gte: startOfMonth,
+          lte: endOfMonth
+        }
+      }
+    })
+
+    // Total earnings
+    const earningsResult = await prisma.order.aggregate({
+      where: {
+        deliveryManId: deliveryMan.id,
+        status: "DELIVERED",
+        createdAt: {
+          gte: startOfMonth,
+          lte: endOfMonth
+        }
+      },
+      _sum: {
+        totalPrice: true
+      }
+    })
+
+    // Average delivery time (simplified - in minutes)
+    const deliveredOrdersWithTime = await prisma.order.findMany({
+      where: {
+        deliveryManId: deliveryMan.id,
+        status: "DELIVERED",
+        deliveredAt: { not: null },
+        createdAt: {
+          gte: startOfMonth,
+          lte: endOfMonth
+        }
+      },
+      select: {
+        createdAt: true,
+        deliveredAt: true
+      }
+    })
+
+    let avgDeliveryTime = "N/A"
+    if (deliveredOrdersWithTime.length > 0) {
+      const totalMinutes = deliveredOrdersWithTime.reduce((sum, order) => {
+        if (order.deliveredAt) {
+          const diff = order.deliveredAt.getTime() - order.createdAt.getTime()
+          return sum + Math.round(diff / (1000 * 60)) // Convert to minutes
+        }
+        return sum
+      }, 0)
+      
+      const average = Math.round(totalMinutes / deliveredOrdersWithTime.length)
+      avgDeliveryTime = `${average}min`
+    }
+
+    // Success rate
+    const successRate = totalOrders > 0 
+      ? Math.round((deliveredOrders / totalOrders) * 100)
+      : 0
+
+    // Current streak (consecutive days with deliveries)
+    const streakData = await prisma.order.groupBy({
+      by: ['createdAt'],
+      where: {
+        deliveryManId: deliveryMan.id,
+        status: "DELIVERED",
+        createdAt: {
+          gte: new Date(now.getFullYear(), now.getMonth(), now.getDate() - 30) // Last 30 days
+        }
+      },
+      _count: true
+    })
+
+    let currentStreak = 0
+    let currentDate = new Date(now.setHours(0, 0, 0, 0))
+    
+    for (let i = 0; i < 30; i++) {
+      const hasDelivery = streakData.some(order => {
+        const orderDate = new Date(order.createdAt).setHours(0, 0, 0, 0)
+        return orderDate === currentDate.getTime()
+      })
+      
+      if (hasDelivery) {
+        currentStreak++
+        currentDate.setDate(currentDate.getDate() - 1)
+      } else {
+        break
+      }
+    }
+
+    return jsonOk({
+      stats: {
+        totalOrders,
+        delivered: deliveredOrders,
+        cancelled: cancelledOrders,
+        reported: reportedOrders,
+        totalEarnings: earningsResult._sum.totalPrice || 0,
+        avgDeliveryTime,
+        successRate,
+        currentStreak,
+        month: now.toLocaleString('fr-FR', { month: 'long', year: 'numeric' })
+      }
     })
   } catch (error) {
-    console.error("Error fetching order history:", error)
-    return jsonError("Failed to fetch order history", 500)
-  }
-}
-
-function getFrontendStatus(backendStatus: OrderStatus): string {
-  switch (backendStatus) {
-    case "DELIVERED": return "Delivered"
-    case "REPORTED": return "Reported"
-    case "CANCELLED":
-    case "REJECTED": return "Cancelled"
-    case "ACCEPTED":
-    case "ASSIGNED_TO_DELIVERY": return "In Progress"
-    default: return "Pending"
+    console.error("Error fetching stats:", error)
+    return jsonError("Failed to fetch statistics", 500)
   }
 }
