@@ -14,7 +14,11 @@ export async function GET(request: Request) {
     const orders = await prisma.order.findMany({
       where: {
         city: deliveryMan.city || undefined,
-        status: { in: ["PENDING", "ACCEPTED", "ASSIGNED_TO_DELIVERY", "DELIVERED", "CANCELLED", "REPORTED", "REJECTED"] },
+        // Only show orders that have been ACCEPTED by admin (exclude PENDING)
+        // Explicitly list all statuses except PENDING
+        status: {
+          in: ["ACCEPTED", "ASSIGNED_TO_DELIVERY", "DELIVERED", "REPORTED", "REJECTED", "CANCELLED"],
+        },
       },
       include: {
         orderItems: {
