@@ -6,7 +6,7 @@ export async function GET(request: Request) {
   try {
     const ctx = await requireDeliveryManAuth(request)
     
-    // Fetch the complete user data including phone number
+    // Fetch the complete user data including notification preferences
     const user = await prisma.user.findUnique({
       where: { id: ctx.user.id },
       select: {
@@ -15,6 +15,7 @@ export async function GET(request: Request) {
         email: true,
         phone: true,
         role: true,
+        notificationEnabled: true,
         deliveryMan: {
           select: {
             id: true,

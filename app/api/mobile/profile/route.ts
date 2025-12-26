@@ -8,6 +8,7 @@ type UpdateProfileData = {
   phone?: string | null
   image?: string | null
   vehicleType?: string | null
+  notificationEnabled?: boolean
 }
 
 export async function GET(request: Request) {
@@ -64,13 +65,21 @@ export async function PUT(request: Request) {
     const [updatedUser] = await prisma.$transaction([
       prisma.user.update({
         where: { id: ctx.user.id },
-        data: updateData,
+        data: {
+          name: updateData.name,
+          phone: updateData.phone,
+          image: updateData.image,
+          ...(updateData.notificationEnabled !== undefined && {
+            notificationEnabled: updateData.notificationEnabled
+          })
+        },
         select: {
           id: true,
           name: true,
           email: true,
           phone: true,
           image: true,
+          notificationEnabled: true
         },
       }),
       // Update delivery man specific info if vehicleType is provided
