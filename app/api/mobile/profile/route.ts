@@ -61,9 +61,9 @@ export async function PUT(request: Request) {
       image: data.image ?? null,
     }
 
-    // Update user info
-    const [updatedUser] = await prisma.$transaction([
-      prisma.user.update({
+    // Update user info and optionally update delivery man info in a transaction
+    const [updatedUser, updatedDeliveryMan] = await prisma.$transaction(async (tx) => {
+      const user = await tx.user.update({
         where: { id: ctx.user.id },
         data: {
           name: updateData.name,
@@ -81,17 +81,20 @@ export async function PUT(request: Request) {
           image: true,
           notificationEnabled: true
         },
-      }),
-      // Update delivery man specific info if vehicleType is provided
-      data.vehicleType !== undefined 
-        ? prisma.deliveryMan.update({
-            where: { id: ctx.deliveryMan.id },
-            data: {
-              vehicleType: data.vehicleType,
-            },
-          })
-        : Promise.resolve(null),
-    ])
+      });
+
+      let deliveryMan = null;
+      if (data.vehicleType !== undefined) {
+        deliveryMan = await tx.deliveryMan.update({
+          where: { id: ctx.deliveryMan.id },
+          data: {
+            vehicleType: data.vehicleType,
+          },
+        });
+      }
+
+      return [user, deliveryMan];
+    })
 
     // Fetch the latest delivery man data
     const deliveryMan = await prisma.deliveryMan.findUnique({
