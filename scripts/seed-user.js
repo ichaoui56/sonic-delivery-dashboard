@@ -55,7 +55,7 @@ async function main() {
       rib: "1234567890123456789012",
       bankName: "البنك الشعبي",
       balance: 0,
-      baseFee: 20.00, // Base fee for Dakhla merchant
+      baseFee: 20.0, // Base fee for Dakhla merchant
     },
   });
 
@@ -81,7 +81,7 @@ async function main() {
       rib: "2234567890123456789012",
       bankName: "بنك المغرب",
       balance: 0,
-      baseFee: 25.00, // Base fee for Boujdour merchant
+      baseFee: 25.0, // Base fee for Boujdour merchant
     },
   });
 
@@ -107,7 +107,7 @@ async function main() {
       rib: "3234567890123456789012",
       bankName: "التجاري وفا بنك",
       balance: 0,
-      baseFee: 22.50, // Base fee for Laayoune merchant
+      baseFee: 22.5, // Base fee for Laayoune merchant
     },
   });
 
@@ -135,7 +135,8 @@ async function main() {
       vehicleType: "دراجة نارية",
       active: true,
       totalEarned: 0,
-      baseFee: 10.00
+      baseFee: 10.0,
+      notificationEnabled: true, // Added this line
     },
   });
 
@@ -161,7 +162,8 @@ async function main() {
       vehicleType: "سيارة",
       active: true,
       totalEarned: 0,
-      baseFee: 12.00
+      baseFee: 12.0,
+      notificationEnabled: true, // Added this line
     },
   });
 
@@ -187,7 +189,8 @@ async function main() {
       vehicleType: "دراجة نارية",
       active: true,
       totalEarned: 0,
-      baseFee: 13.00
+      baseFee: 13.0,
+      notificationEnabled: true, // Added this line
     },
   });
 

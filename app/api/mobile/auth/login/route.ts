@@ -4,6 +4,7 @@ import { signInSchema } from "@/lib/zod"
 import { signMobileJwt } from "@/lib/mobile/jwt"
 import { checkRateLimit } from "@/lib/mobile/rate-limit"
 import { getClientIpFromRequest, jsonError, jsonOk } from "@/lib/mobile/http"
+import { Phone } from "lucide-react"
 
 export async function POST(request: Request) {
   try {
@@ -61,6 +62,7 @@ export async function POST(request: Request) {
         id: user.id,
         name: user.name,
         email: user.email,
+        phone: user.phone,
         role: "DELIVERYMAN",
         deliveryMan: user.deliveryMan,
       },
