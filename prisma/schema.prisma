@@ -236,6 +236,7 @@ model DeliveryMan {
   assignedOrders       Order[]
   deliveryAttempts     DeliveryAttempt[]
   moneyTransfers       MoneyTransfer[]
+  notificationEnabled  Boolean
   
   @@index([userId])
   @@index([city])
