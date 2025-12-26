@@ -8,19 +8,20 @@ datasource db {
 }
 
 model User {
-  id            Int            @id @default(autoincrement())
-  name          String
-  email         String         @unique
-  phone         String?
-  password      String
-  role          Role           @default(MERCHANT)
-  image         String?
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  admin         Admin?
-  deliveryMan   DeliveryMan?
-  merchant      Merchant?
-  notifications Notification[]
+  id                 Int            @id @default(autoincrement())
+  name               String
+  email              String         @unique
+  phone              String?
+  password           String
+  role               Role           @default(MERCHANT)
+  notificationEnabled Boolean        @default(true)
+  image              String?
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+  admin              Admin?
+  deliveryMan        DeliveryMan?
+  merchant           Merchant?
+  notifications      Notification[]
   
   @@index([email])
   @@index([role])
@@ -236,7 +237,6 @@ model DeliveryMan {
   assignedOrders       Order[]
   deliveryAttempts     DeliveryAttempt[]
   moneyTransfers       MoneyTransfer[]
-  notificationEnabled  Boolean
   
   @@index([userId])
   @@index([city])
