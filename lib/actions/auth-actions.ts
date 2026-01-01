@@ -189,6 +189,7 @@ export async function getCurrentUser() {
       },
     });
 
+    
     if (!user) {
       return null
     }
