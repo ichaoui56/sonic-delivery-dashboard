@@ -130,6 +130,7 @@ export async function getAllTransfers() {
       orderBy: { createdAt: "desc" }
     })
 
+    
     return { success: true, data: transfers }
   } catch (error) {
     console.error("Error fetching all transfers:", error)
