@@ -11,7 +11,7 @@ export async function GET(request: Request) {
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
     const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59)
 
-    // Total statistics
+    // Total statistics - only for orders assigned to this delivery man
     const totalOrders = await prisma.order.count({
       where: {
         deliveryManId: deliveryMan.id,
@@ -55,7 +55,7 @@ export async function GET(request: Request) {
       }
     })
 
-    // Total earnings
+    // Total earnings - only from orders assigned to this delivery man
     const earningsResult = await prisma.order.aggregate({
       where: {
         deliveryManId: deliveryMan.id,

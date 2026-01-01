@@ -11,11 +11,11 @@ export async function GET(request: Request) {
     const take = takeParam ? Number.parseInt(takeParam, 10) : 100
     const limitedTake = Number.isFinite(take) ? Math.min(Math.max(take, 1), 100) : 100
 
+    // Only show orders assigned to this delivery man
     const orders = await prisma.order.findMany({
       where: {
-        city: deliveryMan.city || undefined,
-        // Only show orders that have been ACCEPTED by admin (exclude PENDING)
-        // Explicitly list all statuses except PENDING
+        deliveryManId: deliveryMan.id,
+        // Exclude PENDING status (only show orders that admin has accepted)
         status: {
           in: ["ACCEPTED", "ASSIGNED_TO_DELIVERY", "DELIVERED", "REPORTED", "REJECTED", "CANCELLED"],
         },

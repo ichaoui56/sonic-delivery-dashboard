@@ -18,35 +18,20 @@ export async function GET(request: Request) {
 
     // Define status mapping for frontend
     const statusMap: Record<string, OrderStatus[]> = {
-      "All": ["ACCEPTED", "ASSIGNED_TO_DELIVERY", "DELIVERED", "REPORTED", "REJECTED", "CANCELLED"],
-      "Delivered": ["DELIVERED"],
-      "Reported": ["REPORTED"],
-      "Cancelled": ["CANCELLED", "REJECTED"]
+      "all": ["ACCEPTED", "ASSIGNED_TO_DELIVERY", "DELIVERED", "REPORTED", "REJECTED", "CANCELLED"],
+      "delivered": ["DELIVERED"],
+      "reported": ["REPORTED"],
+      "cancelled": ["CANCELLED", "REJECTED"]
     }
 
     const statuses = statusFilter && statusMap[statusFilter] 
       ? statusMap[statusFilter] 
       : ["DELIVERED", "REPORTED", "CANCELLED", "REJECTED"] as OrderStatus[]
 
-    // Debug logging
-    console.log('History query params:', {
-      deliveryManId: deliveryMan.id,
-      city: deliveryMan.city,
-      statusFilter,
-      statuses,
-      take: limitedTake,
-      skip
-    })
-
+    // Only show orders assigned to this delivery man
     const orders = await prisma.order.findMany({
       where: {
-        OR: [
-          { deliveryManId: deliveryMan.id },
-          { 
-            city: deliveryMan.city || undefined,
-            status: { in: ["ACCEPTED", "ASSIGNED_TO_DELIVERY"] as OrderStatus[] }
-          }
-        ],
+        deliveryManId: deliveryMan.id,
         status: { in: statuses }
       },
       include: {
@@ -95,8 +80,6 @@ export async function GET(request: Request) {
       skip: skip,
     })
 
-    console.log('Found orders:', orders.length)
-
     const formattedOrders = orders.map(order => {
       const itemsCount = order.orderItems.reduce((sum: number, item) => sum + item.quantity, 0)
       const deliveryTime = order.deliveryAttemptHistory[0]?.attemptedAt?.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
@@ -123,8 +106,6 @@ export async function GET(request: Request) {
         deliveredAt: order.deliveredAt?.toISOString() || null,
       }
     })
-
-    console.log('Formatted orders count:', formattedOrders.length)
 
     return jsonOk({ 
       orders: formattedOrders,
