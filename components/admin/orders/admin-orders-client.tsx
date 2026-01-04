@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select"
 import { Search, Filter, ArrowUpRight, Package, Truck, CheckCircle2, Clock, AlertCircle, XCircle, Printer } from 'lucide-react'
 import { UpdateOrderStatusDialog } from "./update-order-status-dialog"
+import { AssignDeliveryManDialog } from "./assign-delivery-man-dialog"
 import { generateAndDownloadInvoice } from "@/lib/utils/pdf-client"
 import { useToast } from "@/hooks/use-toast"
 
@@ -113,8 +114,8 @@ export function AdminOrdersClient({ initialOrders }: { initialOrders: Order[] })
   })
 
   const handleGeneratePDF = async (order: Order) => {
-    console.log('Order merchant object:', order.merchant); // Add this
-    console.log('Order merchant user object:', order.merchant?.user); // Add this
+    console.log('Order merchant object:', order.merchant);
+    console.log('Order merchant user object:', order.merchant?.user);
 
     setGeneratingPdfOrderId(order.id)
     try {
@@ -127,7 +128,7 @@ export function AdminOrdersClient({ initialOrders }: { initialOrders: Order[] })
         totalPrice: order.totalPrice,
         paymentMethod: order.paymentMethod,
         createdAt: order.createdAt,
-        note: order.note || '',  // Added this line with fallback to empty string
+        note: order.note || '',
         orderItems: order.orderItems.map(item => ({
           id: item.id,
           quantity: item.quantity,
@@ -369,7 +370,7 @@ export function AdminOrdersClient({ initialOrders }: { initialOrders: Order[] })
                   </div>
 
                   {/* Actions Section */}
-                  <div className="border-t md:border-t-0 md:border-r border-gray-100 bg-gray-50/50 p-4 flex flex-row md:flex-col justify-center gap-2 min-w-[140px]">
+                  <div className="border-t md:border-t-0 md:border-r border-gray-100 bg-gray-50/50 p-4 flex flex-col justify-center gap-2 min-w-[160px]">
                     <Link href={`/admin/orders/${order.id}`} className="w-full">
                       <Button className="w-full bg-white hover:bg-white text-[#048dba] border border-[#048dba] hover:bg-blue-50">
                         التفاصيل
@@ -386,16 +387,23 @@ export function AdminOrdersClient({ initialOrders }: { initialOrders: Order[] })
                         تحديث الحالة
                       </Button>
                     </UpdateOrderStatusDialog>
-                    <div className="mt-4 pt-4 border-t flex justify-end">
-                      <Button
-                        onClick={() => handleGeneratePDF(order)}
-                        disabled={generatingPdfOrderId === order.id}
-                        className="bg-[#0586b5] hover:bg-[#047395] text-white"
-                      >
-                        <Printer className="w-4 h-4 ml-2" />
-                        {generatingPdfOrderId === order.id ? "جاري الإنشاء..." : "طباعة الفاتورة"}
-                      </Button>
-                    </div>
+
+                    <AssignDeliveryManDialog
+                      orderId={order.id}
+                      orderCode={order.orderCode}
+                      orderCity={order.city}
+                      onSuccess={() => window.location.reload()}
+                    />
+
+                    <Button
+                      onClick={() => handleGeneratePDF(order)}
+                      disabled={generatingPdfOrderId === order.id}
+                      variant="outline"
+                      className="w-full text-[#0586b5] hover:text-[#047395] hover:bg-blue-50 border-[#0586b5]"
+                    >
+                      <Printer className="w-4 h-4 ml-2" />
+                      {generatingPdfOrderId === order.id ? "جاري الإنشاء..." : "طباعة"}
+                    </Button>
                   </div>
                 </div>
               </CardContent>
