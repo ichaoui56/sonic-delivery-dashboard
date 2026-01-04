@@ -441,7 +441,7 @@ export function DashboardLayout({
                 <img src="/images/logo/logo.png" alt="" className="w-12 h-12" />
               </div>
               <div>
-                <div className="font-bold text-xl">SONIC DELIVERY</div>
+                <div className="font-bold text-xl">SONIXPRESS</div>
                 <div className="text-xs text-gray-500">DELIVERY SERVICES</div>
               </div>
             </div>

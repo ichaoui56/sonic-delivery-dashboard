@@ -15,7 +15,7 @@ export default async function SupportPage() {
   // WhatsApp support number (replace with actual number)
   const whatsappNumber = "+212601717961" // Format: country code + number without +
   const whatsappMessage = encodeURIComponent(
-    `السلام عليكم، عندي مشكل فالحساب ديالي فسيت ويب ديال SONIC DELIVERY.\n\nسميتي: ${user.name || "ماشي معروف"}\nالإيميل: ${user.email || "ماشي معروف"}`,
+    `السلام عليكم، عندي مشكل فالحساب ديالي فسيت ويب ديال SONIXPRESS.\n\nسميتي: ${user.name || "ماشي معروف"}\nالإيميل: ${user.email || "ماشي معروف"}`,
   )
   const whatsappLink = `https://wa.me/${whatsappNumber}?text=${whatsappMessage}`
 
@@ -109,7 +109,7 @@ export default async function SupportPage() {
                 </div>
                 <div className="space-y-2">
                   <h3 className="font-bold text-lg text-gray-900">البريد الإلكتروني</h3>
-                  <p className="text-sm text-gray-600 break-all">support@sonicdelivery.ma</p>
+                  <p className="text-sm text-gray-600 break-all">deliverysonicdak@gmail.com</p>
                 </div>
               </div>
             </CardContent>

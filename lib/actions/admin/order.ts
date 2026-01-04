@@ -18,6 +18,7 @@ export async function getAllOrders() {
             user: {
               select: {
                 name: true,
+                phone: true,
               },
             },
           },
@@ -27,6 +28,7 @@ export async function getAllOrders() {
             user: {
               select: {
                 name: true,
+                phone: true,
               },
             },
           },

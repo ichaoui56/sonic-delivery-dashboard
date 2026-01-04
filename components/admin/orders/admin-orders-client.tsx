@@ -55,11 +55,13 @@ type Order = {
   merchant: {
     user: {
       name: string
+      phone: string | null
     }
   } | null
   deliveryMan: {
     user: {
       name: string
+      phone: string | null
     }
   } | null
 }
@@ -111,6 +113,9 @@ export function AdminOrdersClient({ initialOrders }: { initialOrders: Order[] })
   })
 
   const handleGeneratePDF = async (order: Order) => {
+    console.log('Order merchant object:', order.merchant); // Add this
+    console.log('Order merchant user object:', order.merchant?.user); // Add this
+
     setGeneratingPdfOrderId(order.id)
     try {
       const orderForPDF = {
@@ -122,6 +127,7 @@ export function AdminOrdersClient({ initialOrders }: { initialOrders: Order[] })
         totalPrice: order.totalPrice,
         paymentMethod: order.paymentMethod,
         createdAt: order.createdAt,
+        note: order.note || '',  // Added this line with fallback to empty string
         orderItems: order.orderItems.map(item => ({
           id: item.id,
           quantity: item.quantity,
@@ -135,7 +141,7 @@ export function AdminOrdersClient({ initialOrders }: { initialOrders: Order[] })
       const result = await generateAndDownloadInvoice(
         orderForPDF,
         order.merchant?.user?.name || "—",
-        undefined,
+        order.merchant?.user?.phone || "—",
         logoUrl
       )
 
@@ -174,7 +180,7 @@ export function AdminOrdersClient({ initialOrders }: { initialOrders: Order[] })
           <h1 className="text-3xl font-bold text-gray-900">إدارة الطلبات</h1>
           <p className="text-gray-500 mt-1">لوحة تحكم شاملة لمتابعة وإدارة جميع الطلبات</p>
         </div>
-        
+
       </div>
 
       {/* Stats Cards */}

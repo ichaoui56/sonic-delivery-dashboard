@@ -397,7 +397,7 @@ export function OrderDetailClient({ order }: OrderDetailProps) {
                 const result = await generateAndDownloadInvoice(
                   orderForPDF,
                   order.merchant?.user?.name || "—",
-                  order.merchant?.user?.phone || undefined,
+                  order.merchant?.user?.phone || "_",
                   logoUrl
                 );
 

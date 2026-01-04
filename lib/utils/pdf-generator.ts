@@ -88,7 +88,6 @@ export const createInvoicePDF = (order: OrderForPDF, merchantName: string, merch
     const cityName = order.city;  // Use the city name directly from the order
     const address = order.address || customerFirstName;
     const note = order.note || 'Aucun';
-    const sellerPhone = merchantPhone?.trim() ? merchantPhone.trim() : '—';
 
     // Document definition with logo
     const docDefinition = {
@@ -114,7 +113,7 @@ export const createInvoicePDF = (order: OrderForPDF, merchantName: string, merch
                         width: '70%',
                         stack: [
                             {
-                                text: `Vendeur: ${merchantName} ( ${sellerPhone} )`,
+                                text: `Vendeur: ${merchantName} ( ${merchantPhone} )`,
                                 fontSize: 9,
                                 bold: false,
                                 margin: [0, 0, 0, 3],
@@ -158,7 +157,7 @@ export const createInvoicePDF = (order: OrderForPDF, merchantName: string, merch
 
             // Company name
             {
-                text: 'SONIC-DELIVERY',
+                text: 'SONIXPRESS',
                 fontSize: 12,
                 bold: true,
                 alignment: 'center',
@@ -425,7 +424,8 @@ export const createInvoicePDF = (order: OrderForPDF, merchantName: string, merch
                                 margin: [0, 5, 0, 5]
                             }] : []),
                             {
-                                text: 'Telephone: 0600000000',
+
+                                text: 'Telephone: 0601717961',
                                 fontSize: 7,
                                 alignment: 'right',
                                 margin: [0, 0, 0, 4]

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Plus, Trash2, Package, Truck, X, Loader2, ImageIcon } from "lucide-react"
+import { Plus, Trash2, Package, Truck, X, Loader2, ImageIcon, Building2, Building, Mail, Phone, MapPin } from "lucide-react"
 import { createProductTransfer, createProduct, type ProductTransferItem } from "@/lib/actions/product-transfer-actions"
 import { useRouter } from "next/navigation"
 import { OptimizedImage } from "@/components/optimized-image"
@@ -234,6 +234,50 @@ export function CreateTransferClient({ initialProducts }: { initialProducts: Pro
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 md:space-y-6">
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg md:text-xl">
+            <Building2 className="w-5 h-5" />
+            معلومات الشركة
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Building className="w-4 h-4 text-gray-500" />
+                <span className="text-sm font-medium">الشركة:</span>
+                <span className="text-sm">Sonixpress</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Mail className="w-4 h-4 text-gray-500" />
+                <span className="text-sm font-medium">البريد الإلكتروني:</span>
+                <a href="mailto:deliverysonicdak@gmail.com" className="text-sm text-blue-600 hover:underline">
+                  deliverysonicdak@gmail.com
+                </a>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Phone className="w-4 h-4 text-gray-500" />
+                <span className="text-sm font-medium">رقم الهاتف:</span>
+                <div dir="ltr" className="whitespace-nowrap">
+                  <a href="tel:+212601717961" className="text-sm text-blue-600 hover:underline">
+                    +212 601 717 961
+                  </a>
+                </div>
+              </div>
+              <div className="flex items-start gap-2">
+                <MapPin className="w-4 h-4 text-gray-500 mt-0.5 flex-shrink-0" />
+                <span className="text-sm">
+                  <span className="font-medium">العنوان:</span> الداخلة - المركز - الحي الحسني
+                </span>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg md:text-xl">

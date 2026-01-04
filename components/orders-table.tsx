@@ -79,6 +79,13 @@ type Order = {
   deliveryMan: {
     user: {
       name: string
+      phone: string | null
+    }
+  } | null,
+  merchant: {
+    user: {
+      name: string
+      phone: string | null
     }
   } | null
 }
@@ -171,50 +178,6 @@ export function OrdersTable({
       })
     }
     setUpdatingOrderId(null)
-  }
-
-  const handleGeneratePDF = async (order: Order) => {
-    setGeneratingPdfOrderId(order.id)
-    try {
-      const orderForPDF = {
-        orderCode: order.orderCode,
-        customerName: order.customerName,
-        customerPhone: order.customerPhone,
-        address: order.address,
-        city: order.city,
-        totalPrice: order.totalPrice,
-        paymentMethod: order.paymentMethod,
-        createdAt: order.createdAt,
-        orderItems: order.orderItems.map(item => ({
-          id: item.id,
-          quantity: item.quantity,
-          product: {
-            name: item.product.name
-          }
-        }))
-      }
-
-      const logoUrl = '/images/logo/logo.png'
-      const result = await generateAndDownloadInvoice(orderForPDF, "—", undefined, logoUrl)
-
-      if (result.success) {
-        toast({
-          title: "✓ تم إنشاء الفاتورة",
-          description: "تم إنشاء الفاتورة بنجاح وتنزيلها",
-        })
-      } else {
-        throw new Error(result.error || 'Failed to generate PDF')
-      }
-    } catch (error) {
-      console.error("[v0] Error generating PDF:", error)
-      toast({
-        title: "✗ خطأ",
-        description: "فشل في إنشاء الفاتورة",
-        variant: "destructive",
-      })
-    } finally {
-      setGeneratingPdfOrderId(null)
-    }
   }
 
   const getAvailableStatuses = (currentStatus: string) => {
