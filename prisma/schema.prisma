@@ -58,6 +58,7 @@ model Merchant {
   @@index([balance])
 }
 
+
 model Product {
   id             Int            @id @default(autoincrement())
   merchantId     Int
