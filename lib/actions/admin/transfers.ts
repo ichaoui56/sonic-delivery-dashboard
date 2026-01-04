@@ -182,3 +182,62 @@ export async function getGarageInventory() {
     return { success: false, error: "حدث خطأ أثناء جلب مخزون المستودع" }
   }
 }
+
+export async function updateProduct(
+  productId: number,
+  data: {
+    name: string
+    description: string | null
+    sku: string | null
+    stockQuantity: number
+    lowStockAlert: number
+    isActive: boolean
+    image: string | null
+  }
+) {
+  try {
+    const session = await auth()
+    if (!session?.user || session.user.role !== "ADMIN") {
+      return { success: false, error: "غير مصرح" }
+    }
+
+    // Validate product exists
+    const existingProduct = await prisma.product.findUnique({
+      where: { id: productId },
+    })
+
+    if (!existingProduct) {
+      return { success: false, error: "المنتج غير موجود" }
+    }
+
+    // Check if SKU is unique (if provided and different from current)
+    if (data.sku && data.sku !== existingProduct.sku) {
+      const skuExists = await prisma.product.findUnique({
+        where: { sku: data.sku },
+      })
+
+      if (skuExists) {
+        return { success: false, error: "رمز المنتج (SKU) مستخدم بالفعل" }
+      }
+    }
+
+    const updatedProduct = await prisma.product.update({
+      where: { id: productId },
+      data: {
+        name: data.name,
+        description: data.description,
+        sku: data.sku,
+        stockQuantity: data.stockQuantity,
+        lowStockAlert: data.lowStockAlert,
+        isActive: data.isActive,
+        image: data.image,
+      },
+    })
+
+    revalidatePath("/admin/garage")
+    return { success: true, data: updatedProduct }
+  } catch (error) {
+    console.error("[v0] Error updating product:", error)
+    return { success: false, error: "حدث خطأ أثناء تحديث المنتج" }
+  }
+}

@@ -307,13 +307,6 @@ export function InventoryTable({ products }: { products: Product[] }) {
                     </div>
                   </div>
 
-                  <div className="pt-2 border-t border-gray-100 space-y-1.5">
-                    <div className="flex items-center justify-between text-[10px] sm:text-xs">
-                      <span className="text-gray-500">تم التوصيل</span>
-                      <span className="font-bold text-green-600">{product.deliveredCount ?? 0} قطعة</span>
-                    </div>
-                  </div>
-
                   {isLowStock && (
                     <div className="flex items-start gap-1.5 p-2 bg-yellow-50 border border-yellow-200 rounded text-[10px] sm:text-xs">
                       <AlertCircle className="w-3 h-3 text-yellow-600 flex-shrink-0 mt-0.5" />

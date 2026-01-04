@@ -507,31 +507,56 @@ export async function updateProductInfo(
     description?: string
     image?: string
     sku?: string
+    stockQuantity?: number
     lowStockAlert?: number
   },
 ) {
   try {
     const session = await auth()
 
-    if (!session?.user || session.user.role !== "MERCHANT") {
+    if (!session?.user) {
       return { success: false, error: "غير مصرح" }
     }
 
-    const merchant = await prisma.merchant.findUnique({
-      where: { userId: Number.parseInt(session.user.id) },
-    })
+    // Check if user is ADMIN or MERCHANT who owns the product
+    const isAdmin = session.user.role === "ADMIN"
+    const isMerchant = session.user.role === "MERCHANT"
 
-    if (!merchant) {
-      return { success: false, error: "التاجر غير موجود" }
+    if (!isAdmin && !isMerchant) {
+      return { success: false, error: "غير مصرح" }
     }
 
+    // Get the product with its merchant information
     const product = await prisma.product.findUnique({
       where: { id: productId },
-      select: { merchantId: true },
+      include: {
+        merchant: {
+          include: {
+            user: true
+          }
+        }
+      },
     })
 
-    if (!product || product.merchantId !== merchant.id) {
-      return { success: false, error: "المنتج غير موجود أو غير مصرح به" }
+    if (!product) {
+      return { success: false, error: "المنتج غير موجود" }
+    }
+
+    // Authorization check:
+    // - Admin can update any product
+    // - Merchant can only update their own products
+    if (isMerchant) {
+      const merchant = await prisma.merchant.findUnique({
+        where: { userId: Number.parseInt(session.user.id) },
+      })
+
+      if (!merchant) {
+        return { success: false, error: "التاجر غير موجود" }
+      }
+
+      if (product.merchantId !== merchant.id) {
+        return { success: false, error: "غير مصرح بتحديث منتجات التاجر الآخر" }
+      }
     }
 
     const updateData: any = {}
@@ -540,15 +565,31 @@ export async function updateProductInfo(
     if (data.image !== undefined) updateData.image = data.image
     if (data.sku !== undefined) updateData.sku = data.sku
     if (data.lowStockAlert !== undefined) updateData.lowStockAlert = data.lowStockAlert
+    if (data.stockQuantity !== undefined) updateData.stockQuantity = data.stockQuantity
 
     const updatedProduct = await prisma.product.update({
       where: { id: productId },
       data: updateData,
     })
 
-    revalidateTag(`merchant-products-${merchant.id}`)
+    // Revalidate caches for both admin and merchant
+    if (isAdmin) {
+      // Admin can see all products, so revalidate admin product cache
+      revalidateTag('admin-products')
+      revalidateTag(`merchant-products-${product.merchantId}`)
+    } else {
+      // Merchant can only see their own products
+      revalidateTag(`merchant-products-${product.merchantId}`)
+    }
 
-    return { success: true, data: updatedProduct, message: "تم تحديث المنتج بنجاح" }
+    // Also revalidate garage/inventory pages
+    revalidateTag('warehouse-inventory')
+
+    return { 
+      success: true, 
+      data: updatedProduct, 
+      message: "تم تحديث المنتج بنجاح" 
+    }
   } catch (error) {
     console.error("Error updating product:", error)
     return { success: false, error: "فشل في تحديث المنتج" }
