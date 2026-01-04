@@ -60,6 +60,7 @@ model Merchant {
 
 
 
+
 model Product {
   id             Int            @id @default(autoincrement())
   merchantId     Int
