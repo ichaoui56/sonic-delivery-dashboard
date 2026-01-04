@@ -2,7 +2,7 @@ import { prisma } from "@/lib/db"
 import { jsonError, jsonOk } from "@/lib/mobile/http"
 import { requireDeliveryManAuth } from "@/lib/mobile/deliveryman-auth"
 
-type OrderStatus = "REPORTED" | "REJECTED" | "CANCELLED" | "DELIVERED"
+type OrderStatus = "DELAYED" | "REPORTED" | "REJECTED" | "CANCELLED" | "DELIVERED"
 type AttemptStatus = "ATTEMPTED" | "FAILED" | "SUCCESSFUL" | "CUSTOMER_NOT_AVAILABLE" | "WRONG_ADDRESS" | "REFUSED" | "OTHER"
 
 /**
@@ -10,16 +10,16 @@ type AttemptStatus = "ATTEMPTED" | "FAILED" | "SUCCESSFUL" | "CUSTOMER_NOT_AVAIL
  * 
  * Allows a delivery man to update an order status.
  * 
- * Allowed statuses:
- * - REPORTED: Increment attempt count by +1
- * - REJECTED: Final status, no further attempts allowed
- * - CANCELLED: Final status, no further attempts allowed
- * - DELIVERED: Final status, triggers delivery completion logic
+ * New DELAYED status:
+ * - Order remains in ASSIGNED_TO_DELIVERY status (not final)
+ * - Increment attempt count by +1
+ * - Creates delivery attempt with CUSTOMER_NOT_AVAILABLE status
+ * - Order can still be updated to DELIVERED or CANCELLED later
  * 
  * Request body:
  * {
- *   status: "REPORTED" | "REJECTED" | "CANCELLED" | "DELIVERED",
- *   reason?: string (optional, for REPORTED, REJECTED, CANCELLED)
+ *   status: "DELAYED" | "REPORTED" | "REJECTED" | "CANCELLED" | "DELIVERED",
+ *   reason?: string (optional, for DELAYED, REPORTED, REJECTED, CANCELLED)
  *   notes?: string (optional, additional notes)
  *   location?: string (optional, GPS location)
  * }
@@ -39,8 +39,8 @@ export async function PATCH(
     const body = await request.json().catch(() => ({}))
     const { status, reason, notes, location } = body
 
-    // Validate status
-    const allowedStatuses: OrderStatus[] = ["REPORTED", "REJECTED", "CANCELLED", "DELIVERED"]
+    // Validate status - now includes DELAYED
+    const allowedStatuses: OrderStatus[] = ["DELAYED", "REPORTED", "REJECTED", "CANCELLED", "DELIVERED"]
     if (!status || !allowedStatuses.includes(status as OrderStatus)) {
       return jsonError(
         `Invalid status. Allowed: ${allowedStatuses.join(", ")}`,
@@ -108,29 +108,43 @@ export async function PATCH(
     let nextAttemptNumber: number
     let attemptStatus: AttemptStatus
     let attemptNotes: string
-    let shouldIncrementAttempt = false
+    let shouldUpdateOrderStatus: boolean = false
+    let newOrderStatus: string = order.status
 
     switch (validatedStatus) {
+      case "DELAYED":
+        // DELAYED increments attempt count but keeps order in ASSIGNED_TO_DELIVERY
+        nextAttemptNumber = currentAttemptNumber + 1
+        attemptStatus = "CUSTOMER_NOT_AVAILABLE"
+        attemptNotes = `Delivery delayed - customer not available${reason ? `: ${reason}` : ""}`
+        shouldUpdateOrderStatus = false // Keep order in ASSIGNED_TO_DELIVERY
+        break
+
       case "REPORTED":
-        // REPORTED increments attempt count
+        // REPORTED increments attempt count and changes order status
         nextAttemptNumber = currentAttemptNumber + 1
         attemptStatus = "OTHER"
         attemptNotes = `Order reported${reason ? ` - ${reason}` : ""}`
-        shouldIncrementAttempt = true
+        shouldUpdateOrderStatus = true
+        newOrderStatus = "REPORTED"
         break
 
       case "REJECTED":
-        // REJECTED is final, but we still create an attempt record
+        // REJECTED is final
         nextAttemptNumber = currentAttemptNumber + 1
         attemptStatus = "REFUSED"
         attemptNotes = `Order rejected${reason ? ` - ${reason}` : ""}`
+        shouldUpdateOrderStatus = true
+        newOrderStatus = "REJECTED"
         break
 
       case "CANCELLED":
-        // CANCELLED is final, but we still create an attempt record
+        // CANCELLED is final
         nextAttemptNumber = currentAttemptNumber + 1
         attemptStatus = "REFUSED"
         attemptNotes = `Order cancelled${reason ? ` - ${reason}` : ""}`
+        shouldUpdateOrderStatus = true
+        newOrderStatus = "CANCELLED"
         break
 
       case "DELIVERED":
@@ -138,6 +152,8 @@ export async function PATCH(
         nextAttemptNumber = currentAttemptNumber + 1
         attemptStatus = "SUCCESSFUL"
         attemptNotes = "Order delivered successfully to customer"
+        shouldUpdateOrderStatus = true
+        newOrderStatus = "DELIVERED"
         break
 
       default:
@@ -150,6 +166,56 @@ export async function PATCH(
     }
 
     const now = new Date()
+
+    // Handle DELAYED status - only creates attempt record, doesn't change order status
+    if (validatedStatus === "DELAYED") {
+      await prisma.$transaction(async (tx) => {
+        // Create delivery attempt record for delay
+        await tx.deliveryAttempt.create({
+          data: {
+            orderId: orderId,
+            attemptNumber: nextAttemptNumber,
+            deliveryManId: deliveryMan.id,
+            status: attemptStatus,
+            reason: reason || null,
+            notes: attemptNotes,
+            location: location || null,
+            attemptedAt: now,
+          },
+        })
+
+        // Update order's updatedAt timestamp
+        await tx.order.update({
+          where: { id: orderId },
+          data: {
+            updatedAt: now,
+          },
+        })
+      })
+
+      // Create notification for merchant
+      await prisma.notification.create({
+        data: {
+          title: "Delivery Delayed",
+          message: `Delivery attempt #${nextAttemptNumber} for order #${order.orderCode} - customer not available`,
+          type: "DELIVERY_DELAYED",
+          userId: order.merchant.userId,
+          orderId: orderId,
+        },
+      })
+
+      return jsonOk({
+        success: true,
+        message: `Delivery attempt recorded. Order status remains active for future attempts.`,
+        order: {
+          id: order.id,
+          orderCode: order.orderCode,
+          status: order.status, // Still ASSIGNED_TO_DELIVERY
+          attemptNumber: nextAttemptNumber,
+          nextAction: "You can try again later or update to Delivered/Cancelled",
+        },
+      })
+    }
 
     // Handle DELIVERED status - includes business logic for stock, payments, etc.
     if (validatedStatus === "DELIVERED") {
@@ -262,7 +328,7 @@ export async function PATCH(
           : Promise.resolve(),
       ])
     } else {
-      // Handle other statuses (REPORTED, REJECTED, CANCELLED)
+      // Handle other final statuses (REPORTED, REJECTED, CANCELLED)
       await prisma.$transaction(async (tx) => {
         // Update order status
         await tx.order.update({
@@ -290,6 +356,7 @@ export async function PATCH(
 
       // Create notification for merchant
       const statusMessages: Record<OrderStatus, string> = {
+        DELAYED: "Delivery Delayed",
         REPORTED: "Order Reported",
         REJECTED: "Order Rejected",
         CANCELLED: "Order Cancelled",
@@ -325,4 +392,3 @@ export async function PATCH(
     return jsonError("Internal server error", 500)
   }
 }
-
