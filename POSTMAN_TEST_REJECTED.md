@@ -285,7 +285,7 @@ if (pm.response.code === 200) {
 ### Issue: "Invalid status" (400)
 **Solution:**
 - Make sure the status is exactly `"REJECTED"` (uppercase, no typos)
-- Allowed values: `REPORTED`, `REJECTED`, `CANCELLED`, `DELIVERED`
+- Allowed values: `DELAY`, `REJECTED`, `CANCELLED`, `DELIVERED`
 
 ---
 

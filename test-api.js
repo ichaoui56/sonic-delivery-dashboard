@@ -96,7 +96,7 @@ async function testAPI() {
 
       // Step 5: Test Update Status (if status is ASSIGNED_TO_DELIVERY)
       if (firstOrder.status === 'ASSIGNED_TO_DELIVERY') {
-        log('\n📝 Step 5: Testing update order status to REPORTED...', 'yellow');
+        log('\n📝 Step 5: Testing update order status to DELAY...', 'yellow');
         const updateResponse = await fetch(`${BASE_URL}/api/mobile/orders/${firstOrder.id}/status`, {
           method: 'PATCH',
           headers: {
@@ -104,7 +104,7 @@ async function testAPI() {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            status: 'REPORTED',
+            status: 'DELAY',
             reason: 'Test reason from Node.js script',
             notes: 'Testing API endpoint',
             location: '33.5731,-7.5898',
@@ -128,11 +128,11 @@ async function testAPI() {
     console.log(`curl -X POST "${BASE_URL}/api/mobile/orders/ORDER_ID/accept" \\`);
     console.log(`  -H "Authorization: Bearer ${token.substring(0, 20)}..."`);
 
-    log('\nUpdate order status to REPORTED:', 'yellow');
+    log('\nUpdate order status to DELAY:', 'yellow');
     console.log(`curl -X PATCH "${BASE_URL}/api/mobile/orders/ORDER_ID/status" \\`);
     console.log(`  -H "Authorization: Bearer ${token.substring(0, 20)}..." \\`);
     console.log(`  -H "Content-Type: application/json" \\`);
-    console.log(`  -d '{"status":"REPORTED","reason":"Test reason"}'`);
+    console.log(`  -d '{"status":"DELAY","reason":"Test reason"}'`);
 
     log('\nUpdate order status to DELIVERED:', 'yellow');
     console.log(`curl -X PATCH "${BASE_URL}/api/mobile/orders/ORDER_ID/status" \\`);

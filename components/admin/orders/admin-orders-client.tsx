@@ -77,13 +77,13 @@ export function AdminOrdersClient({ initialOrders }: { initialOrders: Order[] })
   const { toast } = useToast()
 
   const cities = ["الداخلة", "بوجدور", "العيون"]
-  const statuses = ["PENDING", "ACCEPTED", "ASSIGNED_TO_DELIVERY", "DELIVERED", "REPORTED", "REJECTED", "CANCELLED"]
+  const statuses = ["PENDING", "ACCEPTED", "ASSIGNED_TO_DELIVERY", "DELIVERED", "DELAY", "REJECTED", "CANCELLED"]
   const statusLabels: Record<string, string> = {
     PENDING: "قيد الانتظار",
     ACCEPTED: "مقبول",
     ASSIGNED_TO_DELIVERY: "مسند للتوصيل",
     DELIVERED: "تم التوصيل",
-    REPORTED: "مبلغ عنه",
+    DELAY: "مبلغ عنه",
     REJECTED: "مرفوض",
     CANCELLED: "ملغى"
   }
@@ -93,7 +93,7 @@ export function AdminOrdersClient({ initialOrders }: { initialOrders: Order[] })
     ACCEPTED: "bg-blue-100 text-blue-800 hover:bg-blue-200",
     ASSIGNED_TO_DELIVERY: "bg-purple-100 text-purple-800 hover:bg-purple-200",
     DELIVERED: "bg-green-100 text-green-800 hover:bg-green-200",
-    REPORTED: "bg-red-100 text-red-800 hover:bg-red-200",
+    DELAY: "bg-red-100 text-red-800 hover:bg-red-200",
     REJECTED: "bg-red-100 text-red-800 hover:bg-red-200",
     CANCELLED: "bg-gray-100 text-gray-800 hover:bg-gray-200"
   }

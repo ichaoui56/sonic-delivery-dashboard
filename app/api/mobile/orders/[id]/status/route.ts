@@ -2,7 +2,7 @@ import { prisma } from "@/lib/db"
 import { jsonError, jsonOk } from "@/lib/mobile/http"
 import { requireDeliveryManAuth } from "@/lib/mobile/deliveryman-auth"
 
-type OrderStatus = "DELAYED" | "REPORTED" | "REJECTED" | "CANCELLED" | "DELIVERED"
+type OrderStatus = "DELAYED" | "REJECTED" | "CANCELLED" | "DELIVERED"
 type AttemptStatus = "ATTEMPTED" | "FAILED" | "SUCCESSFUL" | "CUSTOMER_NOT_AVAILABLE" | "WRONG_ADDRESS" | "REFUSED" | "OTHER"
 
 /**
@@ -18,8 +18,8 @@ type AttemptStatus = "ATTEMPTED" | "FAILED" | "SUCCESSFUL" | "CUSTOMER_NOT_AVAIL
  * 
  * Request body:
  * {
- *   status: "DELAYED" | "REPORTED" | "REJECTED" | "CANCELLED" | "DELIVERED",
- *   reason?: string (optional, for DELAYED, REPORTED, REJECTED, CANCELLED)
+ *   status: "DELAYED" | "DELAY" | "REJECTED" | "CANCELLED" | "DELIVERED",
+ *   reason?: string (optional, for DELAYED, DELAY, REJECTED, CANCELLED)
  *   notes?: string (optional, additional notes)
  *   location?: string (optional, GPS location)
  * }
@@ -40,7 +40,7 @@ export async function PATCH(
     const { status, reason, notes, location } = body
 
     // Validate status - now includes DELAYED
-    const allowedStatuses: OrderStatus[] = ["DELAYED", "REPORTED", "REJECTED", "CANCELLED", "DELIVERED"]
+    const allowedStatuses: OrderStatus[] = ["DELAYED", "REJECTED", "CANCELLED", "DELIVERED"]
     if (!status || !allowedStatuses.includes(status as OrderStatus)) {
       return jsonError(
         `Invalid status. Allowed: ${allowedStatuses.join(", ")}`,
@@ -120,13 +120,13 @@ export async function PATCH(
         shouldUpdateOrderStatus = false // Keep order in ASSIGNED_TO_DELIVERY
         break
 
-      case "REPORTED":
-        // REPORTED increments attempt count and changes order status
+      case "DELAYED":
+        // DELAY increments attempt count and changes order status
         nextAttemptNumber = currentAttemptNumber + 1
         attemptStatus = "OTHER"
-        attemptNotes = `Order reported${reason ? ` - ${reason}` : ""}`
+        attemptNotes = `Order DELAY${reason ? ` - ${reason}` : ""}`
         shouldUpdateOrderStatus = true
-        newOrderStatus = "REPORTED"
+        newOrderStatus = "DELAY"
         break
 
       case "REJECTED":
@@ -328,7 +328,7 @@ export async function PATCH(
           : Promise.resolve(),
       ])
     } else {
-      // Handle other final statuses (REPORTED, REJECTED, CANCELLED)
+      // Handle other final statuses (DELAY, REJECTED, CANCELLED)
       await prisma.$transaction(async (tx) => {
         // Update order status
         await tx.order.update({
@@ -357,7 +357,6 @@ export async function PATCH(
       // Create notification for merchant
       const statusMessages: Record<OrderStatus, string> = {
         DELAYED: "Delivery Delayed",
-        REPORTED: "Order Reported",
         REJECTED: "Order Rejected",
         CANCELLED: "Order Cancelled",
         DELIVERED: "Order Delivered",

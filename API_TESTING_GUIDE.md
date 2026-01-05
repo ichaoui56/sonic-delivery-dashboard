@@ -157,7 +157,7 @@ curl -X POST http://localhost:3000/api/mobile/orders/1/accept \
 **Endpoint:** `PATCH /api/mobile/orders/[id]/status`
 
 **Allowed Statuses:**
-- `REPORTED` - Increments attempt count by +1
+- `DELAY` - Increments attempt count by +1
 - `REJECTED` - Final status, no further attempts allowed
 - `CANCELLED` - Final status, no further attempts allowed
 - `DELIVERED` - Final status, triggers delivery completion logic
@@ -170,7 +170,7 @@ curl -X PATCH http://localhost:3000/api/mobile/orders/1/status \
   -H "Authorization: Bearer YOUR_TOKEN_HERE" \
   -H "Content-Type: application/json" \
   -d '{
-    "status": "REPORTED",
+    "status": "DELAY",
     "reason": "Customer not available at address",
     "notes": "Tried calling multiple times",
     "location": "33.5731,-7.5898"
@@ -181,11 +181,11 @@ curl -X PATCH http://localhost:3000/api/mobile/orders/1/status \
 ```json
 {
   "success": true,
-  "message": "Order status updated to REPORTED",
+  "message": "Order status updated to DELAY",
   "order": {
     "id": 1,
     "orderCode": "OR-DA-000001",
-    "status": "REPORTED",
+    "status": "DELAY",
     "attemptNumber": 2
   }
 }
@@ -351,7 +351,7 @@ echo "To test updating order status, use:"
 echo "curl -X PATCH \"$BASE_URL/api/mobile/orders/ORDER_ID/status\" \\"
 echo "  -H \"Authorization: Bearer $TOKEN\" \\"
 echo "  -H \"Content-Type: application/json\" \\"
-echo "  -d '{\"status\":\"REPORTED\",\"reason\":\"Test reason\"}'"
+echo "  -d '{\"status\":\"DELAY\",\"reason\":\"Test reason\"}'"
 ```
 
 **Usage:**
@@ -398,7 +398,7 @@ chmod +x test-api.sh
 - Body (JSON):
   ```json
   {
-    "status": "REPORTED",
+    "status": "DELAY",
     "reason": "Optional reason",
     "notes": "Optional notes",
     "location": "Optional GPS coordinates"
@@ -421,7 +421,7 @@ chmod +x test-api.sh
 ### 400 Bad Request
 ```json
 {
-  "error": "Invalid status. Allowed: REPORTED, REJECTED, CANCELLED, DELIVERED"
+  "error": "Invalid status. Allowed: DELAY, REJECTED, CANCELLED, DELIVERED"
 }
 ```
 - Invalid status value
@@ -461,7 +461,7 @@ chmod +x test-api.sh
 1. **Login** → Get token
 2. **Get orders** → Find an order with status `ACCEPTED`
 3. **Accept order** → Order status becomes `ASSIGNED_TO_DELIVERY`
-4. **Report order** → Status becomes `REPORTED`, attempt count increments
+4. **Report order** → Status becomes `DELAY`, attempt count increments
 5. **Report again** → Attempt count increments again
 6. **Deliver order** → Status becomes `DELIVERED`, triggers business logic
 

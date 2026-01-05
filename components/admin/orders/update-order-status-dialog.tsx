@@ -42,7 +42,7 @@ export function UpdateOrderStatusDialog({
     { value: "ACCEPTED", label: "مقبول" },
     { value: "ASSIGNED_TO_DELIVERY", label: "مسند للتوصيل" },
     { value: "DELIVERED", label: "تم التوصيل" },
-    { value: "REPORTED", label: "مبلغ عنه" },
+    { value: "DELAY", label: "مبلغ عنه" },
     { value: "REJECTED", label: "مرفوض" },
     { value: "CANCELLED", label: "ملغى" },
   ]

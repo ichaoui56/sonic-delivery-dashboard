@@ -17,7 +17,7 @@ export async function GET(request: Request) {
         deliveryManId: deliveryMan.id,
         // Exclude PENDING status (only show orders that admin has accepted)
         status: {
-          in: ["ACCEPTED", "ASSIGNED_TO_DELIVERY", "DELIVERED", "REPORTED", "REJECTED", "CANCELLED"],
+          in: ["ACCEPTED", "ASSIGNED_TO_DELIVERY", "DELIVERED", "DELAY", "REJECTED", "CANCELLED"],
         },
       },
       include: {

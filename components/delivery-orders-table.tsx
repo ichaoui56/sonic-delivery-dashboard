@@ -75,7 +75,7 @@ const statusMap: Record<string, { label: string; color: string; icon: string }> 
     color: "bg-emerald-50 text-emerald-700 border-emerald-200", 
     icon: "✅" 
   },
-  REPORTED: { 
+  DELAY: { 
     label: "تم الإبلاغ", 
     color: "bg-yellow-50 text-yellow-700 border-yellow-200", 
     icon: "⚠️" 
@@ -266,7 +266,7 @@ export function DeliveryOrdersTable({ orders }: { orders: Order[] }) {
         statuses.push(
           { value: "DELIVERED", label: "تم التسليم بنجاح", icon: "✅" },
           { value: "REJECTED", label: "رفض العميل", icon: "❌" },
-          { value: "REPORTED", label: "الإبلاغ عن مشكلة", icon: "⚠️" },
+          { value: "DELAY", label: "الإبلاغ عن مشكلة", icon: "⚠️" },
           { value: "CANCELLED", label: "إلغاء الطلب", icon: "🚫" }
         )
       }
@@ -276,7 +276,7 @@ export function DeliveryOrdersTable({ orders }: { orders: Order[] }) {
   }
 
   const handleStatusClick = (orderId: number, status: string) => {
-    if (status === "REPORTED") {
+    if (status === "DELAY") {
       setSelectedOrderId(orderId)
       setReportDialogOpen(true)
     } else if (status === "REJECTED" || status === "CANCELLED") {
@@ -294,7 +294,7 @@ export function DeliveryOrdersTable({ orders }: { orders: Order[] }) {
     }
 
     setUpdatingOrderId(selectedOrderId)
-    const result = await updateOrderStatus(selectedOrderId, "REPORTED")
+    const result = await updateOrderStatus(selectedOrderId, "DELAY")
 
     if (result.success) {
       toast.success(result.message)

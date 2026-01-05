@@ -62,7 +62,7 @@ export function OrderDetailClient({ order }: OrderDetailProps) {
     ACCEPTED: "مقبول",
     ASSIGNED_TO_DELIVERY: "مسند للتوصيل",
     DELIVERED: "تم التوصيل",
-    REPORTED: "مبلغ عنه",
+    DELAY: "مبلغ عنه",
     REJECTED: "مرفوض",
     CANCELLED: "ملغى",
   };
@@ -72,7 +72,7 @@ export function OrderDetailClient({ order }: OrderDetailProps) {
     ACCEPTED: "bg-blue-100 text-blue-800",
     ASSIGNED_TO_DELIVERY: "bg-purple-100 text-purple-800",
     DELIVERED: "bg-green-100 text-green-800",
-    REPORTED: "bg-red-100 text-red-800",
+    DELAY: "bg-red-100 text-red-800",
     REJECTED: "bg-red-100 text-red-800",
     CANCELLED: "bg-gray-100 text-gray-800",
   };
@@ -206,11 +206,11 @@ export function OrderDetailClient({ order }: OrderDetailProps) {
       });
     }
 
-    // 5. Report (if reported)
-    if (order.status === "REPORTED") {
+    // 5. Report (if DELAY)
+    if (order.status === "DELAY") {
       const reportEvent = order.deliveryAttemptHistory?.find(
         (attempt: any) =>
-          attempt.status === "REPORTED" || attempt.notes?.includes("إبلاغ")
+          attempt.status === "DELAY" || attempt.notes?.includes("إبلاغ")
       );
 
       events.push({
@@ -285,7 +285,7 @@ export function OrderDetailClient({ order }: OrderDetailProps) {
       case "CANCELLED":
       case "REJECTED":
         return <XCircle className="w-5 h-5 text-red-600" />;
-      case "REPORTED":
+      case "DELAY":
         return <AlertCircle className="w-5 h-5 text-red-600" />;
       default:
         return <Clock className="w-5 h-5 text-[#048dba]" />;

@@ -42,7 +42,7 @@ Headers: Authorization: Bearer {token}
 PATCH /api/mobile/orders/{id}/status
 Headers: Authorization: Bearer {token}
 Body: {
-  "status": "REPORTED" | "REJECTED" | "CANCELLED" | "DELIVERED",
+  "status": "DELAY" | "REJECTED" | "CANCELLED" | "DELIVERED",
   "reason": "optional string",
   "notes": "optional string",
   "location": "optional GPS coordinates"
@@ -56,7 +56,7 @@ Body: {
 ```
 PENDING → ACCEPTED (by admin) → ASSIGNED_TO_DELIVERY (by delivery man)
                                               ↓
-                                    REPORTED (increments attempts)
+                                    DELAY (increments attempts)
                                               ↓
                                     REJECTED / CANCELLED / DELIVERED (final)
 ```
@@ -67,7 +67,7 @@ PENDING → ACCEPTED (by admin) → ASSIGNED_TO_DELIVERY (by delivery man)
 
 | Status | Attempt Count | Can Update Again? | Notes |
 |--------|--------------|-------------------|-------|
-| REPORTED | +1 | ✅ Yes | Can report multiple times |
+| DELAY | +1 | ✅ Yes | Can report multiple times |
 | REJECTED | +1 | ❌ No | Final status |
 | CANCELLED | +1 | ❌ No | Final status |
 | DELIVERED | +1 | ❌ No | Final status, triggers business logic |
@@ -101,7 +101,7 @@ curl -X POST "http://localhost:3000/api/mobile/orders/1/accept" \
 curl -X PATCH "http://localhost:3000/api/mobile/orders/1/status" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"status":"REPORTED","reason":"Customer not available"}'
+  -d '{"status":"DELAY","reason":"Customer not available"}'
 ```
 
 **5. Deliver order:**

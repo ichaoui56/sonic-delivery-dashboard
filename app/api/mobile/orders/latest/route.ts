@@ -12,7 +12,7 @@ export async function GET(request: Request) {
         deliveryManId: deliveryMan.id,
         // Only show orders that have been ACCEPTED by admin (exclude PENDING)
         status: {
-          in: ["ACCEPTED", "ASSIGNED_TO_DELIVERY", "DELIVERED", "REPORTED", "REJECTED", "CANCELLED"],
+          in: ["ACCEPTED", "ASSIGNED_TO_DELIVERY", "DELIVERED", "DELAY", "REJECTED", "CANCELLED"],
         },
       },
       include: {

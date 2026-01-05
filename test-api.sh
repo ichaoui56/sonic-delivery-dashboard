@@ -83,13 +83,13 @@ fi
 # Step 5: Test Update Status (if order is ASSIGNED_TO_DELIVERY)
 if [ "$FIRST_ORDER_STATUS" == "ASSIGNED_TO_DELIVERY" ] && [ "$FIRST_ORDER_ID" != "null" ]; then
   echo -e "${YELLOW}📝 Step 5: Testing update order status (ID: $FIRST_ORDER_ID)...${NC}"
-  echo -e "${BLUE}Testing REPORTED status...${NC}"
+  echo -e "${BLUE}Testing DELAY status...${NC}"
   
   UPDATE_RESPONSE=$(curl -s -X PATCH "$BASE_URL/api/mobile/orders/$FIRST_ORDER_ID/status" \
     -H "Authorization: Bearer $TOKEN" \
     -H "Content-Type: application/json" \
     -d '{
-      "status": "REPORTED",
+      "status": "DELAY",
       "reason": "Test reason from script",
       "notes": "Testing API endpoint",
       "location": "33.5731,-7.5898"
@@ -109,11 +109,11 @@ echo -e "${YELLOW}Accept an order:${NC}"
 echo "curl -X POST \"$BASE_URL/api/mobile/orders/ORDER_ID/accept\" \\"
 echo "  -H \"Authorization: Bearer $TOKEN\""
 echo ""
-echo -e "${YELLOW}Update order status to REPORTED:${NC}"
+echo -e "${YELLOW}Update order status to DELAY:${NC}"
 echo "curl -X PATCH \"$BASE_URL/api/mobile/orders/ORDER_ID/status\" \\"
 echo "  -H \"Authorization: Bearer $TOKEN\" \\"
 echo "  -H \"Content-Type: application/json\" \\"
-echo "  -d '{\"status\":\"REPORTED\",\"reason\":\"Test reason\"}'"
+echo "  -d '{\"status\":\"DELAY\",\"reason\":\"Test reason\"}'"
 echo ""
 echo -e "${YELLOW}Update order status to DELIVERED:${NC}"
 echo "curl -X PATCH \"$BASE_URL/api/mobile/orders/ORDER_ID/status\" \\"
