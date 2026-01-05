@@ -89,7 +89,7 @@ if [ "$FIRST_ORDER_STATUS" == "ASSIGNED_TO_DELIVERY" ] && [ "$FIRST_ORDER_ID" !=
     -H "Authorization: Bearer $TOKEN" \
     -H "Content-Type: application/json" \
     -d '{
-      "status": "DELAY",
+      "status": "DELAYED",
       "reason": "Test reason from script",
       "notes": "Testing API endpoint",
       "location": "33.5731,-7.5898"

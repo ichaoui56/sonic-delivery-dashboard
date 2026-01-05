@@ -47,7 +47,7 @@ export async function GET(request: Request) {
     const DELAYOrders = await prisma.order.count({
       where: {
         deliveryManId: deliveryMan.id,
-        status: "DELAY",
+        status: "DELAYED",
         createdAt: {
           gte: startOfMonth,
           lte: endOfMonth
@@ -141,7 +141,7 @@ export async function GET(request: Request) {
         totalOrders,
         delivered: deliveredOrders,
         cancelled: cancelledOrders,
-        DELAY: DELAYOrders,
+        DELAYED: DELAYOrders,
         totalEarnings: earningsResult._sum.totalPrice || 0,
         avgDeliveryTime,
         successRate,

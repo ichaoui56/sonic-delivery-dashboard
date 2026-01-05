@@ -120,15 +120,6 @@ export async function PATCH(
         shouldUpdateOrderStatus = false // Keep order in ASSIGNED_TO_DELIVERY
         break
 
-      case "DELAYED":
-        // DELAY increments attempt count and changes order status
-        nextAttemptNumber = currentAttemptNumber + 1
-        attemptStatus = "OTHER"
-        attemptNotes = `Order DELAY${reason ? ` - ${reason}` : ""}`
-        shouldUpdateOrderStatus = true
-        newOrderStatus = "DELAY"
-        break
-
       case "REJECTED":
         // REJECTED is final
         nextAttemptNumber = currentAttemptNumber + 1

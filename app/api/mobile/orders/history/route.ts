@@ -18,15 +18,15 @@ export async function GET(request: Request) {
 
     // Define status mapping for frontend
     const statusMap: Record<string, OrderStatus[]> = {
-      "all": ["ACCEPTED", "ASSIGNED_TO_DELIVERY", "DELIVERED", "DELAY", "REJECTED", "CANCELLED"],
+      "all": ["ACCEPTED", "ASSIGNED_TO_DELIVERY", "DELIVERED", "DELAYED", "REJECTED", "CANCELLED"],
       "delivered": ["DELIVERED"],
-      "DELAY": ["DELAY"],
+      "DELAYED": ["DELAYED"],
       "cancelled": ["CANCELLED", "REJECTED"]
     }
 
     const statuses = statusFilter && statusMap[statusFilter] 
       ? statusMap[statusFilter] 
-      : ["DELIVERED", "DELAY", "CANCELLED", "REJECTED"] as OrderStatus[]
+      : ["DELIVERED", "DELAYED", "CANCELLED", "REJECTED"] as OrderStatus[]
 
     // Only show orders assigned to this delivery man
     const orders = await prisma.order.findMany({
@@ -121,7 +121,7 @@ export async function GET(request: Request) {
 function getFrontendStatus(backendStatus: OrderStatus): string {
   switch (backendStatus) {
     case "DELIVERED": return "Delivered"
-    case "DELAY": return "DELAY"
+    case "DELAYED": return "Delayed"
     case "CANCELLED":
     case "REJECTED": return "Cancelled"
     case "ACCEPTED":

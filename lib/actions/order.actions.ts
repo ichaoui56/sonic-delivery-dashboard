@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache"
 import { getCurrentUser } from "./auth-actions"
 import { cache } from "react"
 
-type OrderStatus = "PENDING" | "ACCEPTED" | "ASSIGNED_TO_DELIVERY" | "DELIVERED" | "DELAY" | "REJECTED" | "CANCELLED"
+type OrderStatus = "PENDING" | "ACCEPTED" | "ASSIGNED_TO_DELIVERY" | "DELIVERED" | "DELAYED" | "REJECTED" | "CANCELLED"
 type DiscountType = "PERCENTAGE" | "FIXED_AMOUNT" | "BUY_X_GET_Y" | "CUSTOM_PRICE"
 
 function getCityCode(city: string): string {
@@ -660,7 +660,7 @@ export async function updateOrderStatus(orderId: number, newStatus: OrderStatus,
         attemptNotes = `إلغاء الطلب${notes ? ` - ${notes}` : ''}`
         attemptStatus = "REFUSED"
         break
-      case "DELAY":
+      case "DELAYED":
         attemptNotes = `بلاغ عن الطلب${notes ? ` - ${notes}` : ''}`
         attemptStatus = "OTHER"
         break

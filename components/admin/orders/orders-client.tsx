@@ -55,7 +55,7 @@ export function OrdersClient({ initialOrders }: { initialOrders: Order[] }) {
     ACCEPTED: "مقبول",
     ASSIGNED_TO_DELIVERY: "مسند للتوصيل",
     DELIVERED: "تم التوصيل",
-    DELAY: "مبلغ عنه",
+    DELAYED: "مبلغ عنه",
     REJECTED: "مرفوض",
     CANCELLED: "ملغى"
   }
@@ -65,7 +65,7 @@ export function OrdersClient({ initialOrders }: { initialOrders: Order[] }) {
     ACCEPTED: "bg-blue-100 text-blue-800 hover:bg-blue-200",
     ASSIGNED_TO_DELIVERY: "bg-purple-100 text-purple-800 hover:bg-purple-200",
     DELIVERED: "bg-green-100 text-green-800 hover:bg-green-200",
-    DELAY: "bg-red-100 text-red-800 hover:bg-red-200",
+    DELAYED: "bg-red-100 text-red-800 hover:bg-red-200",
     REJECTED: "bg-red-100 text-red-800 hover:bg-red-200",
     CANCELLED: "bg-gray-100 text-gray-800 hover:bg-gray-200"
   }

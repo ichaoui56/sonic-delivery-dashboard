@@ -45,7 +45,7 @@ export function ViewOrderDialog({
     ACCEPTED: "مقبول",
     ASSIGNED_TO_DELIVERY: "مسند للتوصيل",
     DELIVERED: "تم التوصيل",
-    DELAY: "مبلغ عنه",
+    DELAYED: "مبلغ عنه",
     REJECTED: "مرفوض",
     CANCELLED: "ملغى"
   }
