@@ -13,10 +13,10 @@ export async function GET(
     const orderId = parseInt(params.id)
     
     if (isNaN(orderId)) {
-      return jsonError("Invalid order ID", 400)
+      return jsonError("ID de commande invalide", 400)
     }
     
-    // Verify the order belongs to this delivery man
+    // Vérifier que la commande appartient à ce livreur
     const order = await prisma.order.findFirst({
       where: {
         id: orderId,
@@ -25,10 +25,10 @@ export async function GET(
     })
     
     if (!order) {
-      return jsonError("Order not found or not authorized", 404)
+      return jsonError("Commande non trouvée ou non autorisée", 404)
     }
     
-    // Fetch all delivery attempts for this order
+    // Récupérer toutes les tentatives de livraison pour cette commande
     const deliveryAttempts = await prisma.deliveryAttempt.findMany({
       where: {
         orderId: orderId,
@@ -50,35 +50,65 @@ export async function GET(
       }
     })
     
-    // Format the response
-    const formattedAttempts = deliveryAttempts.map(attempt => ({
-      id: attempt.id,
-      orderId: attempt.orderId,
-      attemptNumber: attempt.attemptNumber,
-      deliveryManId: attempt.deliveryManId,
-      attemptedAt: attempt.attemptedAt.toISOString(),
-      status: attempt.status,
-      reason: attempt.reason,
-      notes: attempt.notes,
-      location: attempt.location,
-      deliveryMan: attempt.deliveryMan ? {
-        id: attempt.deliveryMan.id,
-        name: attempt.deliveryMan.user.name,
-        phone: attempt.deliveryMan.user.phone,
-      } : null
-    }))
+    // Formater la réponse avec des statuts en français
+    const formattedAttempts = deliveryAttempts.map(attempt => {
+      // Convertir le statut de la base de données en français
+      let frenchStatus: "TENTATIVE" | "ÉCHEC" | "RÉUSSIE" | "CLIENT_INDISPONIBLE" | "ADRESSE_ERRONÉE" | "REFUSÉ" | "AUTRE"
+      
+      switch (attempt.status) {
+        case "ATTEMPTED":
+          frenchStatus = "TENTATIVE"
+          break
+        case "FAILED":
+          frenchStatus = "ÉCHEC"
+          break
+        case "SUCCESSFUL":
+          frenchStatus = "RÉUSSIE"
+          break
+        case "CUSTOMER_NOT_AVAILABLE":
+          frenchStatus = "CLIENT_INDISPONIBLE"
+          break
+        case "WRONG_ADDRESS":
+          frenchStatus = "ADRESSE_ERRONÉE"
+          break
+        case "REFUSED":
+          frenchStatus = "REFUSÉ"
+          break
+        case "OTHER":
+          frenchStatus = "AUTRE"
+          break
+        default:
+          frenchStatus = "TENTATIVE"
+      }
+      
+      return {
+        id: attempt.id,
+        orderId: attempt.orderId,
+        attemptNumber: attempt.attemptNumber,
+        deliveryManId: attempt.deliveryManId,
+        attemptedAt: attempt.attemptedAt.toISOString(),
+        status: frenchStatus,
+        reason: attempt.reason,
+        notes: attempt.notes,
+        location: attempt.location,
+        deliveryMan: attempt.deliveryMan ? {
+          id: attempt.deliveryMan.id,
+          name: attempt.deliveryMan.user.name,
+          phone: attempt.deliveryMan.user.phone,
+        } : null
+      }
+    })
     
     return jsonOk({ 
       attempts: formattedAttempts,
       count: formattedAttempts.length 
     })
   } catch (error) {
-    console.error("Error fetching delivery attempts:", error)
-    return jsonError("Failed to fetch delivery attempts", 500)
+    console.error("Erreur lors de la récupération des tentatives de livraison:", error)
+    return jsonError("Échec de la récupération des tentatives de livraison", 500)
   }
 }
 
-// In your existing order status update endpoint
 export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -88,19 +118,19 @@ export async function PATCH(
     const orderId = parseInt(params.id)
     
     if (isNaN(orderId)) {
-      return jsonError("Invalid order ID", 400)
+      return jsonError("ID de commande invalide", 400)
     }
     
     const body = await request.json()
     const { status, reason, notes, location } = body
     
-    // Validate status
+    // Valider le statut
     const validStatuses = ["DELAYED", "REJECTED", "CANCELLED", "DELIVERED"]
     if (!validStatuses.includes(status)) {
-      return jsonError("Invalid status", 400)
+      return jsonError("Statut invalide", 400)
     }
     
-    // Check if order exists and belongs to delivery man
+    // Vérifier si la commande existe et appartient au livreur
     const order = await prisma.order.findFirst({
       where: {
         id: orderId,
@@ -115,14 +145,14 @@ export async function PATCH(
     })
     
     if (!order) {
-      return jsonError("Order not found or not authorized", 404)
+      return jsonError("Commande non trouvée ou non autorisée", 404)
     }
     
-    // Calculate next attempt number
+    // Calculer le numéro de la prochaine tentative
     const lastAttempt = order.deliveryAttemptHistory[0]
     const nextAttemptNumber = lastAttempt ? lastAttempt.attemptNumber + 1 : 1
     
-    // Map the frontend status to attempt status
+    // Mapper le statut frontend vers le statut de tentative
     let attemptStatus: "ATTEMPTED" | "FAILED" | "SUCCESSFUL" | "CUSTOMER_NOT_AVAILABLE" | "WRONG_ADDRESS" | "REFUSED" | "OTHER"
     
     switch (status) {
@@ -130,12 +160,12 @@ export async function PATCH(
         attemptStatus = "SUCCESSFUL"
         break
       case "DELAYED":
-        // Map common reasons to specific attempt statuses
-        if (reason?.includes("not available") || reason?.includes("not answering")) {
+        // Mapper les raisons courantes vers des statuts de tentative spécifiques
+        if (reason?.includes("non disponible") || reason?.includes("ne répond pas")) {
           attemptStatus = "CUSTOMER_NOT_AVAILABLE"
-        } else if (reason?.includes("address") || reason?.includes("Address")) {
+        } else if (reason?.includes("adresse") || reason?.includes("Adresse")) {
           attemptStatus = "WRONG_ADDRESS"
-        } else if (reason?.includes("Refused") || reason?.includes("refused")) {
+        } else if (reason?.includes("Refusé") || reason?.includes("refusé")) {
           attemptStatus = "REFUSED"
         } else {
           attemptStatus = "OTHER"
@@ -149,9 +179,9 @@ export async function PATCH(
         attemptStatus = "OTHER"
     }
     
-    // Start a transaction to update order and create attempt
+    // Démarrer une transaction pour mettre à jour la commande et créer la tentative
     const result = await prisma.$transaction(async (tx) => {
-      // Update the order status
+      // Mettre à jour le statut de la commande
       const updatedOrder = await tx.order.update({
         where: { id: orderId },
         data: {
@@ -161,7 +191,7 @@ export async function PATCH(
         }
       })
       
-      // Create delivery attempt record
+      // Créer un enregistrement de tentative de livraison
       const deliveryAttempt = await tx.deliveryAttempt.create({
         data: {
           orderId: orderId,
@@ -178,9 +208,26 @@ export async function PATCH(
       return { updatedOrder, deliveryAttempt }
     })
     
+    // Messages de succès en français
+    let successMessage = ""
+    switch (status) {
+      case "DELIVERED":
+        successMessage = "Commande marquée comme livrée avec succès"
+        break
+      case "DELAYED":
+        successMessage = "Retard enregistré. La commande reste en cours."
+        break
+      case "CANCELLED":
+      case "REJECTED":
+        successMessage = "Commande annulée avec succès"
+        break
+      default:
+        successMessage = "Statut de la commande mis à jour"
+    }
+    
     return jsonOk({
       success: true,
-      message: `Order status updated to ${status}`,
+      message: successMessage,
       order: {
         id: result.updatedOrder.id,
         orderCode: result.updatedOrder.orderCode,
@@ -190,7 +237,7 @@ export async function PATCH(
     })
     
   } catch (error) {
-    console.error("Error updating order status:", error)
-    return jsonError("Failed to update order status", 500)
+    console.error("Erreur lors de la mise à jour du statut de la commande:", error)
+    return jsonError("Échec de la mise à jour du statut de la commande", 500)
   }
 }
