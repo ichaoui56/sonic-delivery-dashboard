@@ -69,26 +69,26 @@ export function FinancesClient({ initialData }: { initialData: FinancialData | n
     const userName = transaction.relatedUser?.name?.toLowerCase() || ''
     const reference = transaction.reference?.toLowerCase() || ''
     const note = transaction.note?.toLowerCase() || ''
-    
-    const matchesSearch = 
+
+    const matchesSearch =
       userName.includes(searchTermLower) ||
       reference.includes(searchTermLower) ||
       note.includes(searchTermLower)
-    
+
     const matchesType = filterType === "all" || transaction.type === filterType
-    
+
     // Filter by period (last 7 days, 30 days, etc.)
     let matchesPeriod = true
     if (filterPeriod !== "all") {
       const transactionDate = new Date(transaction.createdAt)
       const now = new Date()
       const daysDiff = Math.floor((now.getTime() - transactionDate.getTime()) / (1000 * 60 * 60 * 24))
-      
+
       if (filterPeriod === "7days") matchesPeriod = daysDiff <= 7
       else if (filterPeriod === "30days") matchesPeriod = daysDiff <= 30
       else if (filterPeriod === "90days") matchesPeriod = daysDiff <= 90
     }
-    
+
     return matchesSearch && matchesType && matchesPeriod
   })
 
@@ -105,11 +105,11 @@ export function FinancesClient({ initialData }: { initialData: FinancialData | n
           <h1 className="text-3xl font-bold text-gray-900">الإدارة المالية</h1>
           <p className="text-gray-500 mt-1">نظرة شاملة على الأمور المالية والمعاملات</p>
         </div>
-       
+
       </div>
 
       {/* Financial Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-gray-600">إجمالي الإيرادات</CardTitle>
@@ -153,17 +153,6 @@ export function FinancesClient({ initialData }: { initialData: FinancialData | n
           <CardContent>
             <div className="text-2xl font-bold text-red-600">{initialData.totalPaid.toFixed(2)} د.م</div>
             <p className="text-xs text-gray-500 mt-1">تم دفعها للمستخدمين</p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-orange-800">صافي أرباح الشركة</CardTitle>
-            <DollarSign className="w-5 h-5 text-orange-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-orange-600">{initialData.companyProfit.toFixed(2)} د.م</div>
-            <p className="text-xs text-orange-700 mt-1">الأرباح الصافية</p>
           </CardContent>
         </Card>
       </div>
@@ -222,8 +211,8 @@ export function FinancesClient({ initialData }: { initialData: FinancialData | n
                     </Select>
                   </div>
 
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     onClick={() => {
                       setFilterType("all")
                       setFilterPeriod("all")
@@ -245,39 +234,59 @@ export function FinancesClient({ initialData }: { initialData: FinancialData | n
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {filteredTransactions.map((transaction) => (
-                  <div
-                    key={transaction.id}
-                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"
-                  >
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Badge>{transactionTypeLabels[transaction.type]}</Badge>
-                        <p className="font-semibold">{transaction.relatedUser.name}</p>
-                        <span className="text-xs text-gray-400">({transaction.relatedUser.type})</span>
+                {filteredTransactions.map((transaction) => {
+                  // Determine user type based on transaction type
+                  console.log('Transaction:', {
+                    id: transaction.id,
+                    type: transaction.type,
+                    typeLabel: transactionTypeLabels[transaction.type],
+                    userType: transaction.relatedUser.type,
+                    userName: transaction.relatedUser.name
+                  })
+                  const getUserType = (type:any) => {
+                    switch (type) {
+                      case "MERCHANT_PAYMENT": return "تاجر"
+                      case "DELIVERY_PAYMENT": return "موظف توصيل"
+                      case "ORDER_REVENUE": return "زبون"
+                      default: return transaction.relatedUser.type || "مستخدم"
+                    }
+                  }
+
+                  const userType = getUserType(transaction.type)
+
+                  return (
+                    <div
+                      key={transaction.id}
+                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"
+                    >
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Badge>{transactionTypeLabels[transaction.type]}</Badge>
+                          <p className="font-semibold">{transaction.relatedUser.name || "غير معروف"}</p>
+                          <span className="text-xs text-gray-400">({userType})</span>
+                        </div>
+                        {transaction.note && (
+                          <p className="text-sm text-gray-600">{transaction.note}</p>
+                        )}
+                        {transaction.reference && (
+                          <p className="text-xs text-gray-400">مرجع: {transaction.reference}</p>
+                        )}
+                        <p className="text-xs text-gray-400 mt-1">
+                          {new Date(transaction.createdAt).toLocaleString("en-US")}
+                        </p>
                       </div>
-                      {transaction.note && (
-                        <p className="text-sm text-gray-600">{transaction.note}</p>
-                      )}
-                      {transaction.reference && (
-                        <p className="text-xs text-gray-400">مرجع: {transaction.reference}</p>
-                      )}
-                      <p className="text-xs text-gray-400 mt-1">
-                        {new Date(transaction.createdAt).toLocaleString("ar-MA")}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className={`text-lg font-bold ${
-                        transaction.type === "ORDER_REVENUE" 
-                          ? "text-green-600" 
+                      <div className="text-right">
+                        <p className={`text-lg font-bold ${transaction.type === "ORDER_REVENUE"
+                          ? "text-green-600"
                           : "text-red-600"
-                      }`}>
-                        {transaction.type === "ORDER_REVENUE" ? "+" : "-"}
-                        {transaction.amount.toFixed(2)} د.م
-                      </p>
+                          }`}>
+                          {transaction.type === "ORDER_REVENUE" ? "+" : "-"}
+                          {transaction.amount.toFixed(2)} د.م
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  )
+                })}
                 {filteredTransactions.length === 0 && (
                   <p className="text-center text-gray-500 py-8">لا توجد معاملات</p>
                 )}

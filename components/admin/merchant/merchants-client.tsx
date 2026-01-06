@@ -159,23 +159,29 @@ export function MerchantsClient({ initialMerchants }: { initialMerchants: Mercha
                   </div>
 
                   {/* Stats Grid - Responsive columns */}
-                  <div className="grid grid-cols-3 gap-2 pt-3 border-t">
+                  <div className="grid grid-cols-4 gap-2 pt-3 border-t">
                     <div className="text-center">
                       <p className="text-xs text-gray-500 mb-1">الطلبات</p>
-                      <p className="font-semibold text-sm sm:text-base text-[#048dba]">
+                      <p className="font-semibold text-xs sm:text-sm text-[#048dba]">
                         {merchant._count.orders}
                       </p>
                     </div>
                     <div className="text-center border-x">
                       <p className="text-xs text-gray-500 mb-1">المنتجات</p>
-                      <p className="font-semibold text-sm sm:text-base text-[#048dba]">
+                      <p className="font-semibold text-xs sm:text-sm text-[#048dba]">
                         {merchant._count.products}
                       </p>
                     </div>
-                    <div className="text-center">
+                    <div className="text-center border-r">
                       <p className="text-xs text-gray-500 mb-1">الرصيد</p>
                       <p className="font-semibold text-xs sm:text-sm text-green-600">
                         {merchant.balance.toFixed(2)} د.م
+                      </p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-xs text-gray-500 mb-1">الرسوم</p>
+                      <p className="font-semibold text-xs sm:text-sm text-purple-600">
+                        {merchant.baseFee}dh
                       </p>
                     </div>
                   </div>

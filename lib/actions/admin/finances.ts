@@ -40,9 +40,15 @@ export async function getFinancialData() {
           }
         }
       }),
+      // Update this query to include deliveryMan and user info
       prisma.moneyTransfer.findMany({
         include: {
           merchant: {
+            include: {
+              user: true
+            }
+          },
+          deliveryMan: {
             include: {
               user: true
             }
@@ -60,20 +66,52 @@ export async function getFinancialData() {
     const totalPaid = moneyTransfers.reduce((sum, transfer) => sum + transfer.amount, 0)
     const companyProfit = totalRevenue - totalMerchantBalance - totalDeliveryManEarnings
 
+    // Create transactions for ALL money transfers
     const transactions = [
-      // Money transfers to merchants
-      ...moneyTransfers.map(transfer => ({
-        id: transfer.id,
-        type: "MERCHANT_PAYMENT" as const,
-        amount: transfer.amount,
-        reference: transfer.reference,
-        note: transfer.note,
-        createdAt: transfer.transferDate.toISOString(),
-        relatedUser: {
-          name: transfer.merchant?.user.name,
-          type: "تاجر"
+      // Money transfers - BOTH merchant AND delivery man payments
+      ...moneyTransfers.map(transfer => {
+        // Determine if it's a merchant payment or delivery man payment
+        if (transfer.merchantId && transfer.merchant) {
+          return {
+            id: transfer.id,
+            type: "MERCHANT_PAYMENT" as const,
+            amount: transfer.amount,
+            reference: transfer.reference,
+            note: transfer.note,
+            createdAt: transfer.transferDate.toISOString(),
+            relatedUser: {
+              name: transfer.merchant.user.name,
+              type: "تاجر"
+            }
+          }
+        } else if (transfer.deliveryManId && transfer.deliveryMan) {
+          return {
+            id: transfer.id,
+            type: "DELIVERY_PAYMENT" as const,
+            amount: transfer.amount,
+            reference: transfer.reference,
+            note: transfer.note,
+            createdAt: transfer.transferDate.toISOString(),
+            relatedUser: {
+              name: transfer.deliveryMan.user.name,
+              type: "موظف توصيل"
+            }
+          }
         }
-      })),
+        // Fallback for any edge cases
+        return {
+          id: transfer.id,
+          type: "MERCHANT_PAYMENT" as const,
+          amount: transfer.amount,
+          reference: transfer.reference,
+          note: transfer.note,
+          createdAt: transfer.transferDate.toISOString(),
+          relatedUser: {
+            name: "غير معروف",
+            type: "مستخدم"
+          }
+        }
+      }),
       // Order revenues
       ...orders.map(order => ({
         id: order.id,

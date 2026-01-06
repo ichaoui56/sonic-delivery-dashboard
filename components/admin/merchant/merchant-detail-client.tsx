@@ -237,6 +237,15 @@ export function MerchantDetailClient({ initialMerchant }: { initialMerchant: Mer
                   </p>
                   <p className="font-semibold text-sm sm:text-base truncate">{merchant.bankName || "غير محدد"}</p>
                 </div>
+                <div className="bg-gray-50 p-3 rounded-lg">
+                  <p className="text-xs text-gray-500 flex items-center gap-1 sm:gap-2 mb-1">
+                    <DollarSign className="w-3 h-3 sm:w-4 sm:h-4 text-[#048dba]" />
+                    الرسوم الأساسية
+                  </p>
+                  <p className="font-semibold text-sm sm:text-base">
+                    {merchant.baseFee}dh
+                  </p>
+                </div>
               </div>
             </div>
           </CardContent>
@@ -292,6 +301,21 @@ export function MerchantDetailClient({ initialMerchant }: { initialMerchant: Mer
                 </div>
                 <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-orange-100 rounded-full flex items-center justify-center shrink-0">
                   <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-orange-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="border-r-4 border-r-purple-500 hover:shadow-lg transition-shadow">
+            <CardContent className="p-3 sm:p-4 lg:p-6">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-between gap-2">
+                <div className="w-full">
+                  <p className="text-xs text-gray-500 mb-1">الرسوم الأساسية</p>
+                  <p className="text-lg sm:text-xl lg:text-2xl font-bold text-purple-600">
+                    {merchant.baseFee}%
+                  </p>
+                </div>
+                <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-purple-100 rounded-full flex items-center justify-center shrink-0">
+                  <DollarSign className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-purple-600" />
                 </div>
               </div>
             </CardContent>
