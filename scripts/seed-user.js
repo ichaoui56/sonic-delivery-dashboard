@@ -28,6 +28,7 @@ async function main() {
     update: {},
     create: {
       userId: adminUser.id,
+      address: "العنوان الرئيسي، الداخلة", 
     },
   });
 
@@ -135,7 +136,7 @@ async function main() {
       vehicleType: "دراجة نارية",
       active: true,
       totalEarned: 0,
-      baseFee: 10.0
+      baseFee: 10.0,
     },
   });
 
@@ -161,7 +162,7 @@ async function main() {
       vehicleType: "سيارة",
       active: true,
       totalEarned: 0,
-      baseFee: 12.0
+      baseFee: 12.0,
     },
   });
 
@@ -187,7 +188,7 @@ async function main() {
       vehicleType: "دراجة نارية",
       active: true,
       totalEarned: 0,
-      baseFee: 13.0
+      baseFee: 13.0,
     },
   });
 

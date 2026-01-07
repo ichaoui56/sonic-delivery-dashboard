@@ -6,10 +6,12 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { updateAdminProfile, updateUserProfile } from "@/lib/actions/admin/settings"
+import { updateAdminSettings } from "@/lib/actions/admin/settings"
 import { useRouter } from 'next/navigation'
 import { compressImage } from "@/lib/utils/image-compression"
-import { Loader2, Upload, X } from 'lucide-react'
+import { Loader2, Upload, X, AlertCircle, Mail } from 'lucide-react'
+import { Textarea } from "@/components/ui/textarea"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
 interface AdminSettingsData {
   user: {
@@ -21,6 +23,7 @@ interface AdminSettingsData {
   }
   admin: {
     id: number
+    address: string | null
   }
 }
 
@@ -33,12 +36,16 @@ export function SettingsClient({ initialData }: AdminSettingsClientProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [uploadingImage, setUploadingImage] = useState(false)
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
+  const [showPasswordField, setShowPasswordField] = useState(false)
 
   // User profile state
   const [userName, setUserName] = useState(initialData.user.name)
+  const [userEmail, setUserEmail] = useState(initialData.user.email) // Added email state
   const [userPhone, setUserPhone] = useState(initialData.user.phone || "")
+  const [address, setAddress] = useState(initialData.admin.address || "")
   const [profileImage, setProfileImage] = useState<string | null>(initialData.user.image)
   const [imagePreview, setImagePreview] = useState<string | null>(initialData.user.image)
+  const [currentPassword, setCurrentPassword] = useState("") // For email verification
 
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -74,27 +81,51 @@ export function SettingsClient({ initialData }: AdminSettingsClientProps) {
     setImagePreview(null)
   }
 
+  const handleEmailChange = (value: string) => {
+    setUserEmail(value)
+    // Show password field when email is being changed
+    if (value !== initialData.user.email) {
+      setShowPasswordField(true)
+    } else {
+      setShowPasswordField(false)
+      setCurrentPassword("")
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
     setMessage(null)
 
     try {
-      // Update user profile
-      await updateUserProfile({
+      const result = await updateAdminSettings({
         name: userName,
+        email: userEmail, // Include email
         phone: userPhone || null,
         profileImage: profileImage,
+        address: address || null,
+        currentPassword: showPasswordField ? currentPassword : undefined,
       })
 
-      // Update admin profile (no specific fields to update yet)
-      await updateAdminProfile()
-
-      setMessage({ type: 'success', text: 'تم تحديث الملف الشخصي بنجاح' })
-      router.refresh()
+      setMessage({ 
+        type: 'success', 
+        text: result.message || 'تم تحديث الملف الشخصي بنجاح' 
+      })
+      
+      // If email was changed, suggest re-login
+      if (userEmail !== initialData.user.email) {
+        setTimeout(() => {
+          router.push('/admin/settings')
+        }, 3000)
+      } else {
+        router.refresh()
+      }
     } catch (error: any) {
       console.error('Error updating profile:', error)
-      setMessage({ type: 'error', text: error.message || 'حدث خطأ أثناء تحديث الملف الشخصي' })
+      setMessage({ 
+        type: 'error', 
+        text: error.message || 'حدث خطأ أثناء تحديث الملف الشخصي' 
+      })
     } finally {
       setIsLoading(false)
     }
@@ -165,16 +196,45 @@ export function SettingsClient({ initialData }: AdminSettingsClientProps) {
 
           {/* Email */}
           <div className="space-y-2">
-            <Label htmlFor="email">البريد الإلكتروني</Label>
+            <Label htmlFor="email" className="flex items-center gap-2">
+              <Mail className="w-4 h-4" />
+              البريد الإلكتروني
+            </Label>
             <Input
               id="email"
               type="email"
-              value={initialData.user.email}
-              disabled
-              className="bg-gray-100"
+              value={userEmail}
+              onChange={(e) => handleEmailChange(e.target.value)}
+              placeholder="أدخل بريدك الإلكتروني"
+              required
             />
-            <p className="text-sm text-muted-foreground">لا يمكن تغيير البريد الإلكتروني</p>
+            {showPasswordField && (
+              <Alert className="mt-2 bg-amber-50 border-amber-200">
+                <AlertCircle className="h-4 w-4 text-amber-600" />
+                <AlertDescription className="text-amber-700 text-sm">
+                  لتغيير البريد الإلكتروني، الرجاء إدخال كلمة المرور الحالية للتأكيد.
+                </AlertDescription>
+              </Alert>
+            )}
           </div>
+
+          {/* Current Password (only shown when email is being changed) */}
+          {showPasswordField && (
+            <div className="space-y-2">
+              <Label htmlFor="currentPassword">كلمة المرور الحالية *</Label>
+              <Input
+                id="currentPassword"
+                type="password"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                placeholder="أدخل كلمة المرور الحالية"
+                required={showPasswordField}
+              />
+              <p className="text-sm text-muted-foreground">
+                مطلوب لتغيير البريد الإلكتروني
+              </p>
+            </div>
+          )}
 
           {/* Phone */}
           <div className="space-y-2">
@@ -188,9 +248,22 @@ export function SettingsClient({ initialData }: AdminSettingsClientProps) {
             />
           </div>
 
+          {/* Address */}
+          <div className="space-y-2">
+            <Label htmlFor="address">العنوان</Label>
+            <Textarea
+              id="address"
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              placeholder="أدخل العنوان الكامل"
+              rows={3}
+            />
+            <p className="text-sm text-muted-foreground">عنوان مكتب المشرف الرئيسي</p>
+          </div>
+
           {/* Submit Button */}
           <div className="flex justify-end">
-            <Button type="submit" disabled={isLoading}>
+            <Button type="submit" disabled={isLoading || (showPasswordField && !currentPassword)}>
               {isLoading ? (
                 <>
                   <Loader2 className="ml-2 h-4 w-4 animate-spin" />
@@ -204,13 +277,34 @@ export function SettingsClient({ initialData }: AdminSettingsClientProps) {
 
           {/* Status Message */}
           {message && (
-            <div
-              className={`p-4 rounded-md ${
-                message.type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-              }`}
-            >
-              {message.text}
-            </div>
+            <Alert className={
+              message.type === 'success' 
+                ? "bg-green-50 border-green-200" 
+                : "bg-red-50 border-red-200"
+            }>
+              <AlertCircle className={
+                message.type === 'success' 
+                  ? "h-4 w-4 text-green-600" 
+                  : "h-4 w-4 text-red-600"
+              } />
+              <AlertDescription className={
+                message.type === 'success' 
+                  ? "text-green-700" 
+                  : "text-red-700"
+              }>
+                {message.text}
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {/* Email Change Warning */}
+          {showPasswordField && (
+            <Alert className="bg-blue-50 border-blue-200">
+              <AlertCircle className="h-4 w-4 text-blue-600" />
+              <AlertDescription className="text-blue-700 text-sm">
+                عند تغيير البريد الإلكتروني، سيتم تسجيل خروجك من النظام ويجب عليك تسجيل الدخول مرة أخرى باستخدام البريد الإلكتروني الجديد.
+              </AlertDescription>
+            </Alert>
           )}
         </form>
       </Card>

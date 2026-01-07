@@ -28,11 +28,27 @@ type TransferItemInput = {
   image?: string
 }
 
-export function CreateTransferClient({ initialProducts }: { initialProducts: Product[] }) {
+// Define the company info type
+type CompanyInfo = {
+  companyName: string
+  email: string
+  phone: string
+  address: string
+}
+
+interface CreateTransferClientProps {
+  initialProducts: Product[]
+  companyInfo: CompanyInfo // Add companyInfo prop
+}
+
+export function CreateTransferClient({ initialProducts, companyInfo }: CreateTransferClientProps) {
   const { toast } = useToast()
   const router = useRouter()
   const [products, setProducts] = useState<Product[]>(initialProducts)
   const [submitting, setSubmitting] = useState(false)
+
+  // Use companyInfo from props
+  const { companyName, email, phone, address } = companyInfo
 
   const [deliveryCompany, setDeliveryCompany] = useState("الشركة الوطنية للنقل")
   const [trackingNumber, setTrackingNumber] = useState("")
@@ -234,6 +250,7 @@ export function CreateTransferClient({ initialProducts }: { initialProducts: Pro
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 md:space-y-6">
+      {/* Updated Company Info Card with dynamic data */}
       <Card className="mb-6">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg md:text-xl">
@@ -247,13 +264,13 @@ export function CreateTransferClient({ initialProducts }: { initialProducts: Pro
               <div className="flex items-center gap-2">
                 <Building className="w-4 h-4 text-gray-500" />
                 <span className="text-sm font-medium">الشركة:</span>
-                <span className="text-sm">Sonixpress</span>
+                <span className="text-sm">{companyName}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Mail className="w-4 h-4 text-gray-500" />
                 <span className="text-sm font-medium">البريد الإلكتروني:</span>
-                <a href="mailto:deliverysonicdak@gmail.com" className="text-sm text-blue-600 hover:underline">
-                  deliverysonicdak@gmail.com
+                <a href={`mailto:${email}`} className="text-sm text-blue-600 hover:underline">
+                  {email}
                 </a>
               </div>
             </div>
@@ -262,15 +279,15 @@ export function CreateTransferClient({ initialProducts }: { initialProducts: Pro
                 <Phone className="w-4 h-4 text-gray-500" />
                 <span className="text-sm font-medium">رقم الهاتف:</span>
                 <div dir="ltr" className="whitespace-nowrap">
-                  <a href="tel:+212601717961" className="text-sm text-blue-600 hover:underline">
-                    +212 601 717 961
+                  <a href={`tel:${phone}`} className="text-sm text-blue-600 hover:underline">
+                    {phone}
                   </a>
                 </div>
               </div>
               <div className="flex items-start gap-2">
                 <MapPin className="w-4 h-4 text-gray-500 mt-0.5 flex-shrink-0" />
                 <span className="text-sm">
-                  <span className="font-medium">العنوان:</span> الداخلة - المركز - الحي الحسني
+                  <span className="font-medium">العنوان:</span> {address}
                 </span>
               </div>
             </div>
