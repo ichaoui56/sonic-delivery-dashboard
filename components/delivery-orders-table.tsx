@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -23,6 +23,7 @@ import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { getActiveCities } from "@/lib/actions/admin/city"
 
 type Order = {
   id: number
@@ -31,6 +32,7 @@ type Order = {
   customerPhone: string
   address: string
   city: string
+  cityId: number
   note: string | null
   totalPrice: number
   paymentMethod: "COD" | "PREPAID"
@@ -52,6 +54,12 @@ type Order = {
       name: string
     }
   }
+}
+
+type City = {
+  id: number
+  name: string
+  code: string
 }
 
 const statusMap: Record<string, { label: string; color: string; icon: string }> = {
@@ -92,15 +100,6 @@ const statusMap: Record<string, { label: string; color: string; icon: string }> 
   },
 }
 
-const cityMap: Record<string, { label: string; color: string }> = {
-  "الداخلة": { label: "الداخلة", color: "bg-purple-50 text-purple-700 border-purple-200" },
-  "Dakhla": { label: "الداخلة", color: "bg-purple-50 text-purple-700 border-purple-200" },
-  "بوجدور": { label: "بوجدور", color: "bg-teal-50 text-teal-700 border-teal-200" },
-  "Boujdour": { label: "بوجدور", color: "bg-teal-50 text-teal-700 border-teal-200" },
-  "العيون": { label: "العيون", color: "bg-amber-50 text-amber-700 border-amber-200" },
-  "Laayoune": { label: "العيون", color: "bg-amber-50 text-amber-700 border-amber-200" },
-}
-
 export function DeliveryOrdersTable({ orders }: { orders: Order[] }) {
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("ALL")
@@ -113,6 +112,50 @@ export function DeliveryOrdersTable({ orders }: { orders: Order[] }) {
   const [reportDialogOpen, setReportDialogOpen] = useState(false)
   const [reportReason, setReportReason] = useState("")
   const [activeTab, setActiveTab] = useState("all")
+  const [cities, setCities] = useState<City[]>([])
+  const [loadingCities, setLoadingCities] = useState(false)
+
+  // Load cities on component mount
+  useEffect(() => {
+    async function loadCities() {
+      setLoadingCities(true)
+      try {
+        const citiesData = await getActiveCities()
+        setCities(citiesData)
+      } catch (error) {
+        console.error("Error loading cities:", error)
+        toast.error("فشل في تحميل قائمة المدن")
+      } finally {
+        setLoadingCities(false)
+      }
+    }
+    
+    loadCities()
+  }, [])
+
+  // Create city map from dynamic cities
+  const cityMap = useMemo(() => {
+    const map: Record<string, { label: string; color: string }> = {}
+    const colors = [
+      "bg-purple-50 text-purple-700 border-purple-200",
+      "bg-teal-50 text-teal-700 border-teal-200",
+      "bg-amber-50 text-amber-700 border-amber-200",
+      "bg-blue-50 text-blue-700 border-blue-200",
+      "bg-green-50 text-green-700 border-green-200",
+      "bg-red-50 text-red-700 border-red-200",
+      "bg-indigo-50 text-indigo-700 border-indigo-200",
+      "bg-pink-50 text-pink-700 border-pink-200"
+    ]
+    
+    cities.forEach((city, index) => {
+      map[city.name] = {
+        label: city.name,
+        color: colors[index % colors.length] || "bg-gray-50 text-gray-700 border-gray-200"
+      }
+    })
+    
+    return map
+  }, [cities])
 
   // Advanced filtering with multiple criteria
   const filteredOrders = useMemo(() => {
@@ -191,7 +234,7 @@ export function DeliveryOrdersTable({ orders }: { orders: Order[] }) {
       label: cityMap[city]?.label || city,
       color: cityMap[city]?.color || "bg-gray-50 text-gray-700 border-gray-200"
     }))
-  }, [orders])
+  }, [orders, cityMap])
 
   const handleAcceptOrder = async (orderId: number) => {
     setUpdatingOrderId(orderId)
@@ -437,17 +480,26 @@ export function DeliveryOrdersTable({ orders }: { orders: Order[] }) {
             </Select>
 
             {/* City Filter */}
-            <Select value={cityFilter} onValueChange={setCityFilter}>
+            <Select value={cityFilter} onValueChange={setCityFilter} disabled={loadingCities}>
               <SelectTrigger className="w-full lg:w-40">
-                <SelectValue placeholder="المدينة" />
+                <SelectValue placeholder={loadingCities ? "جاري التحميل..." : "المدينة"} />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="ALL">جميع المدن</SelectItem>
-                {uniqueCities.map(city => (
-                  <SelectItem key={city.value} value={city.value}>
-                    {city.label}
-                  </SelectItem>
-                ))}
+                {loadingCities ? (
+                  <div className="flex items-center justify-center py-2">
+                    <div className="w-4 h-4 border-2 border-[#048dba] border-t-transparent rounded-full animate-spin mr-2" />
+                    <span className="text-sm text-gray-500">جاري التحميل...</span>
+                  </div>
+                ) : uniqueCities.length === 0 ? (
+                  <div className="text-center py-2 text-gray-500 text-sm">لا توجد مدن</div>
+                ) : (
+                  uniqueCities.map(city => (
+                    <SelectItem key={city.value} value={city.value}>
+                      {city.label}
+                    </SelectItem>
+                  ))
+                )}
               </SelectContent>
             </Select>
 
@@ -500,7 +552,7 @@ export function DeliveryOrdersTable({ orders }: { orders: Order[] }) {
             {paymentFilter !== "ALL" && (
               <Badge variant="secondary" className="flex items-center gap-1">
                 دفع: {paymentFilter === "COD" ? "عند الاستلام" : "مسبق"}
-                <button onClick={() => setPaymentFilter("ALL")} className="hover:text-red-500">×</button>
+                <button onClick={() => setPaymentFilter("ALL")} className="hover:text-red500">×</button>
               </Badge>
             )}
           </div>
@@ -525,8 +577,8 @@ export function DeliveryOrdersTable({ orders }: { orders: Order[] }) {
                         <span className="ml-1">{statusMap[order.status]?.icon}</span>
                         {statusMap[order.status]?.label}
                       </Badge>
-                      <Badge variant="outline" className={cityMap[order.city]?.color}>
-                        {cityMap[order.city]?.label || order.city}
+                      <Badge variant="outline" className={cityMap[order.city]?.color || "bg-gray-50 text-gray-700 border-gray-200"}>
+                        {order.city}
                       </Badge>
                     </div>
                     <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500">
@@ -568,9 +620,13 @@ export function DeliveryOrdersTable({ orders }: { orders: Order[] }) {
                   <p className="text-xs font-medium text-gray-500 mb-1">رقم الهاتف</p>
                   <p className="font-semibold text-gray-900 direction-ltr text-right">{order.customerPhone}</p>
                 </div>
-                <div className="lg:col-span-2">
+                <div>
+                  <p className="text-xs font-medium text-gray-500 mb-1">المدينة</p>
+                  <p className="font-semibold text-gray-900">{order.city}</p>
+                </div>
+                <div className="lg:col-span-1">
                   <p className="text-xs font-medium text-gray-500 mb-1">العنوان</p>
-                  <p className="font-semibold text-gray-900">{order.address} - {order.city}</p>
+                  <p className="font-semibold text-gray-900">{order.address}</p>
                 </div>
                 {order.note && (
                   <div className="md:col-span-2 lg:col-span-4">

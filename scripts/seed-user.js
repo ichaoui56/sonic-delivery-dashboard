@@ -6,6 +6,31 @@ const prisma = new PrismaClient();
 async function main() {
   console.log("[v0] Starting database seeding...");
 
+  // First, create default cities
+  console.log("[v0] Creating default cities...");
+  
+  const defaultCities = [
+    { name: "الداخلة", code: "DA", isActive: true },
+    { name: "بوجدور", code: "BO", isActive: true },
+    { name: "العيون", code: "LA", isActive: true }
+  ];
+
+  const createdCities = [];
+  
+  for (const cityData of defaultCities) {
+    const city = await prisma.city.upsert({
+      where: { name: cityData.name },
+      update: {},
+      create: {
+        name: cityData.name,
+        code: cityData.code,
+        isActive: cityData.isActive
+      }
+    });
+    createdCities.push(city);
+    console.log(`[v0] Created city: ${city.name} (${city.code})`);
+  }
+
   const Admin_Hashed_Password = await bcrypt.hash("Admin@123", 10);
   const Merchant_Hashed_Password = await bcrypt.hash("Merchant@123", 10);
   const Delivery_Hashed_Password = await bcrypt.hash("Delivery@123", 10);
@@ -33,6 +58,11 @@ async function main() {
   });
 
   console.log("[v0] Created admin user:", adminUser.email);
+
+  // Get city IDs for merchants
+  const dakhlaCity = createdCities.find(c => c.code === "DA");
+  const boujdourCity = createdCities.find(c => c.code === "BO");
+  const laayouneCity = createdCities.find(c => c.code === "LA");
 
   const merchantDakhla = await prisma.user.upsert({
     where: { email: "merchant.dakhla@sonic-delivery.com" },
@@ -132,7 +162,7 @@ async function main() {
     update: {},
     create: {
       userId: deliveryDakhla.id,
-      city: "Dakhla", // Added city field for Dakhla
+      cityId: dakhlaCity?.id, // Use cityId instead of city string
       vehicleType: "دراجة نارية",
       active: true,
       totalEarned: 0,
@@ -158,7 +188,7 @@ async function main() {
     update: {},
     create: {
       userId: deliveryBoujdour.id,
-      city: "Boujdour", // Added city field for Boujdour
+      cityId: boujdourCity?.id, // Use cityId instead of city string
       vehicleType: "سيارة",
       active: true,
       totalEarned: 0,
@@ -184,7 +214,7 @@ async function main() {
     update: {},
     create: {
       userId: deliveryLaayoune.id,
-      city: "Laayoune", // Added city field for Laayoune
+      cityId: laayouneCity?.id, // Use cityId instead of city string
       vehicleType: "دراجة نارية",
       active: true,
       totalEarned: 0,

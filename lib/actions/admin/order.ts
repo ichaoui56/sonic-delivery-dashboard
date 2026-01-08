@@ -192,7 +192,7 @@ export async function getActiveDeliveryMen() {
         },
       },
       orderBy: [
-        { city: "asc" },
+        { city: { name: "asc" } },
         { rating: "desc" },
         { successfulDeliveries: "desc" },
       ],

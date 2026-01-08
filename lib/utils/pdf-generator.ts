@@ -223,6 +223,22 @@ export const createInvoicePDF = (order: OrderForPDF, merchantName: string, merch
                 columns: [
                     {
                         width: '30%',
+                        text: 'City:',
+                        fontSize: 9,
+                        bold: true
+                    },
+                    {
+                        width: '70%',
+                        text: cityName,
+                        fontSize: 9
+                    }
+                ],
+                margin: [0, 0, 0, 4]
+            },
+            {
+                columns: [
+                    {
+                        width: '30%',
                         text: 'Adresse:',
                         fontSize: 9,
                         bold: true

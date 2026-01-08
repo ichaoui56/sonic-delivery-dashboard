@@ -7,6 +7,26 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ADD CITY MODEL
+model City {
+  id          Int       @id @default(autoincrement())
+  name        String    @unique
+  code        String    @unique
+  isActive    Boolean   @default(true)
+  orderCount  Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  // Relations
+  orders      Order[]
+  deliveryMen DeliveryMan[]
+  
+  @@index([name])
+  @@index([code])
+  @@index([isActive])
+  @@index([createdAt(sort: Desc)])
+}
+
 model User {
   id                 Int            @id @default(autoincrement())
   name               String
@@ -134,7 +154,7 @@ model Order {
   customerName           String
   customerPhone          String
   address                String
-  city                   String
+  cityId                 Int               // Changed from city String to cityId
   note                   String?
   totalPrice             Float
   paymentMethod          PaymentMethod     @default(COD)
@@ -155,6 +175,7 @@ model Order {
   deliveryAttemptHistory DeliveryAttempt[]
   deliveryMan            DeliveryMan?      @relation(fields: [deliveryManId], references: [id])
   merchant               Merchant          @relation(fields: [merchantId], references: [id])
+  city                   City              @relation(fields: [cityId], references: [id]) // Required relation
   orderItems             OrderItem[]
   
   @@index([merchantId])
@@ -164,9 +185,9 @@ model Order {
   @@index([deliveryManId])
   @@index([deliveryManId, status])
   @@index([deliveryManId, status, createdAt(sort: Desc)])
-  @@index([city])
-  @@index([city, status])
-  @@index([city, createdAt(sort: Desc)])
+  @@index([cityId]) // New index
+  @@index([cityId, status]) // New index
+  @@index([cityId, createdAt(sort: Desc)]) // New index
   @@index([status])
   @@index([createdAt(sort: Desc)])
   @@index([orderCode])
@@ -226,7 +247,7 @@ model DeliveryMan {
   id                   Int               @id @default(autoincrement())
   userId               Int               @unique
   vehicleType          String?
-  city                 String?
+  cityId               Int?              // Changed from city String? to cityId
   active               Boolean           @default(true)
   totalDeliveries      Int               @default(0)
   successfulDeliveries Int               @default(0)
@@ -235,18 +256,19 @@ model DeliveryMan {
   rating               Float?
   createdAt            DateTime          @default(now())
   user                 User              @relation(fields: [userId], references: [id])
+  city                 City?             @relation(fields: [cityId], references: [id]) // Optional relation
   assignedOrders       Order[]
   deliveryAttempts     DeliveryAttempt[]
   moneyTransfers       MoneyTransfer[]
   
   @@index([userId])
-  @@index([city])
-  @@index([city, active])
+  @@index([cityId]) // Updated index
+  @@index([cityId, active])
   @@index([active])
   @@index([createdAt(sort: Desc)])
   @@index([totalEarned])
   @@index([rating])
-  @@index([city, active, createdAt(sort: Desc)])
+  @@index([cityId, active, createdAt(sort: Desc)])
 }
 
 model MoneyTransfer {

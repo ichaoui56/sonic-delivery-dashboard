@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useRouter } from 'next/navigation'
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -43,6 +44,7 @@ import { useToast } from "@/hooks/use-toast"
 import type { OrderStatus } from "@prisma/client"
 import { Tag, TrendingDown, Printer, ChevronRight, ChevronLeft, Pencil, Trash2 } from "lucide-react"
 import { generateAndDownloadInvoice } from "@/lib/utils/pdf-client"
+import { getActiveCities } from "@/lib/actions/admin/city"
 
 type Order = {
   id: number
@@ -51,6 +53,7 @@ type Order = {
   customerPhone: string
   address: string
   city: string
+  cityId: number
   note: string | null
   totalPrice: number
   paymentMethod: "COD" | "PREPAID"
@@ -90,6 +93,12 @@ type Order = {
   } | null
 }
 
+type City = {
+  id: number
+  name: string
+  code: string
+}
+
 const statusMap: Record<string, { label: string; color: string }> = {
   PENDING: { label: "قيد الانتظار", color: "bg-yellow-100 text-yellow-800 border-yellow-200" },
   ACCEPTED: { label: "مقبول", color: "bg-blue-100 text-blue-800 border-blue-200" },
@@ -107,12 +116,6 @@ const discountTypeLabels: Record<string, string> = {
   BUY_X_GET_Y: "اشتر X واحصل على Y",
   CUSTOM_PRICE: "سعر مخصص",
 }
-
-const CITIES: Array<{ value: string; label: string }> = [
-  { value: "Boujdour", label: "Boujdour" },
-  { value: "Dakhla", label: "Dakhla" },
-  { value: "Laayoune", label: "Laayoune" },
-]
 
 export function OrdersTable({
   orders,
@@ -140,16 +143,40 @@ export function OrdersTable({
   const [editingOrderId, setEditingOrderId] = useState<number | null>(null)
   const [deletingOrderId, setDeletingOrderId] = useState<number | null>(null)
   const { toast } = useToast()
+  const [cities, setCities] = useState<City[]>([])
+  const [loadingCities, setLoadingCities] = useState(false)
 
   const [editForm, setEditForm] = useState<{
     customerName: string
     customerPhone: string
     address: string
-    city: string
+    cityId: string
     note: string
     paymentMethod: "COD" | "PREPAID"
     totalPrice: string
   } | null>(null)
+
+  // Load cities on component mount
+  useEffect(() => {
+    async function loadCities() {
+      setLoadingCities(true)
+      try {
+        const citiesData = await getActiveCities()
+        setCities(citiesData)
+      } catch (error) {
+        console.error("Error loading cities:", error)
+        toast({
+          title: "خطأ",
+          description: "فشل في تحميل قائمة المدن",
+          variant: "destructive"
+        })
+      } finally {
+        setLoadingCities(false)
+      }
+    }
+    
+    loadCities()
+  }, [])
 
   const stats = {
     total: orders.length,
@@ -501,7 +528,7 @@ export function OrdersTable({
                           customerName: order.customerName,
                           customerPhone: order.customerPhone,
                           address: order.address,
-                          city: order.city,
+                          cityId: order.cityId.toString(),
                           note: order.note ?? "",
                           paymentMethod: order.paymentMethod,
                           totalPrice: String(order.totalPrice),
@@ -548,60 +575,71 @@ export function OrdersTable({
                               </div>
                             </div>
 
-                            <div className="flex gap-5">
-                              <div className="grid gap-2">
-                                <Label htmlFor={`city-${order.id}`}>المدينة</Label>
+                            <div className="flex gap-2">
+                              <div className="flex-1">
+                                <Label htmlFor={`cityId-${order.id}`}>المدينة</Label>
                                 <Select
-                                  value={editForm.city}
-                                  onValueChange={(value) => setEditForm((p) => (p ? { ...p, city: value } : p))}
+                                  value={editForm.cityId}
+                                  onValueChange={(value) => setEditForm((p) => (p ? { ...p, cityId: value } : p))}
+                                  disabled={loadingCities}
                                 >
-                                  <SelectTrigger id={`city-${order.id}`}>
-                                    <SelectValue placeholder="اختر المدينة" />
+                                  <SelectTrigger id={`cityId-${order.id}`}>
+                                    <SelectValue placeholder={loadingCities ? "جاري التحميل..." : "اختر المدينة"} />
                                   </SelectTrigger>
                                   <SelectContent>
-                                    {CITIES.map((c) => (
-                                      <SelectItem key={c.value} value={c.value}>
-                                        {c.label}
-                                      </SelectItem>
-                                    ))}
+                                    {loadingCities ? (
+                                      <div className="flex items-center justify-center py-2">
+                                        <div className="w-4 h-4 border-2 border-[#048dba] border-t-transparent rounded-full animate-spin mr-2" />
+                                        <span className="text-sm text-gray-500">جاري التحميل...</span>
+                                      </div>
+                                    ) : cities.length === 0 ? (
+                                      <div className="text-center py-2 text-gray-500 text-sm">لا توجد مدن متاحة</div>
+                                    ) : (
+                                      cities.map((city) => (
+                                        <SelectItem key={city.id} value={city.id.toString()}>
+                                          {city.name}
+                                        </SelectItem>
+                                      ))
+                                    )}
                                   </SelectContent>
                                 </Select>
                               </div>
 
-
-                            <div className="grid gap-2">
-                              <Label htmlFor={`paymentMethod-${order.id}`}>طريقة الدفع</Label>
-                              <Select
-                                value={editForm.paymentMethod}
-                                onValueChange={(value) =>
-                                  setEditForm((p) =>
-                                    p ? { ...p, paymentMethod: value as "COD" | "PREPAID" } : p,
-                                  )
-                                }
-                              >
-                                <SelectTrigger id={`paymentMethod-${order.id}`}>
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="COD">الدفع عند الاستلام</SelectItem>
-                                  <SelectItem value="PREPAID">مدفوع مسبقاً</SelectItem>
-                                </SelectContent>
-                              </Select>
+                              <div className="flex-1">
+                                <Label htmlFor={`paymentMethod-${order.id}`}>طريقة الدفع</Label>
+                                <Select
+                                  value={editForm.paymentMethod}
+                                  onValueChange={(value) =>
+                                    setEditForm((p) =>
+                                      p ? { ...p, paymentMethod: value as "COD" | "PREPAID" } : p,
+                                    )
+                                  }
+                                >
+                                  <SelectTrigger id={`paymentMethod-${order.id}`}>
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="COD">الدفع عند الاستلام</SelectItem>
+                                    <SelectItem value="PREPAID">مدفوع مسبقاً</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
                             </div>
 
-                            <div className="grid gap-2">
-                              <Label htmlFor={`totalPrice-${order.id}`}>السعر الإجمالي</Label>
-                              <Input
-                                id={`totalPrice-${order.id}`}
-                                inputMode="decimal"
-                                value={editForm.totalPrice}
-                                onChange={(e) =>
-                                  setEditForm((p) => (p ? { ...p, totalPrice: e.target.value } : p))
-                                }
-                              />
+                            <div className="flex gap-2">
+                              <div className="flex-1">
+                                <Label htmlFor={`totalPrice-${order.id}`}>السعر الإجمالي</Label>
+                                <Input
+                                  id={`totalPrice-${order.id}`}
+                                  inputMode="decimal"
+                                  value={editForm.totalPrice}
+                                  onChange={(e) =>
+                                    setEditForm((p) => (p ? { ...p, totalPrice: e.target.value } : p))
+                                  }
+                                />
+                              </div>
                             </div>
 
-                            </div>
                             <div className="grid gap-2">
                               <Label htmlFor={`address-${order.id}`}>العنوان</Label>
                               <Textarea
@@ -612,7 +650,6 @@ export function OrdersTable({
                                 }
                               />
                             </div>
-
 
                             <div className="grid gap-2">
                               <Label htmlFor={`note-${order.id}`}>ملاحظات</Label>
@@ -638,7 +675,7 @@ export function OrdersTable({
                           </Button>
                           <Button
                             className="bg-[#048dba] hover:bg-[#037ba0]"
-                            disabled={editingOrderId === null || !editForm}
+                            disabled={editingOrderId === null || !editForm || loadingCities || cities.length === 0}
                             onClick={async () => {
                               if (!editForm) return
                               setUpdatingOrderId(order.id)
@@ -648,7 +685,7 @@ export function OrdersTable({
                                   customerName: editForm.customerName,
                                   customerPhone: editForm.customerPhone,
                                   address: editForm.address,
-                                  city: editForm.city,
+                                  cityId: Number.parseInt(editForm.cityId), // Convert to number
                                   note: editForm.note,
                                   paymentMethod: editForm.paymentMethod,
                                   totalPrice,

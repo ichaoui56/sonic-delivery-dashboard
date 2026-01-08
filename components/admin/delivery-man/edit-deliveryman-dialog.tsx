@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import {
   Dialog,
   DialogContent,
@@ -22,11 +22,13 @@ import {
 import { updateDeliveryMan } from "@/lib/actions/admin/delivery-men"
 import { compressImage } from "@/lib/utils/image-compression"
 import { Eye, EyeOff, Loader2, Upload } from 'lucide-react'
+import { getActiveCities } from "@/lib/actions/admin/city"
 
 type DeliveryMan = {
   id: number
   vehicleType: string | null
   city: string | null
+  cityId: number | null
   active: boolean
   baseFee: number
   user: {
@@ -38,11 +40,17 @@ type DeliveryMan = {
   }
 }
 
-export function EditDeliveryManDialog({ 
+type City = {
+  id: number
+  name: string
+  code: string
+}
+
+export function EditDeliveryManDialog({
   deliveryMan,
   children,
-  onSuccess 
-}: { 
+  onSuccess
+}: {
   deliveryMan: DeliveryMan
   children: React.ReactNode
   onSuccess?: (deliveryMan: any) => void
@@ -51,18 +59,44 @@ export function EditDeliveryManDialog({
   const [isLoading, setIsLoading] = useState(false)
   const [uploadingImage, setUploadingImage] = useState(false)
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
+  const [cities, setCities] = useState<City[]>([])
+  const [loadingCities, setLoadingCities] = useState(false)
 
   const [name, setName] = useState(deliveryMan.user.name)
   const [email, setEmail] = useState(deliveryMan.user.email)
   const [phone, setPhone] = useState(deliveryMan.user.phone || "")
   const [vehicleType, setVehicleType] = useState(deliveryMan.vehicleType || "")
-  const [city, setCity] = useState(deliveryMan.city || "")
+  const [cityId, setCityId] = useState(
+    deliveryMan.cityId
+      ? deliveryMan.cityId.toString()
+      : "none"
+  )
   const [active, setActive] = useState(deliveryMan.active ? "true" : "false")
   const [baseFee, setBaseFee] = useState(String(deliveryMan.baseFee ?? 0))
   const [newPassword, setNewPassword] = useState("")
   const [showNewPassword, setShowNewPassword] = useState(false)
   const [profileImage, setProfileImage] = useState<string | null>(deliveryMan.user.image)
   const [imagePreview, setImagePreview] = useState<string | null>(deliveryMan.user.image)
+
+  // Load cities on dialog open
+  useEffect(() => {
+    async function loadCities() {
+      if (!open) return
+
+      setLoadingCities(true)
+      try {
+        const citiesData = await getActiveCities()
+        setCities(citiesData)
+      } catch (error) {
+        console.error("Error loading cities:", error)
+        setMessage({ type: "error", text: "فشل في تحميل قائمة المدن" })
+      } finally {
+        setLoadingCities(false)
+      }
+    }
+
+    loadCities()
+  }, [open])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -75,7 +109,7 @@ export function EditDeliveryManDialog({
       phone: phone || null,
       image: profileImage,
       vehicleType: vehicleType || null,
-      city: city || null,
+      cityId: cityId && cityId !== "none" ? Number.parseInt(cityId) : null, // Handle "none"
       active: active === "true",
       baseFee: Number.parseFloat(baseFee) || 0,
       newPassword: newPassword.trim() ? newPassword : null,
@@ -149,11 +183,10 @@ export function EditDeliveryManDialog({
 
         {message && (
           <div
-            className={`p-3 rounded-lg text-sm ${
-              message.type === "success"
-                ? "bg-green-50 text-green-800"
-                : "bg-red-50 text-red-800"
-            }`}
+            className={`p-3 rounded-lg text-sm ${message.type === "success"
+              ? "bg-green-50 text-green-800"
+              : "bg-red-50 text-red-800"
+              }`}
           >
             {message.text}
           </div>
@@ -243,15 +276,23 @@ export function EditDeliveryManDialog({
 
             {/* City */}
             <div>
-              <Label className="mb-2" htmlFor="editDMCity">المدينة *</Label>
-              <Select value={city} onValueChange={setCity} disabled={isLoading}>
+              <Label className="mb-2" htmlFor="editDMCity">المدينة</Label>
+              <Select
+                value={cityId}
+                onValueChange={setCityId}
+                disabled={isLoading || loadingCities}
+              >
                 <SelectTrigger>
-                  <SelectValue placeholder="اختر المدينة" />
+                  <SelectValue placeholder={loadingCities ? "جاري التحميل..." : "اختر المدينة"} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Dakhla">الداخلة</SelectItem>
-                  <SelectItem value="Boujdour">بوجدور</SelectItem>
-                  <SelectItem value="Laayoune">العيون</SelectItem>
+                  {/* FIXED: Changed from empty string to "none" */}
+                  <SelectItem value="none">غير محدد</SelectItem>
+                  {cities.map((city) => (
+                    <SelectItem key={city.id} value={city.id.toString()}>
+                      {city.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -308,7 +349,7 @@ export function EditDeliveryManDialog({
           <div className="flex gap-2 pt-4">
             <Button
               type="submit"
-              disabled={isLoading || uploadingImage}
+              disabled={isLoading || uploadingImage || loadingCities}
               className="flex-1 bg-blue-600 hover:bg-blue-700"
             >
               {isLoading ? "جاري الحفظ..." : "حفظ التغييرات"}

@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -11,9 +11,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { createOrder } from "@/lib/actions/order.actions"
+import { getAvailableCitiesForMerchant } from "@/lib/actions/order.actions"
 import { toast } from "sonner"
 import { OptimizedImage } from "./optimized-image"
-import { ShoppingCart, User, CreditCard, CheckCircle2, ArrowRight, ArrowLeft, Trash2, Plus, Minus } from "lucide-react"
+import { ShoppingCart, User, CreditCard, CheckCircle2, ArrowRight, ArrowLeft, Trash2, Plus, Minus, Loader2 } from "lucide-react"
 
 type Product = {
   id: number
@@ -30,16 +31,18 @@ type SelectedProduct = {
   image: string | null
 }
 
-const CITIES = [
-  { value: "Boujdour", label: "Boujdour", code: "BO" },
-  { value: "Dakhla", label: "Dakhla", code: "DA" },
-  { value: "Laayoune", label: "Laayoune", code: "LA" },
-]
+type CityOption = {
+  id: number
+  name: string
+  code: string
+}
 
 export function CreateOrderForm({ products }: { products: Product[] }) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
+  const [loadingCities, setLoadingCities] = useState(false)
   const [currentStep, setCurrentStep] = useState(1)
+  const [cities, setCities] = useState<CityOption[]>([])
 
   const [selectedProducts, setSelectedProducts] = useState<SelectedProduct[]>([])
   const [searchQuery, setSearchQuery] = useState("")
@@ -49,10 +52,36 @@ export function CreateOrderForm({ products }: { products: Product[] }) {
     customerName: "",
     customerPhone: "",
     address: "",
-    city: "",
+    cityId: "", // Changed from city to cityId
     note: "",
     paymentMethod: "COD" as "COD" | "PREPAID",
   })
+
+  // Load cities on component mount
+  useEffect(() => {
+    async function loadCities() {
+      setLoadingCities(true)
+      try {
+        const citiesData = await getAvailableCitiesForMerchant()
+        setCities(citiesData)
+        
+        // Auto-select first city if available
+        if (citiesData.length > 0 && !formData.cityId) {
+          setFormData(prev => ({
+            ...prev,
+            cityId: citiesData[0].id.toString()
+          }))
+        }
+      } catch (error) {
+        console.error("Error loading cities:", error)
+        toast.error("فشل في تحميل قائمة المدن")
+      } finally {
+        setLoadingCities(false)
+      }
+    }
+    
+    loadCities()
+  }, [])
 
   const filteredProducts = products.filter(
     (product) =>
@@ -111,7 +140,7 @@ export function CreateOrderForm({ products }: { products: Product[] }) {
       return
     }
 
-    if (!formData.customerName || !formData.customerPhone || !formData.address || !formData.city) {
+    if (!formData.customerName || !formData.customerPhone || !formData.address || !formData.cityId) {
       toast.error("يرجى ملء جميع الحقول المطلوبة")
       return
     }
@@ -125,6 +154,7 @@ export function CreateOrderForm({ products }: { products: Product[] }) {
     try {
       const result = await createOrder({
         ...formData,
+        cityId: Number.parseInt(formData.cityId), // Convert to number
         items: selectedProducts.map((p) => ({
           productId: p.productId,
           quantity: p.quantity,
@@ -147,13 +177,15 @@ export function CreateOrderForm({ products }: { products: Product[] }) {
   }
 
   const canProceedToStep2 = selectedProducts.length > 0
-  const canProceedToStep3 = formData.customerName && formData.customerPhone && formData.address && formData.city
+  const canProceedToStep3 = formData.customerName && formData.customerPhone && formData.address && formData.cityId
 
   const steps = [
     { number: 1, title: "اختيار المنتجات", icon: ShoppingCart },
     { number: 2, title: "معلومات العميل", icon: User },
     { number: 3, title: "المراجعة والتأكيد", icon: CheckCircle2 },
   ]
+
+  const selectedCity = cities.find(city => city.id.toString() === formData.cityId)
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -524,19 +556,40 @@ export function CreateOrderForm({ products }: { products: Product[] }) {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="city">المدينة *</Label>
-                  <Select value={formData.city} onValueChange={(value) => setFormData({ ...formData, city: value })}>
+                  <Label htmlFor="cityId">المدينة *</Label>
+                  <Select 
+                    value={formData.cityId} 
+                    onValueChange={(value) => setFormData({ ...formData, cityId: value })}
+                    disabled={loadingCities || cities.length === 0}
+                  >
                     <SelectTrigger className="min-h-[44px]">
-                      <SelectValue placeholder="اختر المدينة" />
+                      <SelectValue placeholder={loadingCities ? "جاري تحميل المدن..." : "اختر المدينة"} />
                     </SelectTrigger>
                     <SelectContent>
-                      {CITIES.map((city) => (
-                        <SelectItem key={city.value} value={city.value}>
-                          {city.label}
-                        </SelectItem>
-                      ))}
+                      {loadingCities ? (
+                        <div className="flex items-center justify-center py-4">
+                          <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                          <span>جاري التحميل...</span>
+                        </div>
+                      ) : cities.length === 0 ? (
+                        <div className="text-center py-4 text-gray-500">
+                          لا توجد مدن متاحة
+                        </div>
+                      ) : (
+                        cities.map((city) => (
+                          <SelectItem key={city.id} value={city.id.toString()}>
+                            {city.name}
+                          </SelectItem>
+                        ))
+                      )}
                     </SelectContent>
                   </Select>
+                  {loadingCities && (
+                    <p className="text-xs text-gray-500 mt-1">جاري تحميل قائمة المدن...</p>
+                  )}
+                  {!loadingCities && cities.length === 0 && (
+                    <p className="text-xs text-red-500 mt-1">لا توجد مدن متاحة. يرجى التواصل مع الإدارة.</p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="address">العنوان الكامل *</Label>
@@ -616,7 +669,7 @@ export function CreateOrderForm({ products }: { products: Product[] }) {
             <Button
               type="button"
               onClick={() => setCurrentStep(3)}
-              disabled={!canProceedToStep3}
+              disabled={!canProceedToStep3 || loadingCities || cities.length === 0}
               className="flex-1 min-h-[44px] bg-[#048dba] hover:bg-[#037ba0]"
             >
               <span className="hidden xs:inline">التالي</span>
@@ -655,7 +708,7 @@ export function CreateOrderForm({ products }: { products: Product[] }) {
                     <span className="font-medium">الهاتف:</span> {formData.customerPhone}
                   </p>
                   <p>
-                    <span className="font-medium">المدينة:</span> {CITIES.find((c) => c.value === formData.city)?.label}
+                    <span className="font-medium">المدينة:</span> {selectedCity?.name || "غير محدد"}
                   </p>
                   <p>
                     <span className="font-medium">العنوان:</span> {formData.address}
@@ -698,7 +751,7 @@ export function CreateOrderForm({ products }: { products: Product[] }) {
             </Button>
             <Button
               type="submit"
-              disabled={loading || !totalPrice || Number.parseFloat(totalPrice) <= 0}
+              disabled={loading || !totalPrice || Number.parseFloat(totalPrice) <= 0 || cities.length === 0}
               className="flex-1 min-h-[44px] bg-green-500 hover:bg-green-600"
             >
               {loading ? "جاري الإنشاء..." : "تأكيد الطلب"}

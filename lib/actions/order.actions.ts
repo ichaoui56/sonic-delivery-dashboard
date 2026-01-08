@@ -6,19 +6,6 @@ import { getCurrentUser } from "./auth-actions"
 import { cache } from "react"
 
 type OrderStatus = "PENDING" | "ACCEPTED" | "ASSIGNED_TO_DELIVERY" | "DELIVERED" | "DELAYED" | "REJECTED" | "CANCELLED"
-type DiscountType = "PERCENTAGE" | "FIXED_AMOUNT" | "BUY_X_GET_Y" | "CUSTOM_PRICE"
-
-function getCityCode(city: string): string {
-  const cityMap: Record<string, string> = {
-    الداخلة: "DA",
-    Dakhla: "DA",
-    بوجدور: "BO",
-    Boujdour: "BO",
-    العيون: "LA",
-    Laayoune: "LA",
-  }
-  return cityMap[city] || "DA"
-}
 
 // Get merchant orders with history
 export const getMerchantOrders = cache(async (
@@ -60,8 +47,7 @@ export const getMerchantOrders = cache(async (
       whereClause.OR = [
         { orderCode: { contains: searchQuery, mode: 'insensitive' } },
         { customerName: { contains: searchQuery, mode: 'insensitive' } },
-        { customerPhone: { contains: searchQuery } },
-        { city: { contains: searchQuery, mode: 'insensitive' } }
+        { customerPhone: { contains: searchQuery } }
       ]
     }
 
@@ -85,7 +71,7 @@ export const getMerchantOrders = cache(async (
           originalTotalPrice: true,
           totalDiscount: true,
           buyXGetYConfig: true,
-          city: true,
+          cityId: true,
           address: true,
           note: true,
           updatedAt: true,
@@ -105,6 +91,12 @@ export const getMerchantOrders = cache(async (
               }
             },
             take: 5,
+          },
+          city: {
+            select: {
+              name: true,
+              code: true
+            }
           },
           deliveryMan: {
             select: {
@@ -157,10 +149,16 @@ export const getMerchantOrders = cache(async (
       prisma.order.count({ where: whereClause }),
     ])
 
+    // Transform orders to include city name for backward compatibility
+    const transformedOrders = orders.map(order => ({
+      ...order,
+      city: order.city.name
+    }))
+
     const totalPages = Math.ceil(total / limit)
 
     return {
-      data: orders,
+      data: transformedOrders,
       total,
       page,
       totalPages,
@@ -190,6 +188,13 @@ export const getOrderWithHistory = cache(async (orderId: number) => {
             user: true,
           },
         },
+        city: {
+          select: {
+            id: true,
+            name: true,
+            code: true
+          }
+        },
         orderItems: {
           include: {
             product: true,
@@ -203,7 +208,7 @@ export const getOrderWithHistory = cache(async (orderId: number) => {
               },
             },
           },
-          orderBy: { attemptedAt: 'asc' }, // Changed to asc to get chronological order
+          orderBy: { attemptedAt: 'asc' },
         },
       },
     })
@@ -214,7 +219,6 @@ export const getOrderWithHistory = cache(async (orderId: number) => {
     return null
   }
 })
-
 
 // Get merchant products for order creation
 export const getMerchantProducts = cache(async () => {
@@ -258,7 +262,7 @@ export async function createOrder(data: {
   customerName: string
   customerPhone: string
   address: string
-  city: string
+  cityId: number  // Using cityId instead of city string
   note?: string
   paymentMethod: "COD" | "PREPAID"
   items: {
@@ -273,6 +277,18 @@ export async function createOrder(data: {
       return { success: false, message: "غير مصرح" }
     }
 
+    // Verify city exists and is active
+    const city = await prisma.city.findUnique({
+      where: { 
+        id: data.cityId,
+        isActive: true 
+      }
+    })
+
+    if (!city) {
+      return { success: false, message: "المدينة غير متاحة" }
+    }
+
     const merchant = await prisma.merchant.findUnique({
       where: { userId: user.id },
       include: {
@@ -284,11 +300,12 @@ export async function createOrder(data: {
       return { success: false, message: "التاجر غير موجود" }
     }
 
-    const cityCode = getCityCode(data.city)
+    const cityCode = city.code
 
+    // Find the latest order in this city
     const latestOrder = await prisma.order.findFirst({
       where: {
-        city: data.city,
+        cityId: data.cityId,
       },
       orderBy: { id: "desc" },
       select: { orderCode: true },
@@ -296,7 +313,7 @@ export async function createOrder(data: {
 
     let nextOrderNumber = 1
     if (latestOrder?.orderCode) {
-      const match = latestOrder.orderCode.match(/OR-[A-Z]{2}-(\d+)/)
+      const match = latestOrder.orderCode.match(new RegExp(`OR-${cityCode}-(\\d+)`))
       if (match) {
         nextOrderNumber = Number.parseInt(match[1]) + 1
       }
@@ -307,9 +324,10 @@ export async function createOrder(data: {
     const merchantEarning = data.totalPrice - merchantBaseFee
 
     console.log(
-      `[v0] Order ${orderCode} - City: ${data.city} (${cityCode}) - Total: ${data.totalPrice}, Merchant Earning: ${merchantEarning}`,
+      `[v0] Order ${orderCode} - City: ${city.name} (${cityCode}) - Total: ${data.totalPrice}, Merchant Earning: ${merchantEarning}`,
     )
 
+    // Validate products and stock
     for (const item of data.items) {
       const product = await prisma.product.findUnique({
         where: { id: item.productId },
@@ -324,13 +342,14 @@ export async function createOrder(data: {
       }
     }
 
+    // Create the order
     const order = await prisma.order.create({
       data: {
         orderCode,
         customerName: data.customerName,
         customerPhone: data.customerPhone,
         address: data.address,
-        city: data.city,
+        cityId: data.cityId,
         note: data.note,
         totalPrice: data.totalPrice,
         paymentMethod: data.paymentMethod,
@@ -352,9 +371,19 @@ export async function createOrder(data: {
             product: true,
           },
         },
+        city: true,
       },
     })
 
+    // Update city order count
+    await prisma.city.update({
+      where: { id: data.cityId },
+      data: {
+        orderCount: { increment: 1 }
+      }
+    })
+
+    // Create notification
     await prisma.notification.create({
       data: {
         title: "طلب جديد",
@@ -381,7 +410,7 @@ export async function updateMerchantOrder(
     customerName: string
     customerPhone: string
     address: string
-    city: string
+    cityId: number  // Updated to use cityId
     note?: string | null
     paymentMethod: "COD" | "PREPAID"
     totalPrice: number
@@ -415,6 +444,18 @@ export async function updateMerchantOrder(
       return { success: false, message: "لا يمكن تعديل الطلب بعد تغيير حالته" }
     }
 
+    // Verify new city exists and is active
+    const city = await prisma.city.findUnique({
+      where: { 
+        id: data.cityId,
+        isActive: true 
+      }
+    })
+
+    if (!city) {
+      return { success: false, message: "المدينة غير متاحة" }
+    }
+
     const merchantBaseFee = merchant.baseFee || 25
     const merchantEarning = data.totalPrice - merchantBaseFee
 
@@ -424,7 +465,7 @@ export async function updateMerchantOrder(
         customerName: data.customerName,
         customerPhone: data.customerPhone,
         address: data.address,
-        city: data.city,
+        cityId: data.cityId,
         note: data.note ?? null,
         paymentMethod: data.paymentMethod,
         totalPrice: data.totalPrice,
@@ -458,7 +499,7 @@ export async function deleteMerchantOrder(orderId: number) {
 
     const existing = await prisma.order.findFirst({
       where: { id: orderId, merchantId: merchant.id },
-      select: { id: true, status: true },
+      select: { id: true, status: true, cityId: true },
     })
 
     if (!existing) {
@@ -469,12 +510,25 @@ export async function deleteMerchantOrder(orderId: number) {
       return { success: false, message: "لا يمكن حذف الطلب بعد تغيير حالته" }
     }
 
-    await prisma.$transaction([
-      prisma.orderItem.deleteMany({ where: { orderId } }),
-      prisma.notification.deleteMany({ where: { orderId } }),
-      prisma.deliveryAttempt.deleteMany({ where: { orderId } }),
-      prisma.order.delete({ where: { id: orderId } }),
-    ])
+    await prisma.$transaction(async (tx) => {
+      // Delete related records
+      await tx.orderItem.deleteMany({ where: { orderId } })
+      await tx.notification.deleteMany({ where: { orderId } })
+      await tx.deliveryAttempt.deleteMany({ where: { orderId } })
+      
+      // Delete the order
+      await tx.order.delete({ where: { id: orderId } })
+      
+      // Decrement city order count if city exists
+      if (existing.cityId) {
+        await tx.city.update({
+          where: { id: existing.cityId },
+          data: {
+            orderCount: { decrement: 1 }
+          }
+        })
+      }
+    })
 
     revalidatePath("/merchant/orders")
     return { success: true, message: "تم حذف الطلب بنجاح" }
@@ -697,7 +751,17 @@ export async function updateOrderStatus(orderId: number, newStatus: OrderStatus,
     }
 
     // Create notifications based on status change
-    // ... (notification code remains the same)
+    if (user.role === "ADMIN" && newStatus === "ACCEPTED") {
+      await prisma.notification.create({
+        data: {
+          title: "طلب مقبول",
+          message: `تم قبول الطلب #${order.orderCode} من قبل الإدارة`,
+          type: "ORDER_ACCEPTED",
+          userId: order.merchant.userId,
+          orderId: orderId,
+        },
+      })
+    }
 
     // SMART REVALIDATION
     if (previousStatus !== newStatus) {
@@ -720,7 +784,7 @@ export async function updateOrderStatus(orderId: number, newStatus: OrderStatus,
     }
   } catch (error) {
     console.error("[v0] Error updating order status:", error)
-    return { success: false, message: "فشل في تحديث حالة الططلب" }
+    return { success: false, message: "فشل في تحديث حالة الطلب" }
   }
 }
 
@@ -732,6 +796,9 @@ export async function getDeliveryManOrders() {
 
     const deliveryMan = await prisma.deliveryMan.findUnique({
       where: { userId: user.id },
+      include: {
+        city: true
+      }
     })
 
     if (!deliveryMan) {
@@ -739,11 +806,12 @@ export async function getDeliveryManOrders() {
       return []
     }
 
-    console.log(`[v0] Delivery man city: ${deliveryMan.city}`)
+    console.log(`[v0] Delivery man city: ${deliveryMan.city?.name}`)
 
+    // Get orders in the delivery man's city that are either assigned to them or available
     const orders = await prisma.order.findMany({
       where: {
-        city: deliveryMan.city || undefined,
+        cityId: deliveryMan.cityId || undefined,
         OR: [
           {
             deliveryManId: deliveryMan.id,
@@ -770,6 +838,12 @@ export async function getDeliveryManOrders() {
             user: true,
           },
         },
+        city: {
+          select: {
+            name: true,
+            code: true
+          }
+        },
         deliveryAttemptHistory: {
           include: {
             deliveryMan: {
@@ -784,9 +858,15 @@ export async function getDeliveryManOrders() {
       orderBy: { createdAt: "desc" },
     })
 
-    console.log(`[v0] Found ${orders.length} orders for delivery man in city: ${deliveryMan.city}`)
+    console.log(`[v0] Found ${orders.length} orders for delivery man in city: ${deliveryMan.city?.name}`)
 
-    return orders
+    // Transform orders to include city name for backward compatibility
+    const transformedOrders = orders.map(order => ({
+      ...order,
+      city: order.city.name
+    }))
+
+    return transformedOrders
   } catch (error) {
     console.error("[v0] Error fetching delivery orders:", error)
     return []
@@ -803,6 +883,9 @@ export async function acceptOrder(orderId: number) {
 
     const deliveryMan = await prisma.deliveryMan.findUnique({
       where: { userId: user.id },
+      include: {
+        city: true
+      }
     })
 
     if (!deliveryMan) {
@@ -815,6 +898,12 @@ export async function acceptOrder(orderId: number) {
         merchant: {
           select: {
             userId: true
+          }
+        },
+        city: {
+          select: {
+            id: true,
+            name: true
           }
         }
       }
@@ -832,11 +921,11 @@ export async function acceptOrder(orderId: number) {
       }
     }
 
-    // City check
-    if (deliveryMan.city && order.city !== deliveryMan.city) {
+    // City check - compare city IDs
+    if (deliveryMan.cityId && order.cityId !== deliveryMan.cityId) {
       return {
         success: false,
-        message: `لا يمكنك قبول طلبات من ${order.city}. أنت مخصص لـ ${deliveryMan.city}`,
+        message: `لا يمكنك قبول طلبات من ${order.city?.name}. أنت مخصص لـ ${deliveryMan.city?.name}`,
       }
     }
 
@@ -1195,5 +1284,122 @@ export async function getOrderStats() {
   } catch (error) {
     console.error("[v0] Error fetching order stats:", error)
     return null
+  }
+}
+
+// Get available cities for merchant
+export async function getAvailableCitiesForMerchant() {
+  try {
+    const user = await getCurrentUser()
+    if (!user || user.role !== "MERCHANT") {
+      return []
+    }
+
+    const cities = await prisma.city.findMany({
+      where: { isActive: true },
+      select: {
+        id: true,
+        name: true,
+        code: true
+      },
+      orderBy: { name: "asc" }
+    })
+
+    return cities
+  } catch (error) {
+    console.error("[v0] Error fetching available cities:", error)
+    return []
+  }
+}
+
+// Get orders by city (for admin dashboard)
+export async function getOrdersByCity(cityId?: number) {
+  try {
+    const user = await getCurrentUser()
+    if (!user || user.role !== "ADMIN") {
+      return { success: false, error: "غير مصرح" }
+    }
+
+    const whereClause: any = {}
+    if (cityId) {
+      whereClause.cityId = cityId
+    }
+
+    const orders = await prisma.order.findMany({
+      where: whereClause,
+      include: {
+        city: {
+          select: {
+            name: true,
+            code: true
+          }
+        },
+        merchant: {
+          select: {
+            user: {
+              select: {
+                name: true
+              }
+            }
+          }
+        },
+        deliveryMan: {
+          select: {
+            user: {
+              select: {
+                name: true
+              }
+            }
+          }
+        }
+      },
+      orderBy: { createdAt: "desc" },
+      take: 50
+    })
+
+    return { success: true, data: orders }
+  } catch (error) {
+    console.error("[v0] Error fetching orders by city:", error)
+    return { success: false, error: "فشل في جلب الطلبات" }
+  }
+}
+
+// Get city statistics for admin dashboard
+export async function getCityOrderStats() {
+  try {
+    const user = await getCurrentUser()
+    if (!user || user.role !== "ADMIN") {
+      return { success: false, error: "غير مصرح" }
+    }
+
+    const cities = await prisma.city.findMany({
+      where: { isActive: true },
+      select: {
+        id: true,
+        name: true,
+        code: true,
+        orderCount: true,
+        _count: {
+          select: {
+            orders: {
+              where: {
+                status: "DELIVERED"
+              }
+            },
+            deliveryMen: {
+              where: {
+                active: true
+              }
+            }
+          }
+        }
+      },
+      orderBy: { orderCount: "desc" }
+    })
+
+    return { success: true, data: cities }
+  } catch (error) {
+    console.error("[v0] Error fetching city order stats:", error)
+    return { success: false, error: "فشل في جلب إحصائيات المدن" }
   }
 }
