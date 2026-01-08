@@ -2,7 +2,7 @@
 
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
-import bcrypt from "bcryptjs" // Import bcrypt for password verification
+import bcrypt from "bcryptjs"
 
 export async function getAdminSettings() {
     try {
@@ -50,11 +50,13 @@ export async function getAdminSettings() {
 // Combined update function for both user and admin
 export async function updateAdminSettings(data: {
   name: string
-  email: string // Added email
+  email: string
   phone: string | null
   profileImage: string | null
   address: string | null
-  currentPassword?: string // For email verification
+  currentPassword?: string // For email/password verification
+  newPassword?: string // For password change
+  confirmPassword?: string // For password confirmation
 }) {
   try {
     const session = await auth()
@@ -65,7 +67,7 @@ export async function updateAdminSettings(data: {
 
     const userId = Number.parseInt(session.user.id)
 
-    // Get current user to verify password if email is changing
+    // Get current user to verify password if needed
     const currentUser = await prisma.user.findUnique({
       where: { id: userId },
       select: { email: true, password: true }
@@ -91,6 +93,46 @@ export async function updateAdminSettings(data: {
       }
     }
 
+    // Check if password is being changed
+    const isPasswordChanging = data.newPassword && data.confirmPassword
+    
+    if (isPasswordChanging) {
+      // Validate password change
+      if (!data.currentPassword) {
+        throw new Error('الرجاء إدخال كلمة المرور الحالية لتغيير كلمة المرور')
+      }
+      
+      if (data.newPassword !== data.confirmPassword) {
+        throw new Error('كلمة المرور الجديدة وتأكيد كلمة المرور غير متطابقين')
+      }
+      
+      if (data.newPassword && data.newPassword.length < 6) {
+        throw new Error('كلمة المرور الجديدة يجب أن تكون على الأقل 6 أحرف')
+      }
+      
+      // Verify current password
+      const isPasswordValid = await bcrypt.compare(data.currentPassword, currentUser.password)
+      if (!isPasswordValid) {
+        throw new Error('كلمة المرور الحالية غير صحيحة')
+      }
+      
+      // Hash new password
+      const hashedPassword = await bcrypt.hash(data.newPassword!, 10)
+      
+      // Update user with new password
+      await prisma.user.update({
+        where: { id: userId },
+        data: {
+          password: hashedPassword,
+        },
+      })
+      
+      return { 
+        success: true,
+        message: 'تم تحديث كلمة المرور بنجاح'
+      }
+    }
+
     // Check if new email already exists (only if changing)
     if (isEmailChanging) {
       const existingUser = await prisma.user.findUnique({
@@ -109,7 +151,7 @@ export async function updateAdminSettings(data: {
         where: { id: userId },
         data: {
           name: data.name,
-          email: data.email, // Update email
+          email: data.email,
           phone: data.phone,
           image: data.profileImage,
         },
@@ -131,6 +173,71 @@ export async function updateAdminSettings(data: {
   } catch (error: any) {
     console.error('[v0] Error updating admin settings:', error)
     throw new Error(error.message || 'حدث خطأ أثناء تحديث الإعدادات')
+  }
+}
+
+// Separate function for changing password only
+export async function changeAdminPassword(data: {
+  currentPassword: string
+  newPassword: string
+  confirmPassword: string
+}) {
+  try {
+    const session = await auth()
+
+    if (!session?.user?.id || session.user.role !== "ADMIN") {
+      throw new Error('غير مصرح')
+    }
+
+    const userId = Number.parseInt(session.user.id)
+
+    // Get current user
+    const currentUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { password: true }
+    })
+
+    if (!currentUser) {
+      throw new Error('المستخدم غير موجود')
+    }
+
+    // Validate inputs
+    if (!data.currentPassword || !data.newPassword || !data.confirmPassword) {
+      throw new Error('جميع حقول كلمة المرور مطلوبة')
+    }
+    
+    if (data.newPassword !== data.confirmPassword) {
+      throw new Error('كلمة المرور الجديدة وتأكيد كلمة المرور غير متطابقين')
+    }
+    
+    if (data.newPassword.length < 6) {
+      throw new Error('كلمة المرور الجديدة يجب أن تكون على الأقل 6 أحرف')
+    }
+    
+    // Verify current password
+    const isPasswordValid = await bcrypt.compare(data.currentPassword, currentUser.password)
+    if (!isPasswordValid) {
+      throw new Error('كلمة المرور الحالية غير صحيحة')
+    }
+    
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(data.newPassword, 10)
+    
+    // Update password
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        password: hashedPassword,
+      },
+    })
+    
+    return { 
+      success: true,
+      message: 'تم تحديث كلمة المرور بنجاح'
+    }
+  } catch (error: any) {
+    console.error('[v0] Error changing password:', error)
+    throw new Error(error.message || 'حدث خطأ أثناء تغيير كلمة المرور')
   }
 }
 

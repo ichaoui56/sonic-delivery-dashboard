@@ -232,7 +232,6 @@ export const getMerchantProducts = cache(async () => {
     const products = await prisma.product.findMany({
       where: {
         merchantId: merchant.id,
-        deliveredCount: { gt: 0 },
         stockQuantity: { gt: 0 },
         isActive: true,
       },

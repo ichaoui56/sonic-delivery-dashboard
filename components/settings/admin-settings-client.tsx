@@ -6,10 +6,10 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { updateAdminSettings } from "@/lib/actions/admin/settings"
+import { updateAdminSettings, changeAdminPassword } from "@/lib/actions/admin/settings"
 import { useRouter } from 'next/navigation'
 import { compressImage } from "@/lib/utils/image-compression"
-import { Loader2, Upload, X, AlertCircle, Mail } from 'lucide-react'
+import { Loader2, Upload, X, AlertCircle, Mail, Key, Lock, Eye, EyeOff } from 'lucide-react'
 import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
@@ -34,18 +34,29 @@ interface AdminSettingsClientProps {
 export function SettingsClient({ initialData }: AdminSettingsClientProps) {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
+  const [isChangingPassword, setIsChangingPassword] = useState(false)
   const [uploadingImage, setUploadingImage] = useState(false)
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
   const [showPasswordField, setShowPasswordField] = useState(false)
+  
+  // Password visibility states
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false)
+  const [showNewPassword, setShowNewPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
   // User profile state
   const [userName, setUserName] = useState(initialData.user.name)
-  const [userEmail, setUserEmail] = useState(initialData.user.email) // Added email state
+  const [userEmail, setUserEmail] = useState(initialData.user.email)
   const [userPhone, setUserPhone] = useState(initialData.user.phone || "")
   const [address, setAddress] = useState(initialData.admin.address || "")
   const [profileImage, setProfileImage] = useState<string | null>(initialData.user.image)
   const [imagePreview, setImagePreview] = useState<string | null>(initialData.user.image)
-  const [currentPassword, setCurrentPassword] = useState("") // For email verification
+  const [currentPassword, setCurrentPassword] = useState("")
+  
+  // Password change state
+  const [passwordCurrent, setPasswordCurrent] = useState("")
+  const [newPassword, setNewPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
 
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -56,18 +67,24 @@ export function SettingsClient({ initialData }: AdminSettingsClientProps) {
       // Compress the image to 200KB
       const compressedFile = await compressImage(file, 200)
 
+      // Use the Pinata upload endpoint
       const formData = new FormData()
       formData.append('file', compressedFile)
-      formData.append('upload_preset', 'sonic_delivery_profile')
 
-      const response = await fetch('https://api.cloudinary.com/v1_1/YOUR_CLOUD_NAME/image/upload', {
+      const response = await fetch('/api/files', {
         method: 'POST',
         body: formData,
       })
 
-      const data = await response.json()
-      setProfileImage(data.secure_url)
-      setImagePreview(data.secure_url)
+      if (!response.ok) {
+        throw new Error('فشل رفع الصورة')
+      }
+
+      const url = await response.json()
+      setProfileImage(url)
+      setImagePreview(url)
+      
+      setMessage({ type: 'success', text: 'تم رفع الصورة بنجاح' })
     } catch (error) {
       console.error('Error uploading image:', error)
       setMessage({ type: 'error', text: 'فشل رفع الصورة' })
@@ -83,7 +100,6 @@ export function SettingsClient({ initialData }: AdminSettingsClientProps) {
 
   const handleEmailChange = (value: string) => {
     setUserEmail(value)
-    // Show password field when email is being changed
     if (value !== initialData.user.email) {
       setShowPasswordField(true)
     } else {
@@ -100,7 +116,7 @@ export function SettingsClient({ initialData }: AdminSettingsClientProps) {
     try {
       const result = await updateAdminSettings({
         name: userName,
-        email: userEmail, // Include email
+        email: userEmail,
         phone: userPhone || null,
         profileImage: profileImage,
         address: address || null,
@@ -131,8 +147,44 @@ export function SettingsClient({ initialData }: AdminSettingsClientProps) {
     }
   }
 
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsChangingPassword(true)
+    setMessage(null)
+
+    try {
+      const result = await changeAdminPassword({
+        currentPassword: passwordCurrent,
+        newPassword: newPassword,
+        confirmPassword: confirmPassword,
+      })
+
+      setMessage({ 
+        type: 'success', 
+        text: result.message || 'تم تغيير كلمة المرور بنجاح' 
+      })
+      
+      // Clear password fields
+      setPasswordCurrent("")
+      setNewPassword("")
+      setConfirmPassword("")
+      
+      // Refresh the page
+      router.refresh()
+    } catch (error: any) {
+      console.error('Error changing password:', error)
+      setMessage({ 
+        type: 'error', 
+        text: error.message || 'حدث خطأ أثناء تغيير كلمة المرور' 
+      })
+    } finally {
+      setIsChangingPassword(false)
+    }
+  }
+
   return (
     <div className="space-y-6">
+      {/* Profile Settings Card */}
       <Card className="p-6">
         <h2 className="text-xl font-semibold mb-6">الملف الشخصي</h2>
         
@@ -179,6 +231,9 @@ export function SettingsClient({ initialData }: AdminSettingsClientProps) {
                   </button>
                 )}
               </div>
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">الصورة الشخصية للمشرف</p>
+              </div>
             </div>
           </div>
 
@@ -221,15 +276,27 @@ export function SettingsClient({ initialData }: AdminSettingsClientProps) {
           {/* Current Password (only shown when email is being changed) */}
           {showPasswordField && (
             <div className="space-y-2">
-              <Label htmlFor="currentPassword">كلمة المرور الحالية *</Label>
-              <Input
-                id="currentPassword"
-                type="password"
-                value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
-                placeholder="أدخل كلمة المرور الحالية"
-                required={showPasswordField}
-              />
+              <Label htmlFor="currentPassword" className="flex items-center gap-2">
+                <Key className="w-4 h-4" />
+                كلمة المرور الحالية *
+              </Label>
+              <div className="relative">
+                <Input
+                  id="currentPassword"
+                  type={showCurrentPassword ? "text" : "password"}
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  placeholder="أدخل كلمة المرور الحالية"
+                  required={showPasswordField}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                  className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                >
+                  {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
               <p className="text-sm text-muted-foreground">
                 مطلوب لتغيير البريد الإلكتروني
               </p>
@@ -274,40 +341,157 @@ export function SettingsClient({ initialData }: AdminSettingsClientProps) {
               )}
             </Button>
           </div>
-
-          {/* Status Message */}
-          {message && (
-            <Alert className={
-              message.type === 'success' 
-                ? "bg-green-50 border-green-200" 
-                : "bg-red-50 border-red-200"
-            }>
-              <AlertCircle className={
-                message.type === 'success' 
-                  ? "h-4 w-4 text-green-600" 
-                  : "h-4 w-4 text-red-600"
-              } />
-              <AlertDescription className={
-                message.type === 'success' 
-                  ? "text-green-700" 
-                  : "text-red-700"
-              }>
-                {message.text}
-              </AlertDescription>
-            </Alert>
-          )}
-
-          {/* Email Change Warning */}
-          {showPasswordField && (
-            <Alert className="bg-blue-50 border-blue-200">
-              <AlertCircle className="h-4 w-4 text-blue-600" />
-              <AlertDescription className="text-blue-700 text-sm">
-                عند تغيير البريد الإلكتروني، سيتم تسجيل خروجك من النظام ويجب عليك تسجيل الدخول مرة أخرى باستخدام البريد الإلكتروني الجديد.
-              </AlertDescription>
-            </Alert>
-          )}
         </form>
       </Card>
+
+      {/* Password Change Card */}
+      <Card className="p-6">
+        <h2 className="text-xl font-semibold mb-6 flex items-center gap-2">
+          <Lock className="w-5 h-5" />
+          تغيير كلمة المرور
+        </h2>
+        
+        <form onSubmit={handlePasswordChange} className="space-y-4">
+          {/* Current Password */}
+          <div className="space-y-2">
+            <Label htmlFor="passwordCurrent" className="flex items-center gap-2">
+              <Key className="w-4 h-4" />
+              كلمة المرور الحالية *
+            </Label>
+            <div className="relative">
+              <Input
+                id="passwordCurrent"
+                type={showCurrentPassword ? "text" : "password"}
+                value={passwordCurrent}
+                onChange={(e) => setPasswordCurrent(e.target.value)}
+                placeholder="أدخل كلمة المرور الحالية"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+              >
+                {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+          </div>
+
+          {/* New Password */}
+          <div className="space-y-2">
+            <Label htmlFor="newPassword" className="flex items-center gap-2">
+              <Lock className="w-4 h-4" />
+              كلمة المرور الجديدة *
+            </Label>
+            <div className="relative">
+              <Input
+                id="newPassword"
+                type={showNewPassword ? "text" : "password"}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="أدخل كلمة المرور الجديدة (6 أحرف على الأقل)"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowNewPassword(!showNewPassword)}
+                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+              >
+                {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+            <p className="text-sm text-muted-foreground">يجب أن تكون كلمة المرور 6 أحرف على الأقل</p>
+          </div>
+
+          {/* Confirm Password */}
+          <div className="space-y-2">
+            <Label htmlFor="confirmPassword" className="flex items-center gap-2">
+              <Lock className="w-4 h-4" />
+              تأكيد كلمة المرور الجديدة *
+            </Label>
+            <div className="relative">
+              <Input
+                id="confirmPassword"
+                type={showConfirmPassword ? "text" : "password"}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="أعد إدخال كلمة المرور الجديدة"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+              >
+                {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+          </div>
+
+          {/* Password Change Button */}
+          <div className="flex justify-end">
+            <Button 
+              type="submit" 
+              disabled={isChangingPassword || !passwordCurrent || !newPassword || !confirmPassword}
+              variant="outline"
+              className="border-blue-500 text-blue-600 hover:bg-blue-50"
+            >
+              {isChangingPassword ? (
+                <>
+                  <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                  جاري التغيير...
+                </>
+              ) : (
+                'تغيير كلمة المرور'
+              )}
+            </Button>
+          </div>
+
+          {/* Password Requirements */}
+          <Alert className="bg-blue-50 border-blue-200">
+            <AlertCircle className="h-4 w-4 text-blue-600" />
+            <AlertDescription className="text-blue-700 text-sm">
+              <ul className="list-disc list-inside space-y-1">
+                <li>كلمة المرور الجديدة يجب أن تكون 6 أحرف على الأقل</li>
+                <li>تأكد من مطابقة كلمة المرور الجديدة مع تأكيد كلمة المرور</li>
+                <li>يجب إدخال كلمة المرور الحالية للتأكيد</li>
+              </ul>
+            </AlertDescription>
+          </Alert>
+        </form>
+      </Card>
+
+      {/* Status Message */}
+      {message && (
+        <Alert className={
+          message.type === 'success' 
+            ? "bg-green-50 border-green-200" 
+            : "bg-red-50 border-red-200"
+        }>
+          <AlertCircle className={
+            message.type === 'success' 
+              ? "h-4 w-4 text-green-600" 
+              : "h-4 w-4 text-red-600"
+          } />
+          <AlertDescription className={
+            message.type === 'success' 
+              ? "text-green-700" 
+              : "text-red-700"
+          }>
+            {message.text}
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Email Change Warning */}
+      {showPasswordField && (
+        <Alert className="bg-blue-50 border-blue-200">
+          <AlertCircle className="h-4 w-4 text-blue-600" />
+          <AlertDescription className="text-blue-700 text-sm">
+            عند تغيير البريد الإلكتروني، سيتم تسجيل خروجك من النظام ويجب عليك تسجيل الدخول مرة أخرى باستخدام البريد الإلكتروني الجديد.
+          </AlertDescription>
+        </Alert>
+      )}
     </div>
   )
 }

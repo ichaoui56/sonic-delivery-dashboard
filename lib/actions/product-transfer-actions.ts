@@ -158,7 +158,7 @@ export const getMerchantProducts = cache(async () => {
     const products = await prisma.product.findMany({
       where: {
         merchantId: merchant.id,
-        deliveredCount: { gt: 0 }
+        stockQuantity: { gt: 0 },
       },
       select: {
         id: true,
@@ -166,7 +166,6 @@ export const getMerchantProducts = cache(async () => {
         image: true,
         sku: true,
         stockQuantity: true,
-        deliveredCount: true,
         lowStockAlert: true,
       },
       orderBy: { name: 'asc' },
@@ -461,12 +460,19 @@ export const getInventoryStats = cache(async () => {
 
     if (!merchant) return { success: false, error: "التاجر غير موجود" }
 
+    // Calculate actual delivered items from orders
+    const deliveredItemsStats = await prisma.$queryRaw<Array<{ totalDelivered: number }>>`
+      SELECT COALESCE(SUM(oi.quantity), 0) as "totalDelivered"
+      FROM "OrderItem" oi
+      INNER JOIN "Order" o ON oi."orderId" = o.id
+      WHERE o."merchantId" = ${merchant.id} AND o.status = 'DELIVERED'
+    `
+
     const [stats] = await prisma.$queryRaw<
       Array<{
         totalProducts: number
         activeProducts: number
         totalStockQuantity: number
-        totalDeliveredItems: number
         lowStockProducts: number
         outOfStockProducts: number
       }>
@@ -475,11 +481,10 @@ export const getInventoryStats = cache(async () => {
         COUNT(*) as "totalProducts",
         COUNT(CASE WHEN "isActive" = true THEN 1 END) as "activeProducts",
         COALESCE(SUM("stockQuantity"), 0) as "totalStockQuantity",
-        COALESCE(SUM("deliveredCount"), 0) as "totalDeliveredItems",
         COUNT(CASE WHEN "stockQuantity" > 0 AND "stockQuantity" <= "lowStockAlert" THEN 1 END) as "lowStockProducts",
         COUNT(CASE WHEN "stockQuantity" = 0 THEN 1 END) as "outOfStockProducts"
       FROM "Product"
-      WHERE "merchantId" = ${merchant.id} AND "deliveredCount" > 0
+      WHERE "merchantId" = ${merchant.id}
     `
 
     return {
@@ -488,7 +493,7 @@ export const getInventoryStats = cache(async () => {
         totalProducts: Number(stats.totalProducts),
         activeProducts: Number(stats.activeProducts),
         totalStockQuantity: Number(stats.totalStockQuantity),
-        totalDeliveredItems: Number(stats.totalDeliveredItems),
+        totalDeliveredItems: Number(deliveredItemsStats[0]?.totalDelivered || 0),
         lowStockProducts: Number(stats.lowStockProducts),
         outOfStockProducts: Number(stats.outOfStockProducts),
         totalInventoryValue: 0,
@@ -801,7 +806,7 @@ export const getMerchantProductsForTransfer = cache(async () => {
     const products = await prisma.product.findMany({
       where: {
         merchantId: merchant.id,
-        deliveredCount: { gt: 0 },
+        stockQuantity: { gt: 0 },
       },
       select: {
         id: true,
@@ -818,5 +823,164 @@ export const getMerchantProductsForTransfer = cache(async () => {
   } catch (error) {
     console.error("Error fetching products:", error)
     return { success: false, error: "فشل في جلب المنتجات" }
+  }
+})
+
+// Debug function to check actual product stock quantities
+export const debugProductStock = cache(async () => {
+  try {
+    const session = await auth()
+    if (!session?.user?.id) return { success: false, error: "غير مصرح" }
+
+    const userId = Number.parseInt(session.user.id)
+
+    const merchant = await prisma.merchant.findUnique({
+      where: { userId },
+      select: { id: true },
+    })
+
+    if (!merchant) return { success: false, error: "التاجر غير موجود" }
+
+    // Get all products with their stock details
+    const products = await prisma.product.findMany({
+      where: {
+        merchantId: merchant.id
+      },
+      select: {
+        id: true,
+        name: true,
+        stockQuantity: true,
+        lowStockAlert: true,
+        isActive: true,
+        sku: true
+      },
+      orderBy: { id: 'asc' }
+    })
+
+    // Count out of stock products manually
+    const outOfStockCount = products.filter(p => p.stockQuantity === 0).length
+    const lowStockCount = products.filter(p => p.stockQuantity > 0 && p.stockQuantity <= p.lowStockAlert).length
+    const activeCount = products.filter(p => p.isActive).length
+
+    return {
+      success: true,
+      data: {
+        totalProducts: products.length,
+        outOfStockProducts: outOfStockCount,
+        lowStockProducts: lowStockCount,
+        activeProducts: activeCount,
+        products: products.map(p => ({
+          id: p.id,
+          name: p.name,
+          sku: p.sku,
+          stockQuantity: p.stockQuantity,
+          lowStockAlert: p.lowStockAlert,
+          isActive: p.isActive,
+          isOutOfStock: p.stockQuantity === 0,
+          isLowStock: p.stockQuantity > 0 && p.stockQuantity <= p.lowStockAlert
+        }))
+      }
+    }
+  } catch (error) {
+    console.error("Error debugging product stock:", error)
+    return { success: false, error: "فشل في فحص المخزون" }
+  }
+})
+
+// New function to fetch detailed delivered orders information
+export const getDeliveredOrdersDetails = cache(async () => {
+  try {
+    const session = await auth()
+    if (!session?.user?.id) return { success: false, error: "غير مصرح" }
+
+    const userId = Number.parseInt(session.user.id)
+
+    const merchant = await prisma.merchant.findUnique({
+      where: { userId },
+      select: { id: true },
+    })
+
+    if (!merchant) return { success: false, error: "التاجر غير موجود" }
+
+    // Get all delivered orders with their items
+    const deliveredOrders = await prisma.order.findMany({
+      where: {
+        merchantId: merchant.id,
+        status: 'DELIVERED'
+      },
+      include: {
+        orderItems: {
+          include: {
+            product: {
+              select: {
+                id: true,
+                name: true,
+                sku: true
+              }
+            }
+          }
+        }
+      },
+      orderBy: {
+        deliveredAt: 'desc'
+      }
+    })
+
+    // Calculate statistics
+    const totalDeliveredOrders = deliveredOrders.length
+    const totalDeliveredItems = deliveredOrders.reduce((sum, order) => 
+      sum + order.orderItems.reduce((itemSum, item) => itemSum + item.quantity, 0), 0
+    )
+    
+    const totalRevenue = deliveredOrders.reduce((sum, order) => sum + order.totalPrice, 0)
+
+    // Group by product to see which products are most delivered
+    const productDeliveries = deliveredOrders.flatMap(order => 
+      order.orderItems.map(item => ({
+        productId: item.product.id,
+        productName: item.product.name,
+        productSku: item.product.sku,
+        quantity: item.quantity,
+        price: item.price,
+        orderCode: order.orderCode,
+        deliveredAt: order.deliveredAt
+      }))
+    )
+
+    // Group by product and sum quantities
+    const productStats = productDeliveries.reduce((acc, item) => {
+      const key = item.productId
+      if (!acc[key]) {
+        acc[key] = {
+          productId: item.productId,
+          productName: item.productName,
+          productSku: item.productSku,
+          totalQuantity: 0,
+          totalRevenue: 0,
+          orderCount: 0
+        }
+      }
+      acc[key].totalQuantity += item.quantity
+      acc[key].totalRevenue += (item.quantity * item.price)
+      acc[key].orderCount += 1
+      return acc
+    }, {} as Record<number, any>)
+
+    return {
+      success: true,
+      data: {
+        summary: {
+          totalDeliveredOrders,
+          totalDeliveredItems,
+          totalRevenue
+        },
+        orders: deliveredOrders,
+        productBreakdown: Object.values(productStats),
+        recentDeliveries: productDeliveries.slice(0, 50) // Last 50 delivered items
+      }
+    }
+  } catch (error) {
+    console.error("Error fetching delivered orders details:", error)
+    return { success: false, error: "فشل في جلب تفاصيل الطلبات المسلمة" }
   }
 })

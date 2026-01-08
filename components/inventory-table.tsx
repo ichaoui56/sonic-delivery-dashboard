@@ -263,14 +263,14 @@ export function InventoryTable({ products }: { products: Product[] }) {
                     )}
                   </div>
 
-                  <Button
+                  {/* <Button
                     size="sm"
                     onClick={() => handleEditProduct(product)}
                     className="absolute top-2 left-2 h-8 px-2 sm:px-3 bg-white/95 hover:bg-white text-gray-700 shadow-md opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity"
                   >
                     <Edit2 className="w-3 h-3 sm:w-4 sm:h-4 ml-1" />
                     <span className="text-xs">تعديل</span>
-                  </Button>
+                  </Button> */}
                 </div>
 
                 <CardContent className="p-3 sm:px-5 pt-0 space-y-3">

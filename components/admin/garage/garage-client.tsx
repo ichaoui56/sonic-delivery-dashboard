@@ -99,10 +99,6 @@ export function GarageClient({ initialProducts }: { initialProducts: Product[] }
             <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 mb-2">مخزون المستودع</h1>
             <p className="text-sm text-gray-600">إدارة وعرض جميع المنتجات المخزنة</p>
           </div>
-          <div className="text-right">
-            <p className="text-xs text-gray-500 mb-1">آخر تحديث</p>
-            <p className="text-sm font-medium text-gray-700">{new Date().toLocaleDateString('ar-SA')}</p>
-          </div>
         </div>
 
         {/* Stats Cards */}
