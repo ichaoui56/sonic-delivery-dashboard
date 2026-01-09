@@ -223,22 +223,6 @@ export const createInvoicePDF = (order: OrderForPDF, merchantName: string, merch
                 columns: [
                     {
                         width: '30%',
-                        text: 'Ville:',
-                        fontSize: 9,
-                        bold: true
-                    },
-                    {
-                        width: '70%',
-                        text: cityName,
-                        fontSize: 9
-                    }
-                ],
-                margin: [0, 0, 0, 2]
-            },
-            {
-                columns: [
-                    {
-                        width: '30%',
                         text: 'Adresse:',
                         fontSize: 9,
                         bold: true
@@ -399,7 +383,7 @@ export const createInvoicePDF = (order: OrderForPDF, merchantName: string, merch
                         width: '60%',
                         stack: [
                             {
-                                text: 'Web site: https://sonic-delivery.up.railway.app/login',
+                                text: 'Web site: https://dash.sonixpress.ma/login',
                                 fontSize: 7,
                                 alignment: 'left',
                                 margin: [0, 0, 0, 2]
