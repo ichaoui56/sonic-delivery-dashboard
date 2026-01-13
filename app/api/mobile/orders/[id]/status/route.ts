@@ -5,25 +5,6 @@ import { requireDeliveryManAuth } from "@/lib/mobile/deliveryman-auth"
 type OrderStatus = "DELAYED" | "REJECTED" | "CANCELLED" | "DELIVERED"
 type AttemptStatus = "ATTEMPTED" | "FAILED" | "SUCCESSFUL" | "CUSTOMER_NOT_AVAILABLE" | "WRONG_ADDRESS" | "REFUSED" | "OTHER"
 
-/**
- * PATCH /api/mobile/orders/[id]/status
- * 
- * Allows a delivery man to update an order status.
- * 
- * New DELAYED status:
- * - Order remains in ASSIGNED_TO_DELIVERY status (not final)
- * - Increment attempt count by +1
- * - Creates delivery attempt with CUSTOMER_NOT_AVAILABLE status
- * - Order can still be updated to DELIVERED or CANCELLED later
- * 
- * Request body:
- * {
- *   status: "DELAYED" | "DELAY" | "REJECTED" | "CANCELLED" | "DELIVERED",
- *   reason?: string (optional, for DELAYED, DELAY, REJECTED, CANCELLED)
- *   notes?: string (optional, additional notes)
- *   location?: string (optional, GPS location)
- * }
- */
 export async function PATCH(
   request: Request,
   { params }: { params: { id: string } }
@@ -37,7 +18,7 @@ export async function PATCH(
     }
 
     const body = await request.json().catch(() => ({}))
-    const { status, reason, notes, location } = body
+    const { status, reason, notes, location, new_delivery_date } = body // Added new_delivery_date
 
     // Validate status - now includes DELAYED
     const allowedStatuses: OrderStatus[] = ["DELAYED", "REJECTED", "CANCELLED", "DELIVERED"]
@@ -79,6 +60,11 @@ export async function PATCH(
           orderBy: { attemptNumber: "desc" },
           take: 1,
         },
+        city: {
+          select: {
+            name: true
+          }
+        }
       },
     })
 
@@ -100,6 +86,29 @@ export async function PATCH(
       )
     }
 
+    // For DELAYED status: validate new delivery date and reason
+    if (validatedStatus === "DELAYED") {
+      if (!new_delivery_date) {
+        return jsonError("New delivery date is required for delayed orders", 400)
+      }
+      
+      if (!reason || reason.trim().length === 0) {
+        return jsonError("Delay reason is required", 400)
+      }
+      
+      const newDate = new Date(new_delivery_date)
+      if (isNaN(newDate.getTime())) {
+        return jsonError("Invalid delivery date format", 400)
+      }
+      
+      // Ensure new date is in the future
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      if (newDate < today) {
+        return jsonError("New delivery date must be in the future", 400)
+      }
+    }
+
     // Get the last attempt to determine next attempt number
     const lastAttempt = order.deliveryAttemptHistory[0]
     const currentAttemptNumber = lastAttempt?.attemptNumber || 0
@@ -113,15 +122,13 @@ export async function PATCH(
 
     switch (validatedStatus) {
       case "DELAYED":
-        // DELAYED increments attempt count but keeps order in ASSIGNED_TO_DELIVERY
         nextAttemptNumber = currentAttemptNumber + 1
         attemptStatus = "CUSTOMER_NOT_AVAILABLE"
         attemptNotes = `Delivery delayed - customer not available${reason ? `: ${reason}` : ""}`
-        shouldUpdateOrderStatus = false // Keep order in ASSIGNED_TO_DELIVERY
+        shouldUpdateOrderStatus = false
         break
 
       case "REJECTED":
-        // REJECTED is final
         nextAttemptNumber = currentAttemptNumber + 1
         attemptStatus = "REFUSED"
         attemptNotes = `Order rejected${reason ? ` - ${reason}` : ""}`
@@ -130,7 +137,6 @@ export async function PATCH(
         break
 
       case "CANCELLED":
-        // CANCELLED is final
         nextAttemptNumber = currentAttemptNumber + 1
         attemptStatus = "REFUSED"
         attemptNotes = `Order cancelled${reason ? ` - ${reason}` : ""}`
@@ -139,7 +145,6 @@ export async function PATCH(
         break
 
       case "DELIVERED":
-        // DELIVERED is final and successful
         nextAttemptNumber = currentAttemptNumber + 1
         attemptStatus = "SUCCESSFUL"
         attemptNotes = "Order delivered successfully to customer"
@@ -158,9 +163,22 @@ export async function PATCH(
 
     const now = new Date()
 
-    // Handle DELAYED status - only creates attempt record, doesn't change order status
+    // Handle DELAYED status with date update
     if (validatedStatus === "DELAYED") {
+      const newDeliveryDate = new Date(new_delivery_date)
+      
       await prisma.$transaction(async (tx) => {
+        // Update order with new delivery date and reason
+        await tx.order.update({
+          where: { id: orderId },
+          data: {
+            previous_delivery_date: order.delivery_date, // Save previous date
+            delivery_date: newDeliveryDate, // Set new date
+            delay_reason: reason, // Save delay reason
+            updatedAt: now,
+          },
+        })
+
         // Create delivery attempt record for delay
         await tx.deliveryAttempt.create({
           data: {
@@ -174,21 +192,13 @@ export async function PATCH(
             attemptedAt: now,
           },
         })
-
-        // Update order's updatedAt timestamp
-        await tx.order.update({
-          where: { id: orderId },
-          data: {
-            updatedAt: now,
-          },
-        })
       })
 
       // Create notification for merchant
       await prisma.notification.create({
         data: {
           title: "Delivery Delayed",
-          message: `Delivery attempt #${nextAttemptNumber} for order #${order.orderCode} - customer not available`,
+          message: `Delivery for order #${order.orderCode} delayed to ${newDeliveryDate.toLocaleDateString()}. Reason: ${reason}`,
           type: "DELIVERY_DELAYED",
           userId: order.merchant.userId,
           orderId: orderId,
@@ -197,18 +207,19 @@ export async function PATCH(
 
       return jsonOk({
         success: true,
-        message: `Delivery attempt recorded. Order status remains active for future attempts.`,
+        message: `Delivery delayed. New delivery date: ${newDeliveryDate.toLocaleDateString()}`,
         order: {
           id: order.id,
           orderCode: order.orderCode,
-          status: order.status, // Still ASSIGNED_TO_DELIVERY
+          status: order.status,
+          delivery_date: newDeliveryDate.toISOString(),
+          previous_delivery_date: order.delivery_date?.toISOString(),
           attemptNumber: nextAttemptNumber,
-          nextAction: "You can try again later or update to Delivered/Cancelled",
         },
       })
     }
 
-    // Handle DELIVERED status - includes business logic for stock, payments, etc.
+    // Handle DELIVERED status
     if (validatedStatus === "DELIVERED") {
       await prisma.$transaction(async (tx) => {
         // Update order status
@@ -319,7 +330,7 @@ export async function PATCH(
           : Promise.resolve(),
       ])
     } else {
-      // Handle other final statuses (DELAY, REJECTED, CANCELLED)
+      // Handle other final statuses (REJECTED, CANCELLED)
       await prisma.$transaction(async (tx) => {
         // Update order status
         await tx.order.update({

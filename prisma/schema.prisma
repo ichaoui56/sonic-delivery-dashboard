@@ -9,18 +9,18 @@ datasource db {
 
 // ADD CITY MODEL
 model City {
-  id          Int       @id @default(autoincrement())
-  name        String    @unique
-  code        String    @unique
-  isActive    Boolean   @default(true)
-  orderCount  Int       @default(0)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  
+  id         Int      @id @default(autoincrement())
+  name       String   @unique
+  code       String   @unique
+  isActive   Boolean  @default(true)
+  orderCount Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
   // Relations
   orders      Order[]
   deliveryMen DeliveryMan[]
-  
+
   @@index([name])
   @@index([code])
   @@index([isActive])
@@ -28,21 +28,21 @@ model City {
 }
 
 model User {
-  id                 Int            @id @default(autoincrement())
-  name               String
-  email              String         @unique
-  phone              String?
-  password           String
-  role               Role           @default(MERCHANT)
+  id                  Int            @id @default(autoincrement())
+  name                String
+  email               String         @unique
+  phone               String?
+  password            String
+  role                Role           @default(MERCHANT)
   notificationEnabled Boolean        @default(true)
-  image              String?
-  createdAt          DateTime       @default(now())
-  updatedAt          DateTime       @updatedAt
-  admin              Admin?
-  deliveryMan        DeliveryMan?
-  merchant           Merchant?
-  notifications      Notification[]
-  
+  image               String?
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+  admin               Admin?
+  deliveryMan         DeliveryMan?
+  merchant            Merchant?
+  notifications       Notification[]
+
   @@index([email])
   @@index([role])
   @@index([createdAt(sort: Desc)])
@@ -52,7 +52,7 @@ model User {
 model Admin {
   id        Int      @id @default(autoincrement())
   userId    Int      @unique
-  address   String?  // Added address field
+  address   String? // Added address field
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id])
 }
@@ -72,7 +72,7 @@ model Merchant {
   orders           Order[]
   products         Product[]
   productTransfers ProductTransfer[]
-  
+
   @@index([userId])
   @@index([createdAt(sort: Desc)])
   @@index([companyName])
@@ -94,7 +94,7 @@ model Product {
   orderItems     OrderItem[]
   merchant       Merchant       @relation(fields: [merchantId], references: [id])
   TransferItem   TransferItem[]
-  
+
   @@index([merchantId])
   @@index([merchantId, isActive])
   @@index([merchantId, stockQuantity])
@@ -123,7 +123,7 @@ model ProductTransfer {
   updatedAt              DateTime       @updatedAt
   merchant               Merchant       @relation(fields: [merchantId], references: [id])
   transferItems          TransferItem[]
-  
+
   @@index([merchantId])
   @@index([merchantId, createdAt(sort: Desc)])
   @@index([merchantId, status])
@@ -141,7 +141,7 @@ model TransferItem {
   quantity   Int
   product    Product         @relation(fields: [productId], references: [id])
   transfer   ProductTransfer @relation(fields: [transferId], references: [id])
-  
+
   @@index([transferId])
   @@index([productId])
   @@index([transferId, productId])
@@ -154,7 +154,10 @@ model Order {
   customerName           String
   customerPhone          String
   address                String
-  cityId                 Int               // Changed from city String to cityId
+  delivery_date          DateTime? 
+  previous_delivery_date DateTime? 
+  delay_reason           String? 
+  cityId                 Int 
   note                   String?
   totalPrice             Float
   paymentMethod          PaymentMethod     @default(COD)
@@ -177,7 +180,7 @@ model Order {
   merchant               Merchant          @relation(fields: [merchantId], references: [id])
   city                   City              @relation(fields: [cityId], references: [id]) // Required relation
   orderItems             OrderItem[]
-  
+
   @@index([merchantId])
   @@index([merchantId, createdAt(sort: Desc)])
   @@index([merchantId, status])
@@ -233,7 +236,7 @@ model OrderItem {
   isFree        Boolean @default(false)
   order         Order   @relation(fields: [orderId], references: [id])
   product       Product @relation(fields: [productId], references: [id])
-  
+
   @@index([orderId])
   @@index([productId])
   @@index([orderId, productId])
@@ -247,7 +250,7 @@ model DeliveryMan {
   id                   Int               @id @default(autoincrement())
   userId               Int               @unique
   vehicleType          String?
-  cityId               Int?              // Changed from city String? to cityId
+  cityId               Int? // Changed from city String? to cityId
   active               Boolean           @default(true)
   totalDeliveries      Int               @default(0)
   successfulDeliveries Int               @default(0)
@@ -260,7 +263,7 @@ model DeliveryMan {
   assignedOrders       Order[]
   deliveryAttempts     DeliveryAttempt[]
   moneyTransfers       MoneyTransfer[]
-  
+
   @@index([userId])
   @@index([cityId]) // Updated index
   @@index([cityId, active])
@@ -283,7 +286,7 @@ model MoneyTransfer {
   createdAt     DateTime     @default(now())
   merchant      Merchant?    @relation(fields: [merchantId], references: [id])
   deliveryMan   DeliveryMan? @relation(fields: [deliveryManId], references: [id])
-  
+
   @@index([merchantId])
   @@index([merchantId, transferDate(sort: Desc)])
   @@index([deliveryManId])
@@ -305,7 +308,7 @@ model Notification {
   createdAt DateTime @default(now())
   order     Order?   @relation(fields: [orderId], references: [id])
   user      User     @relation(fields: [userId], references: [id])
-  
+
   @@index([userId])
   @@index([userId, isRead])
   @@index([userId, createdAt(sort: Desc)])
