@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
+import { DashboardLayout } from "@/components/dashboard-layout"
 
-export default function DeliveryMenLoading() {
+export function DeliveryMenContentLoading() {
   return (
     <div className="space-y-6">
       <div className="animate-pulse">
@@ -30,5 +31,13 @@ export default function DeliveryMenLoading() {
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+export default function DeliveryMenLoading() {
+  return (
+    <DashboardLayout userRole="ADMIN">
+      <DeliveryMenContentLoading />
+    </DashboardLayout>
   )
 }

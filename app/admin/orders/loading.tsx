@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
+import { DashboardLayout } from "@/components/dashboard-layout"
 
-export default function AdminOrdersLoading() {
+export function AdminOrdersContentLoading() {
   return (
     <div className="space-y-6">
       <div className="animate-pulse">
@@ -27,5 +28,13 @@ export default function AdminOrdersLoading() {
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+export default function AdminOrdersLoading() {
+  return (
+    <DashboardLayout userRole="ADMIN">
+      <AdminOrdersContentLoading />
+    </DashboardLayout>
   )
 }

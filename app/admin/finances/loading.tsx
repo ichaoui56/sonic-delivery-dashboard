@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
+import { DashboardLayout } from "@/components/dashboard-layout"
 
-export default function FinancesLoading() {
+export function FinancesContentLoading() {
   return (
     <div className="space-y-6">
       <div className="animate-pulse">
@@ -21,5 +22,13 @@ export default function FinancesLoading() {
         ))}
       </div>
     </div>
+  )
+}
+
+export default function FinancesLoading() {
+  return (
+    <DashboardLayout userRole="ADMIN">
+      <FinancesContentLoading />
+    </DashboardLayout>
   )
 }
