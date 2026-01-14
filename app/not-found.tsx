@@ -1,11 +1,15 @@
 import Link from "next/link"
-import { Home, ArrowLeft, Search } from 'lucide-react'
+import { Home, ArrowLeft, Search, LogOut } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { auth } from "@/auth"
+import { signOutAction } from "@/lib/actions/auth-actions"
 
 export default async function NotFound() {
   const session = await auth()
-  const userRole = session?.user?.role.toLowerCase()
+  const userRole = session?.user?.role?.toLowerCase()
+  const dashboardHref = userRole ? `/${userRole}/dashboard` : "/login"
+  const ordersHref = userRole ? `/${userRole}/orders` : "/login"
+  const settingsHref = userRole ? `/${userRole}/settings` : "/login"
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 flex items-center justify-center p-4">
       <div className="max-w-2xl w-full text-center space-y-8">
@@ -36,7 +40,7 @@ export default async function NotFound() {
             size="lg"
             className="bg-[#048dba] hover:bg-[#037399] text-white w-full sm:w-auto"
           >
-            <Link href={`/${userRole}/dashboard`} className="flex items-center gap-2">
+            <Link href={dashboardHref} className="flex items-center gap-2">
               <Home className="w-5 h-5" />
               العودة للرئيسية
             </Link>
@@ -48,11 +52,27 @@ export default async function NotFound() {
             size="lg"
             className="border-[#048dba] text-[#048dba] hover:bg-[#048dba] hover:text-white w-full sm:w-auto"
           >
-            <Link href={`/${userRole}/dashboard`} className="flex items-center gap-2">
+            <Link href={dashboardHref} className="flex items-center gap-2">
               <ArrowLeft className="w-5 h-5" />
               الرجوع للخلف
             </Link>
           </Button>
+
+          {session && (
+            <form action={signOutAction} className="w-full sm:w-auto">
+              <Button
+                type="submit"
+                variant="outline"
+                size="lg"
+                className="border-red-500 text-red-600 hover:bg-red-500 hover:text-white w-full"
+              >
+                <span className="flex items-center gap-2">
+                  <LogOut className="w-5 h-5" />
+                  تسجيل الخروج
+                </span>
+              </Button>
+            </form>
+          )}
         </div>
 
         {/* Helpful Links */}
@@ -60,19 +80,19 @@ export default async function NotFound() {
           <p className="text-sm text-slate-500 mb-4">روابط قد تهمك:</p>
           <div className="flex flex-wrap gap-4 justify-center text-sm">
             <Link 
-              href={`/${userRole}/dashboard`} 
+              href={dashboardHref} 
               className="text-[#048dba] hover:underline hover:text-[#037399] transition-colors"
             >
               الرئيسية
             </Link>
             <Link 
-              href={`/${userRole}/orders`} 
+              href={ordersHref} 
               className="text-[#048dba] hover:underline hover:text-[#037399] transition-colors"
             >
               الطلبات
             </Link>
             <Link 
-              href={`/${userRole}/settings`} 
+              href={settingsHref} 
               className="text-[#048dba] hover:underline hover:text-[#037399] transition-colors"
             >
               الإعدادات
