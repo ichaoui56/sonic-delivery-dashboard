@@ -96,6 +96,18 @@ export async function signInAction(prevState: FormState | null, formData: FormDa
       }
     }
 
+    const userForRoleCheck = await db.user.findUnique({
+      where: { email: validatedFields.data.email.toLowerCase().trim() },
+      select: { role: true },
+    })
+
+    if (userForRoleCheck?.role === "DELIVERYMAN") {
+      return {
+        message: "لا يمكن لمندوب التوصيل تسجيل الدخول من هذه الصفحة",
+        values: submittedValues,
+      }
+    }
+
     const result = await signIn("credentials", {
       email: validatedFields.data.email,
       password: validatedFields.data.password,

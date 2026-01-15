@@ -91,6 +91,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             throw new CredentialsSignin("بيانات الاعتماد غير صالحة")
           }
 
+          if (user.role === "DELIVERYMAN") {
+            throw new CredentialsSignin("لا يمكن لمندوب التوصيل تسجيل الدخول من هذه الصفحة")
+          }
+
           loginAttempts.delete(sanitizedEmail)
 
           return {
