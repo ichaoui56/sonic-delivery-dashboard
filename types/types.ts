@@ -207,7 +207,7 @@ type DeliveryManDetail = {
     customerName: string
     totalPrice: number
     status: string
-    city: string
+    city: string | null
     createdAt: string
     merchant: {
       user: {

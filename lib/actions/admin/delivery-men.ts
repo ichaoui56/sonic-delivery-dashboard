@@ -512,6 +512,12 @@ export async function getDeliveryManDetail(id: number) {
       return { success: false, error: "موظف التوصيل غير موجود" }
     }
 
+    // Transform city in assigned orders from object to string
+    const transformedAssignedOrders = deliveryMan.assignedOrders.map(order => ({
+      ...order,
+      city: order.city?.name || null  // Convert city object to string
+    }))
+
     const deliveryAttemptsWithFlag = deliveryMan.deliveryAttempts.map((attempt: any) => ({
       ...attempt,
       wasSuccessful: attempt.status === "SUCCESSFUL",
@@ -530,11 +536,12 @@ export async function getDeliveryManDetail(id: number) {
       orderBy: { createdAt: "desc" },
     })
 
-    // Transform data to include city name for backward compatibility
+    // Transform data
     const transformedDeliveryMan = {
       ...deliveryMan,
-      city: (deliveryMan as any).city?.name || null, // Add city name for compatibility
-      cityId: deliveryMan.cityId || (deliveryMan as any).city?.id || null,
+      city: deliveryMan.city?.name || null, // Now just the city name string
+      cityId: deliveryMan.city?.id || null,
+      assignedOrders: transformedAssignedOrders, // Use transformed orders
       deliveryAttempts: deliveryAttemptsWithFlag,
       moneyTransfers
     }
