@@ -256,6 +256,8 @@ model DeliveryMan {
   successfulDeliveries Int               @default(0)
   totalEarned          Float             @default(0)
   baseFee              Float             @default(0)
+  codBalance           Float             @default(0)  // Money delivery man owes to admin (COD collections)
+  earningsBalance      Float             @default(0)  // Money admin owes to delivery man (earnings from baseFee)
   rating               Float?
   createdAt            DateTime          @default(now())
   user                 User              @relation(fields: [userId], references: [id])
