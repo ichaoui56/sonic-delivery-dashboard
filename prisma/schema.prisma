@@ -250,24 +250,25 @@ model DeliveryMan {
   id                   Int               @id @default(autoincrement())
   userId               Int               @unique
   vehicleType          String?
-  cityId               Int? // Changed from city String? to cityId
+  cityId               Int?
   active               Boolean           @default(true)
   totalDeliveries      Int               @default(0)
   successfulDeliveries Int               @default(0)
-  totalEarned          Float             @default(0)
+  totalEarned          Float             @default(0)  // Total earned from base fees
+  pendingEarnings      Float             @default(0)  // Earnings not yet paid by company
+  collectedCOD         Float             @default(0)  // COD money collected from customers
+  pendingCOD           Float             @default(0)  // COD money not yet given to admin
   baseFee              Float             @default(0)
-  codBalance           Float             @default(0)  // Money delivery man owes to admin (COD collections)
-  earningsBalance      Float             @default(0)  // Money admin owes to delivery man (earnings from baseFee)
   rating               Float?
   createdAt            DateTime          @default(now())
   user                 User              @relation(fields: [userId], references: [id])
-  city                 City?             @relation(fields: [cityId], references: [id]) // Optional relation
+  city                 City?             @relation(fields: [cityId], references: [id])
   assignedOrders       Order[]
   deliveryAttempts     DeliveryAttempt[]
   moneyTransfers       MoneyTransfer[]
 
   @@index([userId])
-  @@index([cityId]) // Updated index
+  @@index([cityId])
   @@index([cityId, active])
   @@index([active])
   @@index([createdAt(sort: Desc)])
