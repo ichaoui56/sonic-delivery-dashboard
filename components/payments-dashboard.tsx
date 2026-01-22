@@ -238,7 +238,7 @@ export function PaymentsDashboard() {
                     </div>
                     {transfer.note && <p className="text-sm text-gray-600 mt-1">{transfer.note}</p>}
                     <p className="text-xs text-gray-400 mt-1">
-                      {new Date(transfer.transferDate).toLocaleDateString("ar-EG", {
+                      {new Date(transfer.transferDate).toLocaleDateString("en-US", {
                         year: "numeric",
                         month: "long",
                         day: "numeric",
@@ -303,7 +303,7 @@ export function PaymentsDashboard() {
                       <p className="text-xs text-gray-400 mt-1">
                         تم التسليم:{" "}
                         {order.deliveredAt
-                          ? new Date(order.deliveredAt).toLocaleDateString("ar-EG", {
+                          ? new Date(order.deliveredAt).toLocaleDateString("en-US", {
                               year: "numeric",
                               month: "long",
                               day: "numeric",

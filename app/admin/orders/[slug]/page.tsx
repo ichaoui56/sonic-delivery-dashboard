@@ -1,11 +1,13 @@
 import { DashboardLayoutWrapper } from "@/components/dashboard-layout-wrapper"
 import { getOrderDetails } from "@/lib/actions/admin/order"
 import { OrderDetailClient } from "@/components/admin/orders/order-detail-client"
+import { extractIdFromSlug } from "@/lib/utils/slug"
 import { notFound } from 'next/navigation'
 
-export default async function OrderDetailPage({ params }: { params: { id: string } }) {
-  const orderId = parseInt(params.id)
-  if (isNaN(orderId)) {
+export default async function OrderDetailPage({ params }: { params: { slug: string } }) {
+  const orderId = extractIdFromSlug(params.slug)
+  
+  if (!orderId) {
     notFound()
   }
 

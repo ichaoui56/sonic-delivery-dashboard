@@ -7,10 +7,10 @@ import { Label } from "@/components/ui/label"
 import { Card } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { updateMerchantProfile, updateUserProfile } from "@/lib/actions/settings.actions"
-import { useRouter } from 'next/navigation'
 import { compressImage } from "@/lib/utils/image-compression"
 import { Loader2, Upload, X } from 'lucide-react'
 import Link from "next/link"
+import { toast } from "sonner"
 
 interface MerchantSettingsData {
   user: {
@@ -36,18 +36,14 @@ interface SettingsClientProps {
 }
 
 export function SettingsClient({ initialData }: SettingsClientProps) {
-  const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [uploadingImage, setUploadingImage] = useState(false)
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
 
-  // User profile state
   const [userName, setUserName] = useState(initialData.user.name)
   const [userPhone, setUserPhone] = useState(initialData.user.phone || "")
   const [profileImage, setProfileImage] = useState<string | null>(initialData.user.image)
   const [imagePreview, setImagePreview] = useState<string | null>(initialData.user.image)
 
-  // Merchant profile state variables
   const [companyName, setCompanyName] = useState(initialData.merchant.companyName || "")
   const [rib, setRib] = useState(initialData.merchant.rib || "")
   const [bankName, setBankName] = useState(initialData.merchant.bankName || "")
@@ -55,13 +51,6 @@ export function SettingsClient({ initialData }: SettingsClientProps) {
   const handleUserProfileUpdate = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
-    setMessage(null)
-
-    console.log("[v0] Updating user profile with data:", {
-      name: userName,
-      phone: userPhone || null,
-      profileImage: profileImage || null,
-    })
 
     try {
       const result = await updateUserProfile({
@@ -70,19 +59,13 @@ export function SettingsClient({ initialData }: SettingsClientProps) {
         profileImage: profileImage || null,
       })
 
-      console.log("[v0] Update result:", result)
-
       if (result.success) {
-        setMessage({ type: "success", text: "تم تحديث البيانات الشخصية بنجاح" })
-        setTimeout(() => {
-          window.location.reload()
-        }, 1000)
+        toast.success("تم تحديث البيانات الشخصية بنجاح")
       } else {
-        setMessage({ type: "error", text: result.error || "حدث خطأ أثناء تحديث البيانات" })
+        toast.error(result.error || "حدث خطأ أثناء تحديث البيانات")
       }
     } catch (error) {
-      console.error("[v0] Unexpected error in handleUserProfileUpdate:", error)
-      setMessage({ type: "error", text: "حدث خطأ غير متوقع" })
+      toast.error("حدث خطأ غير متوقع")
     } finally {
       setIsLoading(false)
     }
@@ -91,7 +74,6 @@ export function SettingsClient({ initialData }: SettingsClientProps) {
   const handleMerchantProfileUpdate = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
-    setMessage(null)
 
     try {
       const result = await updateMerchantProfile({
@@ -101,13 +83,12 @@ export function SettingsClient({ initialData }: SettingsClientProps) {
       })
 
       if (result.success) {
-        setMessage({ type: "success", text: "تم تحديث معلومات الشركة بنجاح" })
-        router.refresh()
+        toast.success("تم تحديث معلومات الشركة بنجاح")
       } else {
-        setMessage({ type: "error", text: result.error || "حدث خطأ أثناء تحديث البيانات" })
+        toast.error(result.error || "حدث خطأ أثناء تحديث البيانات")
       }
     } catch (error) {
-      setMessage({ type: "error", text: "حدث خطأ غير متوقع" })
+      toast.error("حدث خطأ غير متوقع")
     } finally {
       setIsLoading(false)
     }
@@ -117,117 +98,77 @@ export function SettingsClient({ initialData }: SettingsClientProps) {
     const file = e.target.files?.[0]
     if (!file) return
 
-    console.log("[v0] File selected:", file.name, "Type:", file.type, "Size:", (file.size / 1024).toFixed(2), "KB")
-
-    // Validate file type
     if (!file.type.startsWith("image/")) {
-      setMessage({ type: "error", text: "الملف المختار ليس صورة" })
+      toast.error("الملف المختار ليس صورة")
       return
     }
 
-    // Show preview immediately
     const reader = new FileReader()
     reader.onloadend = () => {
       setImagePreview(reader.result as string)
-      console.log("[v0] Preview set successfully")
     }
     reader.readAsDataURL(file)
 
     setUploadingImage(true)
-    setMessage(null)
 
     try {
-      console.log("[v0] Starting compression...")
-      console.log("[v0] Original file size:", (file.size / 1024).toFixed(2), "KB")
-
-      // Compress image
       const compressedFile = await compressImage(file, 200)
-      console.log("[v0] Compressed file size:", (compressedFile.size / 1024).toFixed(2), "KB")
-
       const formData = new FormData()
       formData.set("file", compressedFile)
-
-      console.log("[v0] Sending request to /api/files...")
 
       const response = await fetch("/api/files", {
         method: "POST",
         body: formData,
       })
 
-      console.log("[v0] Response status:", response.status, response.statusText)
-
       if (!response.ok) {
-        const errorText = await response.text()
-        console.error("[v0] Upload failed. Response:", errorText)
         throw new Error(`فشل رفع الصورة: ${response.status}`)
       }
 
       const responseData = await response.json()
-      console.log("[v0] Response data:", responseData)
-
-      // The API returns the URL directly as a JSON string
       const url = typeof responseData === 'string' ? responseData : responseData.url
-      console.log("[v0] Upload successful, URL:", url)
-
+      
       setProfileImage(url)
 
-      console.log("[v0] Auto-saving profile image to database...")
       const result = await updateUserProfile({
         name: userName,
         phone: userPhone || null,
         profileImage: url,
       })
 
-      console.log("[v0] Auto-save result:", result)
-
       if (result.success) {
-        setMessage({ type: "success", text: "تم رفع الصورة وحفظها بنجاح" })
-        setTimeout(() => {
-          window.location.reload()
-        }, 1000)
+        toast.success("تم رفع الصورة وحفظها بنجاح")
       } else {
-        setMessage({ type: "error", text: result.error || "تم رفع الصورة لكن فشل الحفظ في قاعدة البيانات" })
+        toast.error(result.error || "تم رفع الصورة لكن فشل الحفظ في قاعدة البيانات")
       }
     } catch (error) {
-      console.error("[v0] Image upload error:", error)
-      console.error("[v0] Error details:", error instanceof Error ? error.message : String(error))
-      setMessage({ type: "error", text: "فشل في رفع الصورة. حاول مرة أخرى." })
+      toast.error("فشل في رفع الصورة. حاول مرة أخرى.")
       setImagePreview(initialData.user.image)
     } finally {
       setUploadingImage(false)
-      // Clear file input
       e.target.value = ""
     }
   }
 
   const clearImage = async () => {
     setUploadingImage(true)
-    setMessage(null)
 
     try {
-      console.log("[v0] Removing profile image from database...")
-
       const result = await updateUserProfile({
         name: userName,
         phone: userPhone || null,
         profileImage: null,
       })
 
-      console.log("[v0] Image removal result:", result)
-
       if (result.success) {
         setProfileImage(null)
         setImagePreview(null)
-        setMessage({ type: "success", text: "تم حذف الصورة بنجاح" })
-        setTimeout(() => {
-          window.location.reload()
-        }, 1000)
+        toast.success("تم حذف الصورة بنجاح")
       } else {
-        setMessage({ type: "error", text: result.error || "فشل حذف الصورة" })
+        toast.error(result.error || "فشل حذف الصورة")
       }
     } catch (error) {
-      console.error("[v0] Image removal error:", error)
-      setMessage({ type: "error", text: "حدث خطأ أثناء حذف الصورة" })
+      toast.error("حدث خطأ أثناء حذف الصورة")
     } finally {
       setUploadingImage(false)
     }
@@ -240,17 +181,7 @@ export function SettingsClient({ initialData }: SettingsClientProps) {
         <p className="text-gray-500 mt-1">إدارة معلوماتك الشخصية ومعلومات الشركة</p>
       </div>
 
-      {message && (
-        <div
-          className={`p-4 rounded-lg ${message.type === "success" ? "bg-green-50 text-green-800 border border-green-200" : "bg-red-50 text-red-800 border border-red-200"
-            }`}
-        >
-          {message.text}
-        </div>
-      )}
-
       <div className="grid gap-6 md:grid-cols-2">
-        {/* User Profile Card */}
         <Card className="p-6">
           <h2 className="text-xl font-semibold mb-6 flex items-center gap-2">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -316,7 +247,6 @@ export function SettingsClient({ initialData }: SettingsClientProps) {
               </div>
             </div>
 
-            {/* Name */}
             <div>
               <Label htmlFor="userName">الاسم الكامل</Label>
               <Input
@@ -329,7 +259,6 @@ export function SettingsClient({ initialData }: SettingsClientProps) {
               />
             </div>
 
-            {/* Email (Read-only) */}
             <div>
               <Label htmlFor="userEmail">البريد الإلكتروني</Label>
               <Input
@@ -342,7 +271,6 @@ export function SettingsClient({ initialData }: SettingsClientProps) {
               <p className="text-xs text-gray-500 mt-1">لا يمكن تغيير البريد الإلكتروني</p>
             </div>
 
-            {/* Phone */}
             <div>
               <Label htmlFor="userPhone">رقم الهاتف</Label>
               <Input
@@ -365,7 +293,6 @@ export function SettingsClient({ initialData }: SettingsClientProps) {
           </form>
         </Card>
 
-        {/* Merchant Profile Card */}
         <Card className="p-6">
           <h2 className="text-xl font-semibold mb-6 flex items-center gap-2">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -380,7 +307,6 @@ export function SettingsClient({ initialData }: SettingsClientProps) {
           </h2>
 
           <form onSubmit={handleMerchantProfileUpdate} className="space-y-4">
-            {/* Company Name */}
             <div>
               <Label htmlFor="companyName">اسم الشركة</Label>
               <Input
@@ -392,7 +318,6 @@ export function SettingsClient({ initialData }: SettingsClientProps) {
               />
             </div>
 
-            {/* RIB */}
             <div>
               <Label htmlFor="rib">رقم الحساب البنكي (RIB)</Label>
               <Input
@@ -404,7 +329,6 @@ export function SettingsClient({ initialData }: SettingsClientProps) {
               />
             </div>
 
-            {/* Bank Name */}
             <div>
               <Label htmlFor="bankName">اسم البنك</Label>
               <Input
@@ -416,7 +340,6 @@ export function SettingsClient({ initialData }: SettingsClientProps) {
               />
             </div>
 
-            {/* Read-only Stats */}
             <div className="pt-4 border-t border-gray-200 space-y-3">
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-600">الرصيد الحالي</span>
@@ -439,7 +362,6 @@ export function SettingsClient({ initialData }: SettingsClientProps) {
         </Card>
       </div>
 
-      {/* Security Section */}
       <Card className="p-6">
         <h2 className="text-xl font-semibold mb-6 flex items-center gap-2">
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -468,7 +390,8 @@ export function SettingsClient({ initialData }: SettingsClientProps) {
                 />
               </svg>
               الاتصال بالدعم
-            </Button></Link>
+            </Button>
+          </Link>
         </div>
       </Card>
     </div>

@@ -15,19 +15,21 @@ import { Textarea } from "@/components/ui/textarea"
 import { Upload, X, Loader2 } from 'lucide-react'
 import { compressImage } from "@/lib/utils/image-compression"
 import { addDeliveryManPayment } from "@/lib/actions/admin/delivery-men"
+import { toast } from "sonner"
 
 export function AddPaymentDialog({ 
   deliveryManId,
   deliveryManName,
-  children 
+  children,
+  onSuccess
 }: { 
   deliveryManId: number
   deliveryManName: string
   children: React.ReactNode
+  onSuccess?: (newTransfer: any) => void
 }) {
   const [open, setOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
 
   const [amount, setAmount] = useState("")
   const [reference, setReference] = useState("")
@@ -39,39 +41,27 @@ export function AddPaymentDialog({
     const file = e.target.files?.[0]
     if (!file) return
 
-    console.log("[v0] Starting invoice image upload for delivery man:", deliveryManId)
-    console.log("[v0] File selected:", file.name, "Size:", (file.size / 1024).toFixed(2), "KB")
-
     setUploading(true)
     try {
-      console.log("[v0] Compressing image...")
       const compressed = await compressImage(file, 500)
-      console.log("[v0] Image compressed. New size:", (compressed.size / 1024).toFixed(2), "KB")
       
       const formData = new FormData()
       formData.append("file", compressed)
 
-      console.log("[v0] Uploading to Pinata via /api/files...")
       const response = await fetch("/api/files", {
         method: "POST",
         body: formData,
       })
 
-      console.log("[v0] Upload response status:", response.status)
-
       if (!response.ok) {
-        const errorText = await response.text()
-        console.error("[v0] Upload failed with response:", errorText)
         throw new Error("فشل رفع الصورة")
       }
 
       const url = await response.json()
-      console.log("[v0] Invoice uploaded successfully. URL:", url)
       setInvoiceImage(url)
-      setMessage({ type: "success", text: "تم رفع الفاتورة بنجاح" })
+      toast.success("تم رفع الفاتورة بنجاح")
     } catch (error) {
-      console.error("[v0] Error uploading invoice:", error)
-      setMessage({ type: "error", text: "فشل رفع الفاتورة" })
+      toast.error("فشل رفع الفاتورة")
     } finally {
       setUploading(false)
     }
@@ -80,15 +70,6 @@ export function AddPaymentDialog({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
-    setMessage(null)
-
-    console.log("[v0] Submitting payment with data:", {
-      deliveryManId,
-      amount: parseFloat(amount),
-      reference: reference || null,
-      note: note || null,
-      invoiceImage: invoiceImage,
-    })
 
     const result = await addDeliveryManPayment(deliveryManId, {
       amount: parseFloat(amount),
@@ -97,24 +78,35 @@ export function AddPaymentDialog({
       invoiceImage: invoiceImage,
     })
 
-    console.log("[v0] Payment submission result:", result)
-
     if (result.success) {
-      setMessage({ type: "success", text: "تمت إضافة الدفعة بنجاح" })
-      setTimeout(() => {
-        setOpen(false)
-        setAmount("")
-        setReference("")
-        setNote("")
-        setInvoiceImage(null)
-        setMessage(null)
-        window.location.reload()
-      }, 1000)
+      const newTransfer = {
+        id: Date.now(),
+        amount: parseFloat(amount),
+        reference: reference,
+        note: note,
+        invoiceImage: invoiceImage,
+        createdAt: new Date().toISOString()
+      }
+      
+      if (onSuccess) {
+        onSuccess(newTransfer)
+      }
+      
+      toast.success("تمت إضافة الدفعة بنجاح")
+      setOpen(false)
+      resetForm()
     } else {
-      setMessage({ type: "error", text: result.error || "حدث خطأ" })
+      toast.error(result.error || "حدث خطأ")
     }
 
     setIsLoading(false)
+  }
+
+  const resetForm = () => {
+    setAmount("")
+    setReference("")
+    setNote("")
+    setInvoiceImage(null)
   }
 
   return (
@@ -124,18 +116,6 @@ export function AddPaymentDialog({
         <DialogHeader>
           <DialogTitle>إضافة دفعة مالية - {deliveryManName}</DialogTitle>
         </DialogHeader>
-
-        {message && (
-          <div
-            className={`p-3 rounded-lg text-sm ${
-              message.type === "success"
-                ? "bg-green-50 text-green-800"
-                : "bg-red-50 text-red-800"
-            }`}
-          >
-            {message.text}
-          </div>
-        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>

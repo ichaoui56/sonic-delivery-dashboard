@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ArrowLeft, Edit, DollarSign, Package, ShoppingCart, TrendingUp, Phone, Mail, Building, CreditCard, Calendar, Eye, FileText, Box, Truck, CheckCircle, Clock, XCircle } from 'lucide-react'
 import { EditMerchantDialog } from "./edit-merchant-dialog"
 import { AddPaymentDialog } from "./add-payment-dialog"
+import { createSlugWithId } from "@/lib/utils/slug"
 
 type MerchantDetail = {
   id: number
@@ -42,7 +43,15 @@ type MerchantDetail = {
     totalPrice: number
     merchantEarning: number
     status: string
-    city: string
+    city: {
+      id: number
+      name: string
+      code: string
+      isActive: boolean
+      orderCount: number
+      createdAt: string
+      updatedAt: string
+    }
     createdAt: string
   }>
   productTransfers: Array<{
@@ -311,7 +320,7 @@ export function MerchantDetailClient({ initialMerchant }: { initialMerchant: Mer
                 <div className="w-full">
                   <p className="text-xs text-gray-500 mb-1">الرسوم الأساسية</p>
                   <p className="text-lg sm:text-xl lg:text-2xl font-bold text-purple-600">
-                    {merchant.baseFee}%
+                    {merchant.baseFee}dh
                   </p>
                 </div>
                 <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-purple-100 rounded-full flex items-center justify-center shrink-0">
@@ -429,7 +438,7 @@ export function MerchantDetailClient({ initialMerchant }: { initialMerchant: Mer
                       <div 
                         key={order.id} 
                         className="p-3 sm:p-4 border border-gray-200 rounded-lg hover:shadow-md hover:border-[#048dba]/50 cursor-pointer transition-all"
-                        onClick={() => router.push(`/admin/orders/${order.id}`)}
+                        onClick={() => router.push(`/admin/orders/${createSlugWithId(order.orderCode, order.id)}`)}
                       >
                         <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-4 gap-3">
                           <div>
@@ -438,7 +447,7 @@ export function MerchantDetailClient({ initialMerchant }: { initialMerchant: Mer
                           </div>
                           <div>
                             <p className="text-xs text-gray-500">المدينة</p>
-                            <p className="font-semibold text-sm">{order.city}</p>
+                            <p className="font-semibold text-sm">{order.city.name}</p>
                           </div>
                           <div>
                             <p className="text-xs text-gray-500">السعر الإجمالي</p>
@@ -446,7 +455,7 @@ export function MerchantDetailClient({ initialMerchant }: { initialMerchant: Mer
                             <p className="text-xs text-gray-400">ربح: {order.merchantEarning.toFixed(2)} د.م</p>
                           </div>
                           <div>
-                            <Badge className="bg-[#048dba] text-xs">{order.status}</Badge>
+                            {getStatusBadge(order.status)}
                             <p className="text-xs text-gray-400 mt-1">
                               {new Date(order.createdAt).toLocaleDateString("eu-US")}
                             </p>
@@ -491,7 +500,7 @@ export function MerchantDetailClient({ initialMerchant }: { initialMerchant: Mer
                                 <div>
                                   <p className="font-semibold text-sm sm:text-base text-gray-800">{transfer.transferCode}</p>
                                   <p className="text-xs text-gray-500">
-                                    {new Date(transfer.createdAt).toLocaleDateString("ar-EG", {
+                                    {new Date(transfer.createdAt).toLocaleDateString("en-US", {
                                       weekday: 'long',
                                       year: 'numeric',
                                       month: 'long',

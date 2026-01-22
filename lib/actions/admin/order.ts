@@ -143,6 +143,11 @@ export async function getActiveDeliveryMen() {
             phone: true,
           },
         },
+        city: {
+          select: {
+            name: true,
+          },
+        },
       },
       orderBy: [
         { city: { name: "asc" } },
@@ -151,7 +156,27 @@ export async function getActiveDeliveryMen() {
       ],
     })
 
-    return { success: true, data: deliveryMen }
+    // Transform the data to match the expected DeliveryMan type
+    const transformedDeliveryMen = deliveryMen.map(dm => ({
+      id: dm.id,
+      createdAt: dm.createdAt,
+      cityId: dm.cityId,
+      userId: dm.userId,
+      vehicleType: dm.vehicleType,
+      active: dm.active,
+      totalDeliveries: dm.totalDeliveries,
+      successfulDeliveries: dm.successfulDeliveries,
+      totalEarned: dm.totalEarned,
+      pendingEarnings: dm.pendingEarnings,
+      collectedCOD: dm.collectedCOD,
+      pendingCOD: dm.pendingCOD,
+      baseFee: dm.baseFee,
+      rating: dm.rating,
+      user: dm.user,
+      city: dm.city?.name || null,
+    }))
+
+    return { success: true, data: transformedDeliveryMen }
   } catch (error) {
     console.error("[v0] Error fetching delivery men:", error)
     return { success: false, error: "حدث خطأ أثناء جلب البيانات" }
@@ -430,7 +455,7 @@ export async function assignDeliveryMan(orderId: number, deliveryManId: number, 
 
     // Use provided date or default to tomorrow
     const defaultDeliveryDate = new Date()
-    defaultDeliveryDate.setDate(defaultDeliveryDate.getDate() + 1)
+    defaultDeliveryDate.setDate(defaultDeliveryDate.getDate())
     const finalDeliveryDate = deliveryDate || defaultDeliveryDate
 
     // Update order with delivery man, date, and change status

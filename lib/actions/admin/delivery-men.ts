@@ -3,7 +3,7 @@
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import bcrypt from "bcryptjs"
-import { Role } from "@prisma/client"
+import { OrderStatus, Role } from "@prisma/client"
 
 export async function getDeliveryMen() {
   try {
@@ -451,6 +451,7 @@ export async function getDeliveryManDetail(id: number) {
       return { success: false, error: "غير مصرح. يجب أن تكون مديرًا." }
     }
 
+    // Get delivery man basic info
     const deliveryMan = await prisma.deliveryMan.findUnique({
       where: { id },
       include: {
@@ -472,31 +473,11 @@ export async function getDeliveryManDetail(id: number) {
             isActive: true
           }
         },
-        assignedOrders: {
-          include: {
-            merchant: {
-              include: {
-                user: {
-                  select: {
-                    name: true,
-                  },
-                },
-              },
-            },
-            city: {
-              select: {
-                name: true,
-                code: true
-              }
-            }
-          },
-          orderBy: { createdAt: "desc" },
-          take: 20,
-        },
         deliveryAttempts: {
           include: {
             order: {
               select: {
+                id: true,
                 orderCode: true,
                 customerName: true,
               },
@@ -512,17 +493,68 @@ export async function getDeliveryManDetail(id: number) {
       return { success: false, error: "موظف التوصيل غير موجود" }
     }
 
-    // Transform city in assigned orders from object to string
-    const transformedAssignedOrders = deliveryMan.assignedOrders.map(order => ({
-      ...order,
-      city: order.city?.name || null  // Convert city object to string
-    }))
+    // Get current/pending orders (assignedOrders)
+    const currentOrders = await prisma.order.findMany({
+      where: { 
+        deliveryManId: id,
+        OR: [
+          { status: OrderStatus.ASSIGNED_TO_DELIVERY },
+          { status: OrderStatus.PENDING }
+        ]
+      },
+      include: {
+        merchant: {
+          include: {
+            user: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+        city: {
+          select: {
+            name: true,
+            code: true
+          }
+        },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+    })
 
-    const deliveryAttemptsWithFlag = deliveryMan.deliveryAttempts.map((attempt: any) => ({
-      ...attempt,
-      wasSuccessful: attempt.status === "SUCCESSFUL",
-    }))
+    // Get ALL orders for this delivery man (allOrders)
+    const allOrders = await prisma.order.findMany({
+      where: { deliveryManId: id },
+      include: {
+        merchant: {
+          include: {
+            user: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+        city: {
+          select: {
+            name: true,
+            code: true
+          }
+        },
+        deliveryAttemptHistory: {
+          select: {
+            attemptedAt: true,
+            status: true,
+            notes: true
+          },
+          orderBy: { attemptedAt: 'desc' }
+        }
+      },
+      orderBy: { createdAt: "desc" },
+    })
 
+    // Get money transfers
     const moneyTransfers = await prisma.moneyTransfer.findMany({
       where: { deliveryManId: id },
       select: {
@@ -536,14 +568,81 @@ export async function getDeliveryManDetail(id: number) {
       orderBy: { createdAt: "desc" },
     })
 
+    // Calculate statistics
+    const successfulDeliveries = allOrders.filter(order => 
+      order.status === OrderStatus.DELIVERED
+    ).length
+    const totalDeliveries = allOrders.length
+
     // Transform data
     const transformedDeliveryMan = {
-      ...deliveryMan,
-      city: deliveryMan.city?.name || null, // Now just the city name string
+      id: deliveryMan.id,
+      vehicleType: deliveryMan.vehicleType,
+      active: deliveryMan.active,
+      city: deliveryMan.city?.name || null,
       cityId: deliveryMan.city?.id || null,
-      assignedOrders: transformedAssignedOrders, // Use transformed orders
-      deliveryAttempts: deliveryAttemptsWithFlag,
-      moneyTransfers
+      totalDeliveries: totalDeliveries,
+      successfulDeliveries: successfulDeliveries,
+      totalEarned: deliveryMan.totalEarned,
+      pendingEarnings: deliveryMan.pendingEarnings,
+      collectedCOD: deliveryMan.collectedCOD,
+      pendingCOD: deliveryMan.pendingCOD,
+      baseFee: deliveryMan.baseFee,
+      rating: deliveryMan.rating,
+      user: {
+        id: deliveryMan.user.id,
+        name: deliveryMan.user.name,
+        email: deliveryMan.user.email,
+        phone: deliveryMan.user.phone,
+        image: deliveryMan.user.image,
+        createdAt: deliveryMan.user.createdAt,
+      },
+      assignedOrders: currentOrders.map(order => ({
+        id: order.id,
+        orderCode: order.orderCode,
+        customerName: order.customerName,
+        totalPrice: order.totalPrice,
+        status: order.status,
+        city: order.city?.name || null,
+        createdAt: order.createdAt,
+        deliveredAt: order.deliveredAt,
+        paymentMethod: order.paymentMethod as "COD" | "PREPAID",
+        merchant: {
+          user: {
+            name: order.merchant.user.name
+          }
+        }
+      })),
+      deliveryAttempts: deliveryMan.deliveryAttempts.map(attempt => ({
+        id: attempt.id,
+        attemptedAt: attempt.attemptedAt,
+        status: attempt.status,
+        wasSuccessful: attempt.status === "SUCCESSFUL",
+        notes: attempt.notes,
+        order: {
+          id: attempt.order.id,
+          orderCode: attempt.order.orderCode,
+          customerName: attempt.order.customerName,
+        },
+      })),
+      moneyTransfers: moneyTransfers,
+      allOrders: allOrders.map(order => ({
+        id: order.id,
+        orderCode: order.orderCode,
+        customerName: order.customerName,
+        totalPrice: order.totalPrice,
+        status: order.status,
+        city: order.city?.name || null,
+        createdAt: order.createdAt,
+        deliveredAt: order.deliveredAt,
+        paymentMethod: order.paymentMethod as "COD" | "PREPAID",
+        merchant: {
+          user: {
+            name: order.merchant.user.name
+          }
+        },
+        deliveryAttempts: order.deliveryAttemptHistory || []
+      }))
     }
 
     return { success: true, data: transformedDeliveryMan }
@@ -583,5 +682,194 @@ export async function getDeliveryMenStats() {
   } catch (error) {
     console.error("[v0] Error fetching delivery men stats:", error)
     return { success: false, error: "حدث خطأ أثناء جلب الإحصائيات" }
+  }
+}
+
+export async function markOrderAsDelivered(orderId: number, deliveryManId: number) {
+  try {
+    const session = await auth()
+    if (!session?.user) {
+      return { success: false, error: "غير مصرح" }
+    }
+
+    // Get order and delivery man details
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        deliveryMan: true,
+      },
+    })
+
+    if (!order) {
+      return { success: false, error: "الطلب غير موجود" }
+    }
+
+    if (order.deliveryManId !== deliveryManId) {
+      return { success: false, error: "هذا الطلب غير مسند لهذا الموصل" }
+    }
+
+    // Update in transaction
+    const result = await prisma.$transaction(async (tx) => {
+      // Update order
+      const updatedOrder = await tx.order.update({
+        where: { id: orderId },
+        data: {
+          status: OrderStatus.DELIVERED,
+          deliveredAt: new Date(),
+        },
+      })
+
+      // Get delivery man's base fee
+      const deliveryMan = await tx.deliveryMan.findUnique({
+        where: { id: deliveryManId },
+      })
+
+      if (!deliveryMan) {
+        throw new Error("موظف التوصيل غير موجود")
+      }
+
+      // Calculate COD amount
+      const codAmount = order.paymentMethod === "COD" ? order.totalPrice : 0
+
+      // Update delivery man stats
+      const updatedDeliveryMan = await tx.deliveryMan.update({
+        where: { id: deliveryManId },
+        data: {
+          totalDeliveries: { increment: 1 },
+          successfulDeliveries: { increment: 1 },
+          totalEarned: { increment: deliveryMan.baseFee },
+          pendingEarnings: { increment: deliveryMan.baseFee },
+          collectedCOD: { increment: codAmount },
+          pendingCOD: { increment: codAmount },
+        },
+      })
+
+      // Create delivery attempt record
+      await tx.deliveryAttempt.create({
+        data: {
+          orderId: orderId,
+          attemptNumber: 1,
+          deliveryManId: deliveryManId,
+          status: "SUCCESSFUL",
+          attemptedAt: new Date(),
+          notes: "تم تسليم الطلب بنجاح",
+        },
+      })
+
+      return {
+        order: updatedOrder,
+        deliveryMan: updatedDeliveryMan,
+        earnings: deliveryMan.baseFee,
+        codAmount,
+      }
+    })
+
+    return { 
+      success: true, 
+      data: result,
+      message: "تم تأكيد تسليم الطلب بنجاح"
+    }
+  } catch (error) {
+    console.error("Error marking order as delivered:", error)
+    return { success: false, error: "حدث خطأ أثناء تحديث حالة الطلب" }
+  }
+}
+
+export async function collectCODFromDeliveryMan(deliveryManId: number, amount: number) {
+  try {
+    const session = await auth()
+    if (!session?.user || session.user.role !== Role.ADMIN) {
+      return { success: false, error: "غير مصرح. يجب أن تكون مديرًا." }
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      // Get current delivery man
+      const deliveryMan = await tx.deliveryMan.findUnique({
+        where: { id: deliveryManId },
+      })
+
+      if (!deliveryMan) {
+        throw new Error("موظف التوصيل غير موجود")
+      }
+
+      if (deliveryMan.pendingCOD < amount) {
+        throw new Error("المبلغ المطلوب تجميعه أكبر من المبلغ المعلق")
+      }
+
+      // Update delivery man's COD balances
+      const updatedDeliveryMan = await tx.deliveryMan.update({
+        where: { id: deliveryManId },
+        data: {
+          pendingCOD: { decrement: amount },
+          // Note: collectedCOD is not decremented as it's for tracking total collected
+        },
+      })
+
+      // Create money transfer record for COD collection
+      const moneyTransfer = await tx.moneyTransfer.create({
+        data: {
+          deliveryManId: deliveryManId,
+          amount: amount,
+          note: "تحصيل دفع نقدي عند الاستلام",
+          transferDate: new Date(),
+        },
+      })
+
+      return { deliveryMan: updatedDeliveryMan, moneyTransfer }
+    })
+
+    return { success: true, data: result }
+  } catch (error) {
+    console.error("Error collecting COD:", error)
+    return { success: false, error: "حدث خطأ أثناء تحصيل الدفع" }
+  }
+}
+
+export async function payDeliveryManEarnings(deliveryManId: number, amount: number) {
+  try {
+    const session = await auth()
+    if (!session?.user || session.user.role !== Role.ADMIN) {
+      return { success: false, error: "غير مصرح. يجب أن تكون مديرًا." }
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      // Get current delivery man
+      const deliveryMan = await tx.deliveryMan.findUnique({
+        where: { id: deliveryManId },
+      })
+
+      if (!deliveryMan) {
+        throw new Error("موظف التوصيل غير موجود")
+      }
+
+      if (deliveryMan.pendingEarnings < amount) {
+        throw new Error("المبلغ المطلوب دفعه أكبر من الأرباح المعلقة")
+      }
+
+      // Update delivery man's pending earnings
+      const updatedDeliveryMan = await tx.deliveryMan.update({
+        where: { id: deliveryManId },
+        data: {
+          pendingEarnings: { decrement: amount },
+        },
+      })
+
+      // Create money transfer record for earnings payment
+      const moneyTransfer = await tx.moneyTransfer.create({
+        data: {
+          deliveryManId: deliveryManId,
+          amount: amount,
+          note: "دفع أرباح من العمولات",
+          transferDate: new Date(),
+        },
+      })
+
+      return { deliveryMan: updatedDeliveryMan, moneyTransfer }
+    })
+
+    return { success: true, data: result }
+  } catch (error) {
+    console.error("Error paying delivery man earnings:", error)
+    return { success: false, error: "حدث خطأ أثناء دفع الأرباح" }
   }
 }

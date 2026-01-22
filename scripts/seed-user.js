@@ -10,9 +10,9 @@ async function main() {
   console.log("[v0] Creating default cities...");
   
   const defaultCities = [
-    { name: "الداخلة", code: "DA", isActive: true },
-    { name: "بوجدور", code: "BO", isActive: true },
-    { name: "العيون", code: "LA", isActive: true }
+    { name: "Dakhla", code: "DA", isActive: true },
+    { name: "Boujdour", code: "BO", isActive: true },
+    { name: "Laayoune", code: "LA", isActive: true }
   ];
 
   const createdCities = [];
@@ -40,7 +40,7 @@ async function main() {
     update: {},
     create: {
       email: "admin@sonic-delivery.com",
-      name: "مدير النظام",
+      name: "Administrateur Système",
       password: Admin_Hashed_Password,
       phone: "+212600000001",
       role: Role.ADMIN,
@@ -53,7 +53,7 @@ async function main() {
     update: {},
     create: {
       userId: adminUser.id,
-      address: "العنوان الرئيسي، الداخلة", 
+      address: "Adresse principale, Dakhla", 
     },
   });
 
@@ -69,7 +69,7 @@ async function main() {
     update: {},
     create: {
       email: "merchant.dakhla@sonic-delivery.com",
-      name: "محمد التاجر",
+      name: "Mohamed Commerçant",
       password: Merchant_Hashed_Password,
       phone: "+212600000002",
       role: Role.MERCHANT,
@@ -82,9 +82,9 @@ async function main() {
     update: {},
     create: {
       userId: merchantDakhla.id,
-      companyName: "متجر الداخلة",
+      companyName: "Magasin Dakhla",
       rib: "1234567890123456789012",
-      bankName: "البنك الشعبي",
+      bankName: "Banque Populaire",
       balance: 0,
       baseFee: 20.0, // Base fee for Dakhla merchant
     },
@@ -95,7 +95,7 @@ async function main() {
     update: {},
     create: {
       email: "merchant.boujdour@sonic-delivery.com",
-      name: "أحمد البوجدوري",
+      name: "Ahmed Boujdouri",
       password: Merchant_Hashed_Password,
       phone: "+212600000003",
       role: Role.MERCHANT,
@@ -108,9 +108,9 @@ async function main() {
     update: {},
     create: {
       userId: merchantBoujdour.id,
-      companyName: "متجر بوجدور",
+      companyName: "Magasin Boujdour",
       rib: "2234567890123456789012",
-      bankName: "بنك المغرب",
+      bankName: "Banque Maroc",
       balance: 0,
       baseFee: 25.0, // Base fee for Boujdour merchant
     },
@@ -121,7 +121,7 @@ async function main() {
     update: {},
     create: {
       email: "merchant.laayoune@sonic-delivery.com",
-      name: "عبد الله العيوني",
+      name: "Abdallah Laayouni",
       password: Merchant_Hashed_Password,
       phone: "+212600000004",
       role: Role.MERCHANT,
@@ -134,9 +134,9 @@ async function main() {
     update: {},
     create: {
       userId: merchantLaayoune.id,
-      companyName: "متجر العيون",
+      companyName: "Magasin Laayoune",
       rib: "3234567890123456789012",
-      bankName: "التجاري وفا بنك",
+      bankName: "BMCE",
       balance: 0,
       baseFee: 22.5, // Base fee for Laayoune merchant
     },
@@ -149,7 +149,7 @@ async function main() {
     update: {},
     create: {
       email: "delivery.dakhla@sonic-delivery.com",
-      name: "يوسف السائق",
+      name: "Youssef Chauffeur",
       password: Delivery_Hashed_Password,
       phone: "+212600000005",
       role: Role.DELIVERYMAN,
@@ -163,7 +163,7 @@ async function main() {
     create: {
       userId: deliveryDakhla.id,
       cityId: dakhlaCity?.id, // Use cityId instead of city string
-      vehicleType: "دراجة نارية",
+      vehicleType: "Moto",
       active: true,
       totalEarned: 0,
       baseFee: 10.0,
@@ -175,7 +175,7 @@ async function main() {
     update: {},
     create: {
       email: "delivery.boujdour@sonic-delivery.com",
-      name: "إبراهيم الموزع",
+      name: "Ibrahim Distributeur",
       password: Delivery_Hashed_Password,
       phone: "+212600000006",
       role: Role.DELIVERYMAN,
@@ -189,7 +189,7 @@ async function main() {
     create: {
       userId: deliveryBoujdour.id,
       cityId: boujdourCity?.id, // Use cityId instead of city string
-      vehicleType: "سيارة",
+      vehicleType: "Voiture",
       active: true,
       totalEarned: 0,
       baseFee: 12.0,
@@ -201,7 +201,7 @@ async function main() {
     update: {},
     create: {
       email: "delivery.laayoune@sonic-delivery.com",
-      name: "حسن المرسال",
+      name: "Hassan Messager",
       password: Delivery_Hashed_Password,
       phone: "+212600000007",
       role: Role.DELIVERYMAN,
@@ -215,7 +215,7 @@ async function main() {
     create: {
       userId: deliveryLaayoune.id,
       cityId: laayouneCity?.id, // Use cityId instead of city string
-      vehicleType: "دراجة نارية",
+      vehicleType: "Moto",
       active: true,
       totalEarned: 0,
       baseFee: 13.0,

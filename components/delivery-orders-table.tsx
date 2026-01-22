@@ -100,7 +100,8 @@ const statusMap: Record<string, { label: string; color: string; icon: string }> 
   },
 }
 
-export function DeliveryOrdersTable({ orders }: { orders: Order[] }) {
+export function DeliveryOrdersTable({ orders: initialOrders }: { orders: Order[] }) {
+  const [orders, setOrders] = useState<Order[]>(initialOrders)
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("ALL")
   const [cityFilter, setCityFilter] = useState<string>("ALL")
@@ -115,7 +116,6 @@ export function DeliveryOrdersTable({ orders }: { orders: Order[] }) {
   const [cities, setCities] = useState<City[]>([])
   const [loadingCities, setLoadingCities] = useState(false)
 
-  // Load cities on component mount
   useEffect(() => {
     async function loadCities() {
       setLoadingCities(true)
@@ -133,7 +133,6 @@ export function DeliveryOrdersTable({ orders }: { orders: Order[] }) {
     loadCities()
   }, [])
 
-  // Create city map from dynamic cities
   const cityMap = useMemo(() => {
     const map: Record<string, { label: string; color: string }> = {}
     const colors = [
@@ -157,11 +156,9 @@ export function DeliveryOrdersTable({ orders }: { orders: Order[] }) {
     return map
   }, [cities])
 
-  // Advanced filtering with multiple criteria
   const filteredOrders = useMemo(() => {
     let filtered = orders
 
-    // Tab-based filtering
     if (activeTab === "available") {
       filtered = filtered.filter(o => 
         o.status === "ACCEPTED" && !o.deliveryManId
@@ -172,7 +169,6 @@ export function DeliveryOrdersTable({ orders }: { orders: Order[] }) {
       filtered = filtered.filter(o => o.status === "DELIVERED")
     }
 
-    // Search filter
     if (searchQuery) {
       filtered = filtered.filter((order) =>
         order.orderCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -182,17 +178,14 @@ export function DeliveryOrdersTable({ orders }: { orders: Order[] }) {
       )
     }
 
-    // Status filter
     if (statusFilter !== "ALL") {
       filtered = filtered.filter(order => order.status === statusFilter)
     }
 
-    // City filter
     if (cityFilter !== "ALL") {
       filtered = filtered.filter(order => order.city === cityFilter)
     }
 
-    // Payment filter
     if (paymentFilter !== "ALL") {
       filtered = filtered.filter(order => order.paymentMethod === paymentFilter)
     }
@@ -200,7 +193,6 @@ export function DeliveryOrdersTable({ orders }: { orders: Order[] }) {
     return filtered
   }, [orders, searchQuery, statusFilter, cityFilter, paymentFilter, activeTab])
 
-  // Advanced statistics
   const stats = useMemo(() => {
     const available = orders.filter((o) => 
       o.status === "ACCEPTED" && !o.deliveryManId
@@ -216,7 +208,7 @@ export function DeliveryOrdersTable({ orders }: { orders: Order[] }) {
 
     const totalEarnings = orders
       .filter(o => o.status === "DELIVERED" && o.deliveryManId)
-      .reduce((sum, order) => sum + 15, 0) // 15 MAD per delivery
+      .reduce((sum, order) => sum + 15, 0)
 
     return {
       available,
@@ -226,7 +218,6 @@ export function DeliveryOrdersTable({ orders }: { orders: Order[] }) {
     }
   }, [orders])
 
-  // Unique cities for filter
   const uniqueCities = useMemo(() => {
     const cities = [...new Set(orders.map(order => order.city))]
     return cities.map(city => ({
@@ -239,7 +230,6 @@ export function DeliveryOrdersTable({ orders }: { orders: Order[] }) {
   const handleAcceptOrder = async (orderId: number) => {
     setUpdatingOrderId(orderId)
     
-    // First, check if order is in ACCEPTED status
     const orderToAccept = orders.find(o => o.id === orderId);
     if (orderToAccept && orderToAccept.status !== "ACCEPTED") {
       toast.error("لا يمكن قبول هذا الطلب. يجب أن يكون في حالة مقبول أولاً من قبل الإدارة.")
@@ -250,11 +240,13 @@ export function DeliveryOrdersTable({ orders }: { orders: Order[] }) {
     const result = await acceptOrder(orderId)
 
     if (result.success) {
+      setOrders(prev => prev.map(order => 
+        order.id === orderId 
+          ? { ...order, status: "ASSIGNED_TO_DELIVERY", deliveryManId: 1 }
+          : order
+      ))
+      
       toast.success(result.message)
-      // Refresh the page to show updated orders
-      setTimeout(() => {
-        window.location.reload()
-      }, 1000)
     } else {
       toast.error(result.message)
     }
@@ -271,14 +263,16 @@ export function DeliveryOrdersTable({ orders }: { orders: Order[] }) {
     const result = await rejectOrder(selectedOrderId, rejectionReason)
 
     if (result.success) {
+      setOrders(prev => prev.map(order => 
+        order.id === selectedOrderId 
+          ? { ...order, status: "REJECTED" }
+          : order
+      ))
+      
       toast.success(result.message)
       setRejectDialogOpen(false)
       setRejectionReason("")
       setSelectedOrderId(null)
-      // Refresh the page to show updated orders
-      setTimeout(() => {
-        window.location.reload()
-      }, 1000)
     } else {
       toast.error(result.message)
     }
@@ -290,11 +284,13 @@ export function DeliveryOrdersTable({ orders }: { orders: Order[] }) {
     const result = await updateOrderStatus(orderId, newStatus as any)
 
     if (result.success) {
+      setOrders(prev => prev.map(order => 
+        order.id === orderId 
+          ? { ...order, status: newStatus }
+          : order
+      ))
+      
       toast.success(result.message)
-      // Refresh the page to show updated orders
-      setTimeout(() => {
-        window.location.reload()
-      }, 1000)
     } else {
       toast.error(result.message)
     }
@@ -340,14 +336,16 @@ export function DeliveryOrdersTable({ orders }: { orders: Order[] }) {
     const result = await updateOrderStatus(selectedOrderId, "DELAYED")
 
     if (result.success) {
+      setOrders(prev => prev.map(order => 
+        order.id === selectedOrderId 
+          ? { ...order, status: "DELAYED" }
+          : order
+      ))
+      
       toast.success(result.message)
       setReportDialogOpen(false)
       setReportReason("")
       setSelectedOrderId(null)
-      // Refresh the page to show updated orders
-      setTimeout(() => {
-        window.location.reload()
-      }, 1000)
     } else {
       toast.error(result.message)
     }
@@ -366,7 +364,6 @@ export function DeliveryOrdersTable({ orders }: { orders: Order[] }) {
 
   return (
     <div className="space-y-6">
-      {/* Statistics Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="border-l-4 border-l-green-500">
           <CardContent className="p-4">
@@ -425,7 +422,6 @@ export function DeliveryOrdersTable({ orders }: { orders: Order[] }) {
         </Card>
       </div>
 
-      {/* Tabs Navigation */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-4 bg-gray-100/50 p-1">
           <TabsTrigger value="all" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">
@@ -443,11 +439,9 @@ export function DeliveryOrdersTable({ orders }: { orders: Order[] }) {
         </TabsList>
       </Tabs>
 
-      {/* Filters Bar */}
       <Card>
         <CardContent className="p-4">
           <div className="flex flex-col lg:flex-row gap-4">
-            {/* Search */}
             <div className="flex-1 relative">
               <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -461,7 +455,6 @@ export function DeliveryOrdersTable({ orders }: { orders: Order[] }) {
               />
             </div>
 
-            {/* Status Filter */}
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-full lg:w-40">
                 <SelectValue placeholder="حالة الطلب" />
@@ -479,7 +472,6 @@ export function DeliveryOrdersTable({ orders }: { orders: Order[] }) {
               </SelectContent>
             </Select>
 
-            {/* City Filter */}
             <Select value={cityFilter} onValueChange={setCityFilter} disabled={loadingCities}>
               <SelectTrigger className="w-full lg:w-40">
                 <SelectValue placeholder={loadingCities ? "جاري التحميل..." : "المدينة"} />
@@ -503,7 +495,6 @@ export function DeliveryOrdersTable({ orders }: { orders: Order[] }) {
               </SelectContent>
             </Select>
 
-            {/* Payment Filter */}
             <Select value={paymentFilter} onValueChange={setPaymentFilter}>
               <SelectTrigger className="w-full lg:w-40">
                 <SelectValue placeholder="طريقة الدفع" />
@@ -524,7 +515,6 @@ export function DeliveryOrdersTable({ orders }: { orders: Order[] }) {
         </CardContent>
       </Card>
 
-      {/* Results Summary */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <div className="text-sm text-gray-600">
           عرض <span className="font-semibold text-gray-900">{filteredOrders.length}</span> من أصل <span className="font-semibold text-gray-900">{orders.length}</span> طلب
@@ -559,12 +549,10 @@ export function DeliveryOrdersTable({ orders }: { orders: Order[] }) {
         )}
       </div>
 
-      {/* Orders List */}
       <div className="space-y-4">
         {filteredOrders.map((order) => (
           <Card key={order.id} className="hover:shadow-lg transition-all duration-200 border-l-4 border-l-blue-500">
             <CardContent className="p-6">
-              {/* Order Header */}
               <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-6">
                 <div className="flex items-start gap-4 flex-1">
                   <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
@@ -610,7 +598,6 @@ export function DeliveryOrdersTable({ orders }: { orders: Order[] }) {
                 </div>
               </div>
 
-              {/* Customer Information */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 p-4 bg-gray-50 rounded-xl mb-6">
                 <div>
                   <p className="text-xs font-medium text-gray-500 mb-1">اسم العميل</p>
@@ -636,7 +623,6 @@ export function DeliveryOrdersTable({ orders }: { orders: Order[] }) {
                 )}
               </div>
 
-              {/* Products */}
               <div className="mb-6">
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-sm font-semibold text-gray-700">المنتجات ({order.orderItems.length})</p>
@@ -676,7 +662,6 @@ export function DeliveryOrdersTable({ orders }: { orders: Order[] }) {
                 </ScrollArea>
               </div>
 
-              {/* Actions */}
               <div className="flex flex-col sm:flex-row gap-3">
                 {order.status === "ACCEPTED" && !order.deliveryManId && (
                   <>
@@ -743,7 +728,6 @@ export function DeliveryOrdersTable({ orders }: { orders: Order[] }) {
           </Card>
         ))}
 
-        {/* Empty State */}
         {filteredOrders.length === 0 && (
           <Card>
             <CardContent className="p-12 text-center">
@@ -767,7 +751,6 @@ export function DeliveryOrdersTable({ orders }: { orders: Order[] }) {
         )}
       </div>
 
-      {/* Reject/Cancel Dialog */}
       <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -803,7 +786,6 @@ export function DeliveryOrdersTable({ orders }: { orders: Order[] }) {
         </DialogContent>
       </Dialog>
 
-      {/* Report Dialog */}
       <Dialog open={reportDialogOpen} onOpenChange={setReportDialogOpen}>
         <DialogContent>
           <DialogHeader>

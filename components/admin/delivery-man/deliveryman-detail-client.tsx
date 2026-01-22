@@ -1,27 +1,46 @@
 "use client"
 
+import { createSlugWithId } from "@/lib/utils/slug"
 import { useState } from "react"
-import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ArrowLeft, Edit, DollarSign, Package, ShoppingCart, TrendingUp, Phone, Mail, Building, CreditCard, Calendar, Truck, MapPin, Eye, FileText } from 'lucide-react'
-import { EditDeliveryManDialog } from "./edit-deliveryman-dialog"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { 
+  MapPin, 
+  Package, 
+  DollarSign, 
+  Clock, 
+  CreditCard,
+  TrendingUp,
+  Phone,
+  Mail,
+  Calendar,
+  Truck,
+  User,
+  Receipt,
+  RefreshCw
+} from 'lucide-react'
+import { PaymentActions } from "./payment-actions"
 import { AddPaymentDialog } from "./add-payment-dialog"
-import { formatDistanceToNow } from "date-fns"
-import { ar } from "date-fns/locale"
+import { markOrderAsDelivered } from "@/lib/actions/admin/delivery-men"
+import { toast } from "sonner"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 type DeliveryManDetail = {
   id: number
   vehicleType: string | null
   active: boolean
   city: string
+  cityId: number | null
   totalDeliveries: number
   successfulDeliveries: number
   totalEarned: number
+  pendingEarnings: number
+  collectedCOD: number
+  pendingCOD: number
   baseFee: number
+  rating: number | null
   user: {
     id: number
     name: string
@@ -36,8 +55,10 @@ type DeliveryManDetail = {
     customerName: string
     totalPrice: number
     status: string
-    city: string
+    city: string | null
     createdAt: string
+    deliveredAt: string | null
+    paymentMethod: "COD" | "PREPAID"
     merchant: {
       user: {
         name: string
@@ -47,9 +68,11 @@ type DeliveryManDetail = {
   deliveryAttempts: Array<{
     id: number
     attemptedAt: string
+    status: string
     wasSuccessful: boolean
     notes: string | null
     order: {
+      id: number
       orderCode: string
       customerName: string
     }
@@ -62,403 +85,692 @@ type DeliveryManDetail = {
     invoiceImage: string | null
     createdAt: string
   }>
+  allOrders: Array<{
+    id: number
+    orderCode: string
+    customerName: string
+    totalPrice: number
+    status: string
+    city: string | null
+    createdAt: string
+    deliveredAt: string | null
+    paymentMethod: "COD" | "PREPAID"
+    merchant: {
+      user: {
+        name: string
+      }
+    }
+    deliveryAttempts: Array<{
+      attemptedAt: string
+      status: string
+      notes: string | null
+    }>
+  }>
 }
 
 export function DeliveryManDetailClient({ initialDeliveryMan }: { initialDeliveryMan: DeliveryManDetail }) {
-  const [deliveryMan, setDeliveryMan] = useState(initialDeliveryMan)
-  const router = useRouter()
+  const [deliveryMan, setDeliveryMan] = useState<DeliveryManDetail>(initialDeliveryMan)
+  const [processingOrder, setProcessingOrder] = useState<number | null>(null)
+  const [updatingData, setUpdatingData] = useState(false)
+  const [activeTab, setActiveTab] = useState("current")
 
   const successRate = deliveryMan.totalDeliveries > 0
     ? ((deliveryMan.successfulDeliveries / deliveryMan.totalDeliveries) * 100).toFixed(1)
     : "0"
 
-  const stats = {
-    totalOrders: deliveryMan.assignedOrders.length,
-    deliveredOrders: deliveryMan.assignedOrders.filter(o => o.status === "DELIVERED").length,
-    totalAttempts: deliveryMan.deliveryAttempts.length,
-    successfulAttempts: deliveryMan.deliveryAttempts.filter(a => a.wasSuccessful).length,
+  const handleMarkAsDelivered = async (orderId: number) => {
+    setProcessingOrder(orderId)
+    try {
+      const result = await markOrderAsDelivered(orderId, deliveryMan.id)
+      if (result.success) {
+        // Find the order to get its details
+        const deliveredOrder = deliveryMan.assignedOrders.find(order => order.id === orderId)
+        const codAmount = deliveredOrder?.paymentMethod === "COD" ? deliveredOrder.totalPrice : 0
+        
+        // Update local state with the response from server
+        setDeliveryMan(prev => ({
+          ...prev,
+          assignedOrders: prev.assignedOrders.map(order => 
+            order.id === orderId 
+              ? { 
+                  ...order, 
+                  status: "DELIVERED",
+                  deliveredAt: new Date().toISOString()
+                }
+              : order
+          ),
+          allOrders: prev.allOrders.map(order => 
+            order.id === orderId 
+              ? { 
+                  ...order, 
+                  status: "DELIVERED",
+                  deliveredAt: new Date().toISOString()
+                }
+              : order
+          ),
+          totalDeliveries: prev.totalDeliveries + 1,
+          successfulDeliveries: prev.successfulDeliveries + 1,
+          totalEarned: prev.totalEarned + prev.baseFee,
+          pendingEarnings: prev.pendingEarnings + prev.baseFee,
+          collectedCOD: prev.collectedCOD + codAmount,
+          pendingCOD: prev.pendingCOD + codAmount
+        }))
+        
+        toast.success("تم تأكيد تسليم الطلب بنجاح")
+        
+        // Refresh data to get the latest from server
+        await refreshData()
+      } else {
+        toast.error(result.error || "حدث خطأ أثناء تحديث حالة الطلب")
+      }
+    } catch (error) {
+      console.error("Error marking order as delivered:", error)
+      toast.error("حدث خطأ أثناء تحديث حالة الطلب")
+    } finally {
+      setProcessingOrder(null)
+    }
   }
 
+  const handlePaymentSuccess = (type: 'earnings' | 'cod', amount: number) => {
+    // Update local state when payment is made
+    setDeliveryMan(prev => ({
+      ...prev,
+      pendingEarnings: type === 'earnings' ? prev.pendingEarnings - amount : prev.pendingEarnings,
+      pendingCOD: type === 'cod' ? prev.pendingCOD - amount : prev.pendingCOD,
+      moneyTransfers: [
+        {
+          id: Date.now(),
+          amount: amount,
+          reference: null,
+          note: type === 'earnings' ? "دفع أرباح من العمولات" : "تحصيل دفع نقدي عند الاستلام",
+          invoiceImage: null,
+          createdAt: new Date().toISOString()
+        },
+        ...prev.moneyTransfers
+      ]
+    }))
+    
+    toast.success(`تم ${type === 'earnings' ? 'دفع الأرباح' : 'تحصيل COD'} بنجاح`)
+  }
+
+  const handleAddPaymentSuccess = (newTransfer: any) => {
+    // Add new payment to local state
+    setDeliveryMan(prev => ({
+      ...prev,
+      moneyTransfers: [newTransfer, ...prev.moneyTransfers]
+    }))
+    
+    toast.success("تمت إضافة الدفعة بنجاح")
+  }
+
+  const refreshData = async () => {
+    setUpdatingData(true)
+    try {
+      // Fetch fresh data from server
+      const response = await fetch(`/api/admin/delivery-men/${createSlugWithId(deliveryMan.user.name, deliveryMan.id)}`)
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success) {
+          setDeliveryMan(data.data)
+          toast.success("تم تحديث البيانات")
+        }
+      }
+    } catch (error) {
+      console.error("Error refreshing data:", error)
+      toast.error("حدث خطأ أثناء تحديث البيانات")
+    } finally {
+      setUpdatingData(false)
+    }
+  }
+
+  // Filter orders based on active tab
+  const getOrdersToDisplay = () => {
+    switch (activeTab) {
+      case "current":
+        return deliveryMan.assignedOrders.filter(order => 
+          order.status === "ASSIGNED_TO_DELIVERY" || order.status === "PENDING"
+        )
+      case "delivered":
+        return deliveryMan.allOrders.filter(order => order.status === "DELIVERED")
+      case "all":
+        return deliveryMan.allOrders
+      case "failed":
+        return deliveryMan.allOrders.filter(order => 
+          order.status === "CANCELLED" || order.status === "REJECTED"
+        )
+      default:
+        return deliveryMan.assignedOrders
+    }
+  }
+
+  const displayedOrders = getOrdersToDisplay()
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header - Fully responsive */}
-      <div className="bg-white border-b sticky top-0 z-10 shadow-sm">
-        <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-3 sm:py-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-2 sm:gap-4">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => router.back()}
-                className="hover:bg-[#048dba]/10"
-              >
-                <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
-              </Button>
-              <div>
-                <h1 className="text-lg sm:text-2xl lg:text-3xl font-bold text-gray-900">تفاصيل موظف التوصيل</h1>
-                <p className="text-xs sm:text-sm text-gray-500 hidden sm:block">معلومات كاملة عن موظف التوصيل ونشاطه</p>
-              </div>
-            </div>
-            <div className="flex gap-2 sm:gap-3 flex-wrap">
-              <EditDeliveryManDialog
-                deliveryMan={deliveryMan}
-                onSuccess={(updated) => setDeliveryMan({ ...deliveryMan, ...updated })}
-              >
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="border-[#048dba] text-[#048dba] hover:bg-[#048dba] hover:text-white flex-1 sm:flex-none text-xs sm:text-sm"
-                >
-                  <Edit className="w-3 h-3 sm:w-4 sm:h-4 ml-1 sm:ml-2" />
-                  <span className="hidden xs:inline">تعديل البيانات</span>
-                  <span className="xs:hidden">تعديل</span>
-                </Button>
-              </EditDeliveryManDialog>
-              <AddPaymentDialog deliveryManId={deliveryMan.id} deliveryManName={deliveryMan.user.name}>
-                <Button
-                  size="sm"
-                  className="bg-[#048dba] hover:bg-[#037a9e] text-white flex-1 sm:flex-none text-xs sm:text-sm"
-                >
-                  <DollarSign className="w-3 h-3 sm:w-4 sm:h-4 ml-1 sm:ml-2" />
-                  <span className="hidden xs:inline">إضافة دفعة</span>
-                  <span className="xs:hidden">دفعة</span>
-                </Button>
-              </AddPaymentDialog>
+    <div className="space-y-6 p-4 sm:p-6">
+      {/* Header with actions */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="flex items-center gap-4">
+          <Avatar className="w-16 h-16 ring-4 ring-[#048dba]/20">
+            <AvatarImage src={deliveryMan.user.image || undefined} />
+            <AvatarFallback className="bg-[#048dba] text-white text-2xl">
+              {deliveryMan.user.name.charAt(0)}
+            </AvatarFallback>
+          </Avatar>
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
+              {deliveryMan.user.name}
+            </h1>
+            <div className="flex items-center gap-2 mt-1">
+              <Badge variant={deliveryMan.active ? "default" : "secondary"} 
+                className={deliveryMan.active ? "bg-green-500 hover:bg-green-600" : ""}>
+                {deliveryMan.active ? "نشط" : "غير نشط"}
+              </Badge>
+              {deliveryMan.city && (
+                <Badge variant="outline" className="border-[#048dba] text-[#048dba]">
+                  <MapPin className="w-3 h-3 ml-1" />
+                  {deliveryMan.city}
+                </Badge>
+              )}
+              {deliveryMan.rating && (
+                <Badge variant="outline" className="border-yellow-500 text-yellow-600">
+                  ⭐ {deliveryMan.rating.toFixed(1)}
+                </Badge>
+              )}
             </div>
           </div>
         </div>
+        
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={refreshData}
+            disabled={updatingData}
+            className="h-10"
+          >
+            <RefreshCw className={`w-4 h-4 ml-2 ${updatingData ? 'animate-spin' : ''}`} />
+            {updatingData ? "جاري التحديث..." : "تحديث البيانات"}
+          </Button>
+          
+          <PaymentActions
+            deliveryManId={deliveryMan.id}
+            deliveryManName={deliveryMan.user.name}
+            pendingEarnings={deliveryMan.pendingEarnings}
+            pendingCOD={deliveryMan.pendingCOD}
+            onSuccess={handlePaymentSuccess}
+          >
+            <Button className="bg-green-600 hover:bg-green-700 w-full sm:w-auto">
+              <CreditCard className="w-4 h-4 ml-2" />
+              معاملات مالية
+            </Button>
+          </PaymentActions>
+          
+          <AddPaymentDialog
+            deliveryManId={deliveryMan.id}
+            deliveryManName={deliveryMan.user.name}
+            onSuccess={handleAddPaymentSuccess}
+          >
+            <Button variant="outline" className="border-[#048dba] text-[#048dba] w-full sm:w-auto">
+              <DollarSign className="w-4 h-4 ml-2" />
+              إضافة دفعة
+            </Button>
+          </AddPaymentDialog>
+        </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
-        {/* Profile Card - Fully responsive */}
-        <Card className="border-t-4 border-t-[#048dba] shadow-md">
-          <CardContent className="p-4 sm:p-6">
-            <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
-              <div className="flex justify-center sm:justify-start">
-                <Avatar className="w-20 h-20 sm:w-24 sm:h-24 ring-4 ring-[#048dba]/20">
-                  <AvatarImage src={deliveryMan.user.image || undefined} />
-                  <AvatarFallback className="bg-[#048dba] text-white text-xl sm:text-2xl">
-                    {deliveryMan.user.name.charAt(0)}
-                  </AvatarFallback>
-                </Avatar>
-              </div>
-              <div className="flex-1 grid grid-cols-1 xs:grid-cols-2 gap-3 sm:gap-4 lg:gap-6">
-                <div className="bg-gray-50 p-3 rounded-lg">
-                  <p className="text-xs text-gray-500 flex items-center gap-1 sm:gap-2 mb-1">
-                    <Building className="w-3 h-3 sm:w-4 sm:h-4 text-[#048dba]" />
-                    الاسم الكامل
-                  </p>
+      {/* User Info Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <User className="w-5 h-5" />
+            معلومات الموصل
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-sm font-medium text-gray-500">المعلومات الشخصية</h3>
+                <div className="mt-2 space-y-2">
                   <div className="flex items-center gap-2">
-                    <p className="font-semibold text-sm sm:text-base lg:text-lg truncate">{deliveryMan.user.name}</p>
-                    <Badge
-                      variant={deliveryMan.active ? "default" : "secondary"}
-                      className={`${deliveryMan.active ? 'bg-[#048dba]' : ''} text-xs shrink-0`}
-                    >
-                      {deliveryMan.active ? "نشط" : "غير نشط"}
-                    </Badge>
+                    <User className="w-4 h-4 text-gray-400" />
+                    <span className="font-medium">{deliveryMan.user.name}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Mail className="w-4 h-4 text-gray-400" />
+                    <span>{deliveryMan.user.email}</span>
+                  </div>
+                  {deliveryMan.user.phone && (
+                    <div className="flex items-center gap-2">
+                      <Phone className="w-4 h-4 text-gray-400" />
+                      <span>{deliveryMan.user.phone}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-gray-400" />
+                    <span>
+                      انضم في {new Date(deliveryMan.user.createdAt).toLocaleDateString('en-US')}
+                    </span>
                   </div>
                 </div>
-                <div className="bg-gray-50 p-3 rounded-lg">
-                  <p className="text-xs text-gray-500 flex items-center gap-1 sm:gap-2 mb-1">
-                    <MapPin className="w-3 h-3 sm:w-4 sm:h-4 text-[#048dba]" />
-                    المدينة
-                  </p>
-                  <Badge variant="outline" className="border-[#048dba] text-[#048dba] text-sm">
-                    {deliveryMan.city}
-                  </Badge>
-                </div>
-                <div className="bg-gray-50 p-3 rounded-lg">
-                  <p className="text-xs text-gray-500 flex items-center gap-1 sm:gap-2 mb-1">
-                    <Mail className="w-3 h-3 sm:w-4 sm:h-4 text-[#048dba]" />
-                    البريد الإلكتروني
-                  </p>
-                  <p className="font-semibold text-xs sm:text-sm truncate">{deliveryMan.user.email}</p>
-                </div>
-                <div className="bg-gray-50 p-3 rounded-lg">
-                  <p className="text-xs text-gray-500 flex items-center gap-1 sm:gap-2 mb-1">
-                    <Phone className="w-3 h-3 sm:w-4 sm:h-4 text-[#048dba]" />
-                    رقم الهاتف
-                  </p>
-                  <p className="font-semibold text-sm sm:text-base">{deliveryMan.user.phone || "غير محدد"}</p>
-                </div>
-                <div className="bg-gray-50 p-3 rounded-lg">
-                  <p className="text-xs text-gray-500 flex items-center gap-1 sm:gap-2 mb-1">
-                    <Truck className="w-3 h-3 sm:w-4 sm:h-4 text-[#048dba]" />
-                    نوع المركبة
-                  </p>
-                  <p className="font-semibold text-sm sm:text-base truncate">{deliveryMan.vehicleType || "غير محدد"}</p>
-                </div>
-                <div className="bg-gray-50 p-3 rounded-lg">
-                  <p className="text-xs text-gray-500 flex items-center gap-1 sm:gap-2 mb-1">
-                    <DollarSign className="w-3 h-3 sm:w-4 sm:h-4 text-[#048dba]" />
-                    الأجرة الأساسية
-                  </p>
-                  <p className="font-semibold text-sm sm:text-base">{deliveryMan.baseFee.toFixed(2)} د.م</p>
+              </div>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-sm font-medium text-gray-500">معلومات التوصيل</h3>
+                <div className="mt-2 space-y-2">
+                  {deliveryMan.vehicleType && (
+                    <div className="flex items-center gap-2">
+                      <Truck className="w-4 h-4 text-gray-400" />
+                      <span>نوع المركبة: {deliveryMan.vehicleType}</span>
+                    </div>
+                  )}
+                  {deliveryMan.city && (
+                    <div className="flex items-center gap-2">
+                      <MapPin className="w-4 h-4 text-gray-400" />
+                      <span>المدينة: {deliveryMan.city}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <DollarSign className="w-4 h-4 text-gray-400" />
+                    <span>أجرة التوصيل: {deliveryMan.baseFee.toFixed(2)} د.م</span>
+                  </div>
                 </div>
               </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Total Earnings */}
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500">الأرباح الإجمالية</p>
+                <p className="text-2xl font-bold text-blue-600">
+                  {deliveryMan.totalEarned.toFixed(2)} د.م
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  من {deliveryMan.successfulDeliveries} طلبات
+                </p>
+              </div>
+              <DollarSign className="w-8 h-8 text-blue-500" />
             </div>
           </CardContent>
         </Card>
 
-        {/* Stats Cards - Fully responsive grid */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-          <Card className="border-r-4 border-r-green-500 hover:shadow-lg transition-shadow">
-            <CardContent className="p-3 sm:p-4 lg:p-6">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-between gap-2">
-                <div className="w-full">
-                  <p className="text-xs text-gray-500 mb-1">إجمالي الأرباح</p>
-                  <p className="text-lg sm:text-xl lg:text-2xl font-bold text-green-600 truncate">{deliveryMan.totalEarned.toFixed(2)} د.م</p>
-                </div>
-                <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-green-100 rounded-full flex items-center justify-center shrink-0">
-                  <DollarSign className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-green-600" />
-                </div>
+        {/* Pending Earnings */}
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500">أرباح معلقة</p>
+                <p className="text-2xl font-bold text-orange-600">
+                  {deliveryMan.pendingEarnings.toFixed(2)} د.م
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  {deliveryMan.baseFee > 0 ? Math.round(deliveryMan.pendingEarnings / deliveryMan.baseFee) : 0} طلبات معلقة
+                </p>
               </div>
-            </CardContent>
-          </Card>
-          <Card className="border-r-4 border-r-[#048dba] hover:shadow-lg transition-shadow">
-            <CardContent className="p-3 sm:p-4 lg:p-6">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-between gap-2">
-                <div className="w-full">
-                  <p className="text-xs text-gray-500 mb-1">معدل النجاح</p>
-                  <p className="text-lg sm:text-xl lg:text-2xl font-bold text-[#048dba]">{successRate}%</p>
-                </div>
-                <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-[#048dba]/10 rounded-full flex items-center justify-center shrink-0">
-                  <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-[#048dba]" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="border-r-4 border-r-purple-500 hover:shadow-lg transition-shadow">
-            <CardContent className="p-3 sm:p-4 lg:p-6">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-between gap-2">
-                <div className="w-full">
-                  <p className="text-xs text-gray-500 mb-1">إجمالي التوصيلات</p>
-                  <p className="text-lg sm:text-xl lg:text-2xl font-bold text-purple-600">{deliveryMan.totalDeliveries}</p>
-                </div>
-                <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-purple-100 rounded-full flex items-center justify-center shrink-0">
-                  <Package className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-purple-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="border-r-4 border-r-orange-500 hover:shadow-lg transition-shadow">
-            <CardContent className="p-3 sm:p-4 lg:p-6">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-between gap-2">
-                <div className="w-full">
-                  <p className="text-xs text-gray-500 mb-1">التوصيلات الناجحة</p>
-                  <p className="text-lg sm:text-xl lg:text-2xl font-bold text-orange-600">{deliveryMan.successfulDeliveries}</p>
-                </div>
-                <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-orange-100 rounded-full flex items-center justify-center shrink-0">
-                  <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-orange-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+              <Clock className="w-8 h-8 text-orange-500" />
+            </div>
+          </CardContent>
+        </Card>
 
-        {/* Tabs - Responsive with added payments tab */}
-        <Tabs defaultValue="orders" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 bg-gray-100 p-1 h-auto gap-1">
-            <TabsTrigger
-              value="orders"
-              className="text-xs sm:text-sm data-[state=active]:bg-[#048dba] data-[state=active]:text-white py-2"
-            >
-              <span className="hidden sm:inline">الطلبات المسندة</span>
-              <span className="sm:hidden">طلبات</span>
-              <span className="mr-1">({deliveryMan.assignedOrders.length})</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="attempts"
-              className="text-xs sm:text-sm data-[state=active]:bg-[#048dba] data-[state=active]:text-white py-2"
-            >
-              <span className="hidden sm:inline">محاولات التوصيل</span>
-              <span className="sm:hidden">محاولات</span>
-              <span className="mr-1">({deliveryMan.deliveryAttempts.length})</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="payments"
-              className="text-xs sm:text-sm data-[state=active]:bg-[#048dba] data-[state=active]:text-white py-2"
-            >
-              <span className="hidden sm:inline">المدفوعات</span>
-              <span className="sm:hidden">دفع</span>
-              <span className="mr-1">({deliveryMan.moneyTransfers?.length || 0})</span>
-            </TabsTrigger>
-          </TabsList>
+        {/* Pending COD */}
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500">COD معلقة</p>
+                <p className="text-2xl font-bold text-red-600">
+                  {deliveryMan.pendingCOD.toFixed(2)} د.م
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  تحتاج لتسليم للإدارة
+                </p>
+              </div>
+              <CreditCard className="w-8 h-8 text-red-500" />
+            </div>
+          </CardContent>
+        </Card>
 
-          {/* Orders Tab */}
-          <TabsContent value="orders">
-            <Card>
-              <CardHeader className="p-3 sm:p-6">
-                <CardTitle className="text-base sm:text-lg flex items-center gap-2">
-                  <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 text-[#048dba]" />
-                  الطلبات المسندة
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-3 sm:p-6">
-                {deliveryMan.assignedOrders.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500">
-                    <ShoppingCart className="w-12 h-12 mx-auto mb-2 text-gray-300" />
-                    <p className="text-sm">لا توجد طلبات مسندة حالياً</p>
-                  </div>
-                ) : (
+        {/* Success Rate */}
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500">معدل النجاح</p>
+                <p className={`text-2xl font-bold ${
+                  parseFloat(successRate) >= 90 ? 'text-green-600' :
+                  parseFloat(successRate) >= 70 ? 'text-yellow-600' : 'text-red-600'
+                }`}>
+                  {successRate}%
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  {deliveryMan.successfulDeliveries} / {deliveryMan.totalDeliveries}
+                </p>
+              </div>
+              <TrendingUp className="w-8 h-8 text-green-500" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Main Content Tabs */}
+      <Tabs defaultValue="orders" className="space-y-6">
+        <TabsList className="grid grid-cols-3 w-full">
+          <TabsTrigger value="info" className="flex items-center gap-2">
+            <User className="w-4 h-4" />
+            المعلومات
+          </TabsTrigger>
+          <TabsTrigger value="orders" className="flex items-center gap-2">
+            <Package className="w-4 h-4" />
+            الطلبات ({deliveryMan.allOrders?.length || 0})
+          </TabsTrigger>
+          <TabsTrigger value="transactions" className="flex items-center gap-2">
+            <Receipt className="w-4 h-4" />
+            المعاملات ({deliveryMan.moneyTransfers.length})
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Info Tab */}
+        <TabsContent value="info">
+          <Card>
+            <CardContent className="pt-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Personal Information */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold">المعلومات الشخصية</h3>
                   <div className="space-y-3">
-                    {deliveryMan.assignedOrders.map((order) => (
-                      <div
-                        key={order.id}
-                        className="p-3 sm:p-4 border border-gray-200 rounded-lg hover:shadow-md hover:border-[#048dba]/50 cursor-pointer transition-all"
-                        onClick={() => router.push(`/admin/orders/${order.id}`)}
-                      >
-                        <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-4 gap-3">
-                          <div>
-                            <p className="font-semibold text-[#048dba] text-sm sm:text-base">{order.orderCode}</p>
-                            <p className="text-xs sm:text-sm text-gray-600 truncate">{order.customerName}</p>
-                          </div>
-                          <div>
-                            <p className="text-xs text-gray-500">التاجر</p>
-                            <p className="font-semibold text-sm truncate">{order.merchant.user.name}</p>
-                          </div>
-                          <div>
-                            <p className="text-xs text-gray-500">المدينة</p>
-                            <p className="font-semibold text-sm">{order.city}</p>
-                          </div>
-                          <div>
-                            <Badge className="bg-[#048dba] text-xs">{order.status}</Badge>
-                            <p className="text-xs text-gray-400 mt-1">
-                              {new Date(order.createdAt).toLocaleDateString("en-US")}
-                            </p>
-                          </div>
-                        </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-500">الاسم الكامل:</span>
+                      <span className="font-medium">{deliveryMan.user.name}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-500">البريد الإلكتروني:</span>
+                      <span>{deliveryMan.user.email}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-500">رقم الهاتف:</span>
+                      <span>{deliveryMan.user.phone || "غير متوفر"}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-500">تاريخ الانضمام:</span>
+                      <span>{new Date(deliveryMan.user.createdAt).toLocaleDateString('en-US')}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Delivery Information */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold">معلومات التوصيل</h3>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-500">نوع المركبة:</span>
+                      <span>{deliveryMan.vehicleType || "غير محدد"}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-500">المدينة:</span>
+                      <span>{deliveryMan.city || "غير محدد"}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-500">أجرة التوصيل:</span>
+                      <span className="font-medium">{deliveryMan.baseFee.toFixed(2)} د.م</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-500">الحالة:</span>
+                      <Badge variant={deliveryMan.active ? "default" : "secondary"} 
+                        className={deliveryMan.active ? "bg-green-500" : ""}>
+                        {deliveryMan.active ? "نشط" : "غير نشط"}
+                      </Badge>
+                    </div>
+                    {deliveryMan.rating && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-500">التقييم:</span>
+                        <Badge variant="outline" className="border-yellow-500 text-yellow-600">
+                          ⭐ {deliveryMan.rating.toFixed(1)}
+                        </Badge>
                       </div>
-                    ))}
+                    )}
                   </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-          {/* Delivery Attempts Tab */}
-          <TabsContent value="attempts">
-            <Card>
-              <CardHeader className="p-3 sm:p-6">
-                <CardTitle className="text-base sm:text-lg flex items-center gap-2">
-                  <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-[#048dba]" />
-                  سجل محاولات التوصيل
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-3 sm:p-6">
-                {deliveryMan.deliveryAttempts.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500">
-                    <TrendingUp className="w-12 h-12 mx-auto mb-2 text-gray-300" />
-                    <p className="text-sm">لا توجد محاولات توصيل حالياً</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {deliveryMan.deliveryAttempts.map((attempt) => (
-                      <div key={attempt.id} className="p-3 sm:p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow">
-                        <div className="flex flex-col justify-between items-start gap-5 md:flex-row md:items-center ">
-                          <div>
-                            <p className="font-semibold text-sm sm:text-base">{attempt.order.orderCode}</p>
-                            <p className="text-xs text-gray-600 truncate">{attempt.order.customerName}</p>
-                          </div>
-                          <div>
-                            <p className="text-sm text-gray-500">
-                              {new Date(attempt.attemptedAt).toLocaleDateString("en-US")}
-                            </p>
-                            <p className="text-sm text-gray-500 mt-1">
-                              {formatDistanceToNow(new Date(attempt.attemptedAt), { addSuffix: true, locale: ar })}
-                            </p>
-                          </div>
-                          <div>
-                            {attempt.notes && (
-                              <p className="text-sm text-gray-600 line-clamp-1">{attempt.notes}</p>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Payments Tab */}
-          <TabsContent value="payments">
-            <Card>
-              <CardHeader className="p-3 sm:p-6">
-                <CardTitle className="text-base sm:text-lg flex items-center gap-2">
-                  <DollarSign className="w-4 h-4 sm:w-5 sm:h-5 text-[#048dba]" />
-                  سجل المدفوعات والتحويلات
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-3 sm:p-6">
-                {(!deliveryMan.moneyTransfers || deliveryMan.moneyTransfers.length === 0) ? (
-                  <div className="text-center py-8 text-gray-500">
-                    <DollarSign className="w-12 h-12 mx-auto mb-2 text-gray-300" />
-                    <p className="text-sm">لا توجد مدفوعات حالياً</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {deliveryMan.moneyTransfers.map((transfer) => (
-                      <div key={transfer.id} className="p-3 sm:p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow">
-                        <div className="flex flex-col gap-3">
-                          <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 gap-3">
+        {/* Orders Tab */}
+        <TabsContent value="orders">
+          <Card>
+            <CardHeader>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <CardTitle>جميع الطلبات ({deliveryMan.allOrders?.length || 0})</CardTitle>
+                <div className="flex gap-2 overflow-x-auto">
+                  <Button
+                    size="sm"
+                    variant={activeTab === "current" ? "default" : "outline"}
+                    onClick={() => setActiveTab("current")}
+                    className="whitespace-nowrap"
+                  >
+                    الحالية ({deliveryMan.assignedOrders.filter(o => 
+                      o.status === "ASSIGNED_TO_DELIVERY" || o.status === "PENDING"
+                    ).length})
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={activeTab === "delivered" ? "default" : "outline"}
+                    onClick={() => setActiveTab("delivered")}
+                    className="whitespace-nowrap"
+                  >
+                    المسلمة ({deliveryMan.allOrders?.filter(o => o.status === "DELIVERED").length || 0})
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={activeTab === "all" ? "default" : "outline"}
+                    onClick={() => setActiveTab("all")}
+                    className="whitespace-nowrap"
+                  >
+                    الكل ({deliveryMan.allOrders?.length || 0})
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={activeTab === "failed" ? "default" : "outline"}
+                    onClick={() => setActiveTab("failed")}
+                    className="whitespace-nowrap"
+                  >
+                    الفاشلة ({deliveryMan.allOrders?.filter(o => 
+                      o.status === "CANCELLED" || o.status === "REJECTED"
+                    ).length || 0})
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[800px]">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-right p-3 text-sm font-medium">رقم الطلب</th>
+                      <th className="text-right p-3 text-sm font-medium">العميل</th>
+                      <th className="text-right p-3 text-sm font-medium">التاجر</th>
+                      <th className="text-right p-3 text-sm font-medium">المبلغ</th>
+                      <th className="text-right p-3 text-sm font-medium">طريقة الدفع</th>
+                      <th className="text-right p-3 text-sm font-medium">الحالة</th>
+                      <th className="text-right p-3 text-sm font-medium">التاريخ</th>
+                      <th className="text-right p-3 text-sm font-medium">الإجراءات</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {displayedOrders.length === 0 ? (
+                      <tr>
+                        <td colSpan={8} className="p-8 text-center">
+                          <Package className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                          <p className="text-gray-500">لا توجد طلبات في هذا القسم</p>
+                        </td>
+                      </tr>
+                    ) : (
+                      displayedOrders.map((order) => (
+                        <tr key={order.id} className="border-b hover:bg-gray-50">
+                          <td className="p-3">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">{order.orderCode}</span>
+                            </div>
+                          </td>
+                          <td className="p-3">
                             <div>
-                              <p className="text-xs text-gray-400 mb-1">
-                                {new Date(transfer.createdAt).toLocaleDateString("en-US")}
+                              <p className="font-medium">{order.customerName}</p>
+                              {order.city && (
+                                <p className="text-xs text-gray-500">{order.city}</p>
+                              )}
+                            </div>
+                          </td>
+                          <td className="p-3">
+                            <p className="text-sm">{order.merchant.user.name}</p>
+                          </td>
+                          <td className="p-3">
+                            <div>
+                              <p className="font-medium">{order.totalPrice.toFixed(2)} د.م</p>
+                              {order.paymentMethod === "COD" && (
+                                <p className="text-xs text-red-600">دفع نقدي</p>
+                              )}
+                            </div>
+                          </td>
+                          <td className="p-3">
+                            <Badge variant={order.paymentMethod === "COD" ? "default" : "secondary"}>
+                              {order.paymentMethod === "COD" ? "دفع نقدي" : "مدفوع مسبقاً"}
+                            </Badge>
+                          </td>
+                          <td className="p-3">
+                            <div className="flex items-center gap-2">
+                              <Badge variant={
+                                order.status === "DELIVERED" ? "default" :
+                                order.status === "ASSIGNED_TO_DELIVERY" ? "secondary" :
+                                order.status === "PENDING" ? "outline" :
+                                "destructive"
+                              }>
+                                {order.status === "DELIVERED" ? "تم التوصيل" :
+                                 order.status === "ASSIGNED_TO_DELIVERY" ? "مسند للشحن" :
+                                 order.status === "PENDING" ? "قيد الانتظار" :
+                                 order.status === "CANCELLED" ? "ملغي" :
+                                 order.status === "REJECTED" ? "مرفوض" : order.status}
+                              </Badge>
+                              {order.deliveredAt && (
+                                <span className="text-xs text-gray-500">
+                                  {new Date(order.deliveredAt).toLocaleDateString('en-US')}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="p-3">
+                            <div>
+                              <p className="text-sm">
+                                {new Date(order.createdAt).toLocaleDateString('en-US')}
                               </p>
-                              <p className="font-semibold text-base sm:text-lg text-red-600">
-                                -{Math.abs(transfer.amount).toFixed(2)} د.م
+                              <p className="text-xs text-gray-500">
+                                {new Date(order.createdAt).toLocaleTimeString('en-US')}
                               </p>
                             </div>
-                            {transfer.reference && (
-                              <div>
-                                <p className="text-xs text-gray-500 mb-1">المرجع</p>
-                                <p className="text-xs sm:text-sm font-mono">{transfer.reference}</p>
-                              </div>
-                            )}
-                            {transfer.note && (
-                              <div className="col-span-1 xs:col-span-2 sm:col-span-1">
-                                <p className="text-xs text-gray-500 mb-1">ملاحظات</p>
-                                <p className="text-xs sm:text-sm line-clamp-2">{transfer.note}</p>
-                              </div>
-                            )}
-                          </div>
+                          </td>
+                          <td className="p-3">
+                            <div className="flex gap-2">
+                              {order.status === "ASSIGNED_TO_DELIVERY" && (
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleMarkAsDelivered(order.id)}
+                                  disabled={processingOrder === order.id}
+                                  className="bg-green-600 hover:bg-green-700"
+                                >
+                                  {processingOrder === order.id ? (
+                                    <>
+                                      <Clock className="w-3 h-3 ml-1 animate-spin" />
+                                      جاري...
+                                    </>
+                                  ) : (
+                                    "تأكيد التسليم"
+                                  )}
+                                </Button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-                          {transfer.invoiceImage && (
-                            <div className="pt-3 border-t border-gray-100">
-                              <p className="text-xs text-gray-500 mb-2 flex items-center gap-1">
-                                <FileText className="w-3 h-3" />
-                                صورة الفاتورة:
-                              </p>
-                              <a
-                                href={transfer.invoiceImage}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="block group"
-                              >
-                                <img
-                                  src={transfer.invoiceImage || "/placeholder.svg"}
-                                  alt="فاتورة الدفع"
-                                  className="w-full max-w-xs rounded-lg border-2 border-gray-200 hover:border-[#048dba] transition-colors cursor-pointer group-hover:shadow-lg"
-                                />
-                                <p className="text-xs text-[#048dba] mt-1 flex items-center gap-1">
-                                  <Eye className="w-3 h-3" />
-                                  اضغط للعرض بالحجم الكامل
-                                </p>
-                              </a>
-                            </div>
+        {/* Transactions Tab */}
+        <TabsContent value="transactions">
+          <Card>
+            <CardHeader>
+              <CardTitle>سجل المعاملات المالية ({deliveryMan.moneyTransfers.length})</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {deliveryMan.moneyTransfers.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Receipt className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                    <p className="text-gray-500">لا توجد معاملات مالية</p>
+                  </div>
+                ) : (
+                  deliveryMan.moneyTransfers.map((transfer) => (
+                    <div key={transfer.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
+                      <div className="flex items-center gap-4">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                          transfer.amount > 0 ? 'bg-green-100' : 'bg-blue-100'
+                        }`}>
+                          {transfer.amount > 0 ? (
+                            <DollarSign className="w-5 h-5 text-green-600" />
+                          ) : (
+                            <CreditCard className="w-5 h-5 text-blue-600" />
+                          )}
+                        </div>
+                        <div>
+                          <p className="font-medium">
+                            {transfer.amount > 0 ? "دفعة مالية" : "تحصيل COD"}
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            {new Date(transfer.createdAt).toLocaleDateString('en-US', {
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </p>
+                          {transfer.reference && (
+                            <p className="text-xs text-gray-500 mt-1">
+                              <span className="font-medium">المرجع:</span> {transfer.reference}
+                            </p>
+                          )}
+                          {transfer.note && (
+                            <p className="text-sm text-gray-600 mt-1">{transfer.note}</p>
                           )}
                         </div>
                       </div>
-                    ))}
-                  </div>
+                      <div className="text-right">
+                        <p className={`text-lg font-bold ${
+                          transfer.amount > 0 ? 'text-green-600' : 'text-blue-600'
+                        }`}>
+                          {transfer.amount > 0 ? '+' : '-'}{Math.abs(transfer.amount).toFixed(2)} د.م
+                        </p>
+                      </div>
+                    </div>
+                  ))
                 )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-      </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }

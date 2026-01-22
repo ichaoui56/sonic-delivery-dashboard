@@ -7,11 +7,11 @@ import { Label } from "@/components/ui/label"
 import { Card } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { updateAdminSettings, changeAdminPassword } from "@/lib/actions/admin/settings"
-import { useRouter } from 'next/navigation'
 import { compressImage } from "@/lib/utils/image-compression"
 import { Loader2, Upload, X, AlertCircle, Mail, Key, Lock, Eye, EyeOff } from 'lucide-react'
 import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { toast } from "sonner"
 
 interface AdminSettingsData {
   user: {
@@ -32,19 +32,15 @@ interface AdminSettingsClientProps {
 }
 
 export function SettingsClient({ initialData }: AdminSettingsClientProps) {
-  const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [isChangingPassword, setIsChangingPassword] = useState(false)
   const [uploadingImage, setUploadingImage] = useState(false)
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
   const [showPasswordField, setShowPasswordField] = useState(false)
   
-  // Password visibility states
   const [showCurrentPassword, setShowCurrentPassword] = useState(false)
   const [showNewPassword, setShowNewPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
-  // User profile state
   const [userName, setUserName] = useState(initialData.user.name)
   const [userEmail, setUserEmail] = useState(initialData.user.email)
   const [userPhone, setUserPhone] = useState(initialData.user.phone || "")
@@ -53,7 +49,6 @@ export function SettingsClient({ initialData }: AdminSettingsClientProps) {
   const [imagePreview, setImagePreview] = useState<string | null>(initialData.user.image)
   const [currentPassword, setCurrentPassword] = useState("")
   
-  // Password change state
   const [passwordCurrent, setPasswordCurrent] = useState("")
   const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
@@ -64,10 +59,8 @@ export function SettingsClient({ initialData }: AdminSettingsClientProps) {
 
     try {
       setUploadingImage(true)
-      // Compress the image to 200KB
       const compressedFile = await compressImage(file, 200)
 
-      // Use the Pinata upload endpoint
       const formData = new FormData()
       formData.append('file', compressedFile)
 
@@ -84,10 +77,9 @@ export function SettingsClient({ initialData }: AdminSettingsClientProps) {
       setProfileImage(url)
       setImagePreview(url)
       
-      setMessage({ type: 'success', text: 'تم رفع الصورة بنجاح' })
+      toast.success('تم رفع الصورة بنجاح')
     } catch (error) {
-      console.error('Error uploading image:', error)
-      setMessage({ type: 'error', text: 'فشل رفع الصورة' })
+      toast.error('فشل رفع الصورة')
     } finally {
       setUploadingImage(false)
     }
@@ -111,7 +103,6 @@ export function SettingsClient({ initialData }: AdminSettingsClientProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
-    setMessage(null)
 
     try {
       const result = await updateAdminSettings({
@@ -123,25 +114,13 @@ export function SettingsClient({ initialData }: AdminSettingsClientProps) {
         currentPassword: showPasswordField ? currentPassword : undefined,
       })
 
-      setMessage({ 
-        type: 'success', 
-        text: result.message || 'تم تحديث الملف الشخصي بنجاح' 
-      })
+      toast.success(result.message || 'تم تحديث الملف الشخصي بنجاح')
       
-      // If email was changed, suggest re-login
       if (userEmail !== initialData.user.email) {
-        setTimeout(() => {
-          router.push('/admin/settings')
-        }, 3000)
-      } else {
-        router.refresh()
+        toast.info("تم تغيير البريد الإلكتروني، يرجى تسجيل الدخول مرة أخرى")
       }
     } catch (error: any) {
-      console.error('Error updating profile:', error)
-      setMessage({ 
-        type: 'error', 
-        text: error.message || 'حدث خطأ أثناء تحديث الملف الشخصي' 
-      })
+      toast.error(error.message || 'حدث خطأ أثناء تحديث الملف الشخصي')
     } finally {
       setIsLoading(false)
     }
@@ -150,7 +129,6 @@ export function SettingsClient({ initialData }: AdminSettingsClientProps) {
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsChangingPassword(true)
-    setMessage(null)
 
     try {
       const result = await changeAdminPassword({
@@ -159,24 +137,13 @@ export function SettingsClient({ initialData }: AdminSettingsClientProps) {
         confirmPassword: confirmPassword,
       })
 
-      setMessage({ 
-        type: 'success', 
-        text: result.message || 'تم تغيير كلمة المرور بنجاح' 
-      })
+      toast.success(result.message || 'تم تغيير كلمة المرور بنجاح')
       
-      // Clear password fields
       setPasswordCurrent("")
       setNewPassword("")
       setConfirmPassword("")
-      
-      // Refresh the page
-      router.refresh()
     } catch (error: any) {
-      console.error('Error changing password:', error)
-      setMessage({ 
-        type: 'error', 
-        text: error.message || 'حدث خطأ أثناء تغيير كلمة المرور' 
-      })
+      toast.error(error.message || 'حدث خطأ أثناء تغيير كلمة المرور')
     } finally {
       setIsChangingPassword(false)
     }
@@ -184,12 +151,10 @@ export function SettingsClient({ initialData }: AdminSettingsClientProps) {
 
   return (
     <div className="space-y-6">
-      {/* Profile Settings Card */}
       <Card className="p-6">
         <h2 className="text-xl font-semibold mb-6">الملف الشخصي</h2>
         
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Profile Picture */}
           <div className="space-y-2">
             <Label htmlFor="profileImage">الصورة الشخصية</Label>
             <div className="flex items-center space-x-4">
@@ -237,7 +202,6 @@ export function SettingsClient({ initialData }: AdminSettingsClientProps) {
             </div>
           </div>
 
-          {/* Name */}
           <div className="space-y-2">
             <Label htmlFor="name">الاسم الكامل</Label>
             <Input
@@ -249,7 +213,6 @@ export function SettingsClient({ initialData }: AdminSettingsClientProps) {
             />
           </div>
 
-          {/* Email */}
           <div className="space-y-2">
             <Label htmlFor="email" className="flex items-center gap-2">
               <Mail className="w-4 h-4" />
@@ -273,7 +236,6 @@ export function SettingsClient({ initialData }: AdminSettingsClientProps) {
             )}
           </div>
 
-          {/* Current Password (only shown when email is being changed) */}
           {showPasswordField && (
             <div className="space-y-2">
               <Label htmlFor="currentPassword" className="flex items-center gap-2">
@@ -303,7 +265,6 @@ export function SettingsClient({ initialData }: AdminSettingsClientProps) {
             </div>
           )}
 
-          {/* Phone */}
           <div className="space-y-2">
             <Label htmlFor="phone">رقم الهاتف</Label>
             <Input
@@ -315,7 +276,6 @@ export function SettingsClient({ initialData }: AdminSettingsClientProps) {
             />
           </div>
 
-          {/* Address */}
           <div className="space-y-2">
             <Label htmlFor="address">العنوان</Label>
             <Textarea
@@ -328,7 +288,6 @@ export function SettingsClient({ initialData }: AdminSettingsClientProps) {
             <p className="text-sm text-muted-foreground">عنوان مكتب المشرف الرئيسي</p>
           </div>
 
-          {/* Submit Button */}
           <div className="flex justify-end">
             <Button type="submit" disabled={isLoading || (showPasswordField && !currentPassword)}>
               {isLoading ? (
@@ -344,7 +303,6 @@ export function SettingsClient({ initialData }: AdminSettingsClientProps) {
         </form>
       </Card>
 
-      {/* Password Change Card */}
       <Card className="p-6">
         <h2 className="text-xl font-semibold mb-6 flex items-center gap-2">
           <Lock className="w-5 h-5" />
@@ -352,7 +310,6 @@ export function SettingsClient({ initialData }: AdminSettingsClientProps) {
         </h2>
         
         <form onSubmit={handlePasswordChange} className="space-y-4">
-          {/* Current Password */}
           <div className="space-y-2">
             <Label htmlFor="passwordCurrent" className="flex items-center gap-2">
               <Key className="w-4 h-4" />
@@ -377,7 +334,6 @@ export function SettingsClient({ initialData }: AdminSettingsClientProps) {
             </div>
           </div>
 
-          {/* New Password */}
           <div className="space-y-2">
             <Label htmlFor="newPassword" className="flex items-center gap-2">
               <Lock className="w-4 h-4" />
@@ -403,7 +359,6 @@ export function SettingsClient({ initialData }: AdminSettingsClientProps) {
             <p className="text-sm text-muted-foreground">يجب أن تكون كلمة المرور 6 أحرف على الأقل</p>
           </div>
 
-          {/* Confirm Password */}
           <div className="space-y-2">
             <Label htmlFor="confirmPassword" className="flex items-center gap-2">
               <Lock className="w-4 h-4" />
@@ -428,7 +383,6 @@ export function SettingsClient({ initialData }: AdminSettingsClientProps) {
             </div>
           </div>
 
-          {/* Password Change Button */}
           <div className="flex justify-end">
             <Button 
               type="submit" 
@@ -447,7 +401,6 @@ export function SettingsClient({ initialData }: AdminSettingsClientProps) {
             </Button>
           </div>
 
-          {/* Password Requirements */}
           <Alert className="bg-blue-50 border-blue-200">
             <AlertCircle className="h-4 w-4 text-blue-600" />
             <AlertDescription className="text-blue-700 text-sm">
@@ -461,29 +414,6 @@ export function SettingsClient({ initialData }: AdminSettingsClientProps) {
         </form>
       </Card>
 
-      {/* Status Message */}
-      {message && (
-        <Alert className={
-          message.type === 'success' 
-            ? "bg-green-50 border-green-200" 
-            : "bg-red-50 border-red-200"
-        }>
-          <AlertCircle className={
-            message.type === 'success' 
-              ? "h-4 w-4 text-green-600" 
-              : "h-4 w-4 text-red-600"
-          } />
-          <AlertDescription className={
-            message.type === 'success' 
-              ? "text-green-700" 
-              : "text-red-700"
-          }>
-            {message.text}
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {/* Email Change Warning */}
       {showPasswordField && (
         <Alert className="bg-blue-50 border-blue-200">
           <AlertCircle className="h-4 w-4 text-blue-600" />

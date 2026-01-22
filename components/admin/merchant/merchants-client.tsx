@@ -19,6 +19,7 @@ import { EditMerchantDialog } from "./edit-merchant-dialog"
 import { ViewMerchantDialog } from "./view-merchant-dialog"
 import { AddPaymentDialog } from "./add-payment-dialog"
 import { useRouter } from 'next/navigation'
+import { createSlugWithId } from "@/lib/utils/slug"
 
 type Merchant = {
   id: number
@@ -122,7 +123,7 @@ export function MerchantsClient({ initialMerchants }: { initialMerchants: Mercha
                           className="flex-1 sm:flex-none border-[#048dba] text-[#048dba] hover:bg-[#048dba] hover:text-white text-xs"
                           onClick={(e) => {
                             e.stopPropagation()
-                            router.push(`/admin/merchants/${merchant.id}`)
+                            router.push(`/admin/merchants/${createSlugWithId(merchant.user.name, merchant.id)}`)
                           }}
                         >
                           <Eye className="w-3 h-3 sm:w-4 sm:h-4 ml-1" />

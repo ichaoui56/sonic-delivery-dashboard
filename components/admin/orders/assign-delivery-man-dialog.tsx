@@ -188,7 +188,6 @@ export function AssignDeliveryManDialog({
                           <div className="flex flex-col">
                             <div className="flex items-center gap-2">
                               <span className="font-medium">{dm.user.name}</span>
-                              <span className="text-xs text-gray-500">({dm.city || "غير محدد"})</span>
                               {dm.rating && (
                                 <span className="text-xs text-yellow-600">
                                   ⭐ {dm.rating.toFixed(1)}

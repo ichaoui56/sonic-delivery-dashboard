@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select"
 import { Search, Filter, ArrowUpRight, Package, Truck, CheckCircle2, Clock, AlertCircle, XCircle } from 'lucide-react'
 import { UpdateOrderStatusDialog } from "./update-order-status-dialog"
+import { createSlugWithId } from "@/lib/utils/slug"
 
 type Order = {
   id: number
@@ -287,7 +288,7 @@ export function OrdersClient({ initialOrders }: { initialOrders: Order[] }) {
 
                   {/* Actions Section */}
                   <div className="border-t md:border-t-0 md:border-r border-gray-100 bg-gray-50/50 p-4 flex flex-row md:flex-col justify-center gap-2 min-w-[140px]">
-                    <Link href={`/admin/orders/${order.id}`} className="w-full">
+                    <Link href={`/admin/orders/${createSlugWithId(order.orderCode, order.id)}`} className="w-full">
                       <Button className="w-full bg-white hover:bg-white text-[#048dba] border border-[#048dba] hover:bg-blue-50">
                         التفاصيل
                       </Button>

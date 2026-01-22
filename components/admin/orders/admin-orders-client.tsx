@@ -20,6 +20,7 @@ import { UpdateDeliveryDateDialog } from "./update-delivery-date-dialog"
 import { generateAndDownloadInvoice } from "@/lib/utils/pdf-client"
 import { useToast } from "@/hooks/use-toast"
 import { getAllOrders } from "@/lib/actions/admin/order"
+import { createSlugWithId } from "@/lib/utils/slug"
 
 type Order = {
   id: number
@@ -838,7 +839,7 @@ export function AdminOrdersClient({ initialOrders }: { initialOrders: Order[] })
 
                     {/* Actions Section */}
                     <div className="border-t md:border-t-0 md:border-r border-gray-100 bg-gray-50/50 p-4 flex flex-col justify-center gap-2 min-w-[180px]">
-                      <Link href={`/admin/orders/${order.id}`} className="w-full">
+                      <Link href={`/admin/orders/${createSlugWithId(order.orderCode, order.id)}`} className="w-full">
                         <Button className="w-full bg-white hover:bg-white text-[#048dba] border border-[#048dba] hover:bg-blue-50 transition-colors">
                           التفاصيل الكاملة
                         </Button>

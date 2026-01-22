@@ -188,11 +188,16 @@ type DeliveryManDetail = {
   id: number
   vehicleType: string | null
   active: boolean
-  city: string
+  city: string | null
+  cityId: number | null
   totalDeliveries: number
   successfulDeliveries: number
   totalEarned: number
+  pendingEarnings: number
+  collectedCOD: number
+  pendingCOD: number
   baseFee: number
+  rating: number | null
   user: {
     id: number
     name: string
@@ -209,6 +214,8 @@ type DeliveryManDetail = {
     status: string
     city: string | null
     createdAt: string
+    deliveredAt: string | null
+    paymentMethod: "COD" | "PREPAID"
     merchant: {
       user: {
         name: string
@@ -218,33 +225,53 @@ type DeliveryManDetail = {
   deliveryAttempts: Array<{
     id: number
     attemptedAt: string
+    status: string
     wasSuccessful: boolean
     notes: string | null
     order: {
+      id: number
       orderCode: string
       customerName: string
+      totalPrice: number
+      status: string
+      city: string | null
+      createdAt: string
+      deliveredAt: string | null
+      paymentMethod: "COD" | "PREPAID"
+      merchant: {
+        user: {
+          name: string
+        }
+      }
     }
   }>
-}
-
-
-export type DeliveryMan = {
-  id: number
-  vehicleType: string | null
-  active: boolean
-  city: string
-  totalDeliveries: number
-  successfulDeliveries: number
-  totalEarned: number
-  baseFee: number
-  user: {
+  moneyTransfers: Array<{
     id: number
-    name: string
-    email: string
-    phone: string | null
-    image: string | null
-  }
-  _count: {
-    assignedOrders: number
-  }
+    amount: number
+    reference: string | null
+    note: string | null
+    invoiceImage: string | null
+    createdAt: string
+  }>
+  allOrders: Array<{
+    id: number
+    orderCode: string
+    customerName: string
+    totalPrice: number
+    status: string
+    city: string | null
+    createdAt: string
+    deliveredAt: string | null
+    paymentMethod: "COD" | "PREPAID"
+    merchant: {
+      user: {
+        name: string
+      }
+    }
+    deliveryAttempts: Array<{
+      attemptedAt: string
+      status: string
+      notes: string | null
+    }>
+  }>
 }

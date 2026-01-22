@@ -36,7 +36,7 @@ export function MerchantDashboardClient({ initialData }: { initialData: Dashboar
               مرحباً، {data.merchant.user.name}
             </h1>
             <p className="text-xs xs:text-sm text-gray-500 mt-0.5 sm:mt-1 truncate">
-              {new Date().toLocaleDateString("ar-EG", {
+              {new Date().toLocaleDateString("en-US", {
                 weekday: "long",
                 year: "numeric",
                 month: "long",
@@ -438,7 +438,7 @@ export function MerchantDashboardClient({ initialData }: { initialData: Dashboar
                             d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
                           />
                         </svg>
-                        <span className="text-xs">{new Date(order.createdAt).toLocaleDateString("ar-EG", {
+                        <span className="text-xs">{new Date(order.createdAt).toLocaleDateString("en-US", {
                           numberingSystem: "latn",
                         })}</span>
                       </div>
