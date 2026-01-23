@@ -614,14 +614,19 @@ async function handleDeliveredOrder(order: any) {
     })
   }
 
-  // Update delivery man stats
+  // Update delivery man stats and financial tracking
   if (order.deliveryManId && deliveryMan) {
     await prisma.deliveryMan.update({
       where: { id: order.deliveryManId },
       data: {
         totalDeliveries: { increment: 1 },
         successfulDeliveries: { increment: 1 },
-        totalEarned: { increment: deliveryManBaseFee }
+        totalEarned: { increment: deliveryManBaseFee },
+        pendingEarnings: { increment: deliveryManBaseFee },
+        ...(order.paymentMethod === "COD" && {
+          collectedCOD: { increment: order.totalPrice },
+          pendingCOD: { increment: order.totalPrice }
+        })
       }
     })
 
@@ -630,13 +635,94 @@ async function handleDeliveredOrder(order: any) {
       await prisma.notification.create({
         data: {
           title: "توصيل ناجح",
-          message: `تم تسليم الطلب #${order.orderCode} بنجاح، رصيدك: ${deliveryManBaseFee} د.م`,
+          message: `تم تسليم الطلب #${order.orderCode} بنجاح، رصيدك: ${deliveryManBaseFee} د.م${order.paymentMethod === "COD" ? `، تم تحصيل ${order.totalPrice} د.م` : ""}`,
           type: "DELIVERY_SUCCESS",
           userId: deliveryMan.userId,
           orderId: order.id,
         },
       })
     }
+  }
+}
+
+// Handle order status reversal from DELIVERED to other statuses
+async function handleDeliveredOrderReversal(order: any) {
+  // Get merchant and delivery man data
+  const [merchant, deliveryMan] = await Promise.all([
+    prisma.merchant.findUnique({
+      where: { id: order.merchantId },
+      select: { baseFee: true, userId: true }
+    }),
+    order.deliveryManId ? prisma.deliveryMan.findUnique({
+      where: { id: order.deliveryManId },
+      select: { baseFee: true, userId: true }
+    }) : null
+  ])
+
+  const merchantBaseFee = merchant?.baseFee ?? 0
+  const deliveryManBaseFee = deliveryMan?.baseFee ?? 0
+  const merchantEarning = order.totalPrice - merchantBaseFee
+
+  // Restore product stock (skip free items)
+  const productsToRestore = order.orderItems
+    .filter((item: any) => !item.isFree)
+    .map((item: any) => ({
+      productId: item.productId,
+      quantity: item.quantity
+    }))
+
+  if (productsToRestore.length > 0) {
+    await prisma.$transaction(
+      productsToRestore.map((item: any) =>
+        prisma.product.update({
+          where: { id: item.productId },
+          data: {
+            stockQuantity: {
+              increment: item.quantity
+            },
+            deliveredCount: {
+              decrement: item.quantity
+            }
+          }
+        })
+      )
+    )
+  }
+
+  // Reverse merchant balance changes
+  if (order.paymentMethod === "COD") {
+    await prisma.merchant.update({
+      where: { id: order.merchantId },
+      data: {
+        balance: { decrement: merchantEarning },
+        totalEarned: { decrement: order.totalPrice }
+      }
+    })
+  } else {
+    await prisma.merchant.update({
+      where: { id: order.merchantId },
+      data: {
+        balance: { increment: merchantBaseFee },
+        totalEarned: { decrement: order.totalPrice }
+      }
+    })
+  }
+
+  // Reverse delivery man stats and financial tracking
+  if (order.deliveryManId && deliveryMan) {
+    await prisma.deliveryMan.update({
+      where: { id: order.deliveryManId },
+      data: {
+        totalDeliveries: { decrement: 1 },
+        successfulDeliveries: { decrement: 1 },
+        totalEarned: { decrement: deliveryManBaseFee },
+        pendingEarnings: { decrement: deliveryManBaseFee },
+        ...(order.paymentMethod === "COD" && {
+          collectedCOD: { decrement: order.totalPrice },
+          pendingCOD: { decrement: order.totalPrice }
+        })
+      }
+    })
   }
 }
 
@@ -748,6 +834,11 @@ export async function updateOrderStatus(orderId: number, newStatus: OrderStatus,
     // Handle DELIVERED status changes
     if (newStatus === "DELIVERED" && previousStatus !== "DELIVERED") {
       await handleDeliveredOrder(order)
+    }
+
+    // Handle status reversal from DELIVERED to other statuses
+    if (previousStatus === "DELIVERED" && newStatus !== "DELIVERED") {
+      await handleDeliveredOrderReversal(order)
     }
 
     // Create notifications based on status change

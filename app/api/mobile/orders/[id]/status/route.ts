@@ -299,6 +299,11 @@ export async function PATCH(
               totalDeliveries: { increment: 1 },
               successfulDeliveries: { increment: 1 },
               totalEarned: { increment: deliveryManBaseFee },
+              pendingEarnings: { increment: deliveryManBaseFee },
+              ...(order.paymentMethod === "COD" && {
+                collectedCOD: { increment: order.totalPrice },
+                pendingCOD: { increment: order.totalPrice }
+              })
             },
           })
         }
@@ -321,7 +326,7 @@ export async function PATCH(
           ? prisma.notification.create({
               data: {
                 title: "Delivery Successful",
-                message: `Order #${order.orderCode} delivered successfully. Earnings: ${order.deliveryMan.baseFee} MAD`,
+                message: `Order #${order.orderCode} delivered successfully. Earnings: ${order.deliveryMan.baseFee} MAD${order.paymentMethod === "COD" ? `, COD collected: ${order.totalPrice} MAD` : ""}`,
                 type: "DELIVERY_SUCCESS",
                 userId: order.deliveryMan.userId,
                 orderId: orderId,
