@@ -305,7 +305,7 @@ export function DeliveryManDetailClient({ initialDeliveryMan }: { initialDeliver
             </Button>
           </PaymentActions>
           
-          <AddPaymentDialog
+          {/* <AddPaymentDialog
             deliveryManId={deliveryMan.id}
             deliveryManName={deliveryMan.user.name}
             onSuccess={handleAddPaymentSuccess}
@@ -314,7 +314,7 @@ export function DeliveryManDetailClient({ initialDeliveryMan }: { initialDeliver
               <DollarSign className="w-4 h-4 ml-2" />
               إضافة دفعة
             </Button>
-          </AddPaymentDialog>
+          </AddPaymentDialog> */}
         </div>
       </div>
 
@@ -602,7 +602,6 @@ export function DeliveryManDetailClient({ initialDeliveryMan }: { initialDeliver
                       <th className="text-right p-3 text-sm font-medium">طريقة الدفع</th>
                       <th className="text-right p-3 text-sm font-medium">الحالة</th>
                       <th className="text-right p-3 text-sm font-medium">التاريخ</th>
-                      <th className="text-right p-3 text-sm font-medium">الإجراءات</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -676,27 +675,7 @@ export function DeliveryManDetailClient({ initialDeliveryMan }: { initialDeliver
                               </p>
                             </div>
                           </td>
-                          <td className="p-3">
-                            <div className="flex gap-2">
-                              {order.status === "ASSIGNED_TO_DELIVERY" && (
-                                <Button
-                                  size="sm"
-                                  onClick={() => handleMarkAsDelivered(order.id)}
-                                  disabled={processingOrder === order.id}
-                                  className="bg-green-600 hover:bg-green-700"
-                                >
-                                  {processingOrder === order.id ? (
-                                    <>
-                                      <Clock className="w-3 h-3 ml-1 animate-spin" />
-                                      جاري...
-                                    </>
-                                  ) : (
-                                    "تأكيد التسليم"
-                                  )}
-                                </Button>
-                              )}
-                            </div>
-                          </td>
+                         
                         </tr>
                       ))
                     )}
