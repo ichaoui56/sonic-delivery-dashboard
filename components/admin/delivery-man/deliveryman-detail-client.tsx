@@ -310,7 +310,7 @@ export function DeliveryManDetailClient({ initialDeliveryMan }: { initialDeliver
             </Button>
           </EditDeliveryManDialog>
           
-          <Button
+          {/* <Button
             variant="outline"
             size="sm"
             onClick={refreshData}
@@ -319,7 +319,7 @@ export function DeliveryManDetailClient({ initialDeliveryMan }: { initialDeliver
           >
             <RefreshCw className={`w-4 h-4 ml-2 ${updatingData ? 'animate-spin' : ''}`} />
             {updatingData ? "جاري التحديث..." : "تحديث البيانات"}
-          </Button>
+          </Button> */}
           
           <PaymentActions
             deliveryManId={deliveryMan.id}
