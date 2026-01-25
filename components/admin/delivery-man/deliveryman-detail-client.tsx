@@ -23,6 +23,7 @@ import {
 } from 'lucide-react'
 import { PaymentActions } from "./payment-actions"
 import { AddPaymentDialog } from "./add-payment-dialog"
+import { EditDeliveryManDialog } from "./edit-deliveryman-dialog"
 import { markOrderAsDelivered } from "@/lib/actions/admin/delivery-men"
 import { toast } from "sonner"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -203,6 +204,20 @@ export function DeliveryManDetailClient({ initialDeliveryMan }: { initialDeliver
     toast.success("تمت إضافة الدفعة بنجاح")
   }
 
+  const handleDeliveryManUpdated = (updatedDM: any) => {
+    // Update delivery man data when edited
+    setDeliveryMan(prev => ({
+      ...prev,
+      ...updatedDM,
+      user: {
+        ...prev.user,
+        ...updatedDM.user
+      }
+    }))
+    
+    toast.success("تم تحديث بيانات موظف التوصيل بنجاح")
+  }
+
   const refreshData = async () => {
     setUpdatingData(true)
     try {
@@ -281,6 +296,20 @@ export function DeliveryManDetailClient({ initialDeliveryMan }: { initialDeliver
         </div>
         
         <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+          <EditDeliveryManDialog
+            deliveryMan={deliveryMan}
+            onSuccess={handleDeliveryManUpdated}
+          >
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-10 border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white"
+            >
+              <RefreshCw className="w-4 h-4 ml-2" />
+              تحديث البيانات
+            </Button>
+          </EditDeliveryManDialog>
+          
           <Button
             variant="outline"
             size="sm"
