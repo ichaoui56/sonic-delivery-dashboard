@@ -29,6 +29,7 @@ export async function POST(request: Request) {
         name: true,
         email: true,
         password: true,
+        phone: true,
         role: true,
         deliveryMan: {
           select: {
