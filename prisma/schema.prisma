@@ -21,10 +21,10 @@ model City {
   orders      Order[]
   deliveryMen DeliveryMan[]
 
-  @@index([name])
-  @@index([code])
-  @@index([isActive])
-  @@index([createdAt(sort: Desc)])
+  @@index([name], map: "City_name_idx")
+  @@index([code], map: "City_code_idx")
+  @@index([isActive], map: "City_isActive_idx")
+  @@index([createdAt(sort: Desc)], map: "City_createdAt_desc_idx")
 }
 
 model User {
@@ -43,16 +43,16 @@ model User {
   merchant            Merchant?
   notifications       Notification[]
 
-  @@index([email])
-  @@index([role])
-  @@index([createdAt(sort: Desc)])
-  @@index([phone])
+  @@index([email], map: "User_email_idx")
+  @@index([role], map: "User_role_idx")
+  @@index([createdAt(sort: Desc)], map: "User_createdAt_desc_idx")
+  @@index([phone], map: "User_phone_idx")
 }
 
 model Admin {
   id        Int      @id @default(autoincrement())
   userId    Int      @unique
-  address   String? // Added address field
+  address   String?
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id])
 }
@@ -73,10 +73,11 @@ model Merchant {
   products         Product[]
   productTransfers ProductTransfer[]
 
-  @@index([userId])
-  @@index([createdAt(sort: Desc)])
-  @@index([companyName])
-  @@index([balance])
+  @@index([userId], map: "Merchant_userId_idx")
+  @@index([createdAt(sort: Desc)], map: "Merchant_createdAt_desc_idx")
+  @@index([companyName], map: "Merchant_companyName_idx")
+  @@index([balance], map: "Merchant_balance_idx")
+  @@index([totalEarned(sort: Desc)], map: "Merchant_totalEarned_desc_idx")
 }
 
 model Product {
@@ -95,18 +96,18 @@ model Product {
   merchant       Merchant       @relation(fields: [merchantId], references: [id])
   TransferItem   TransferItem[]
 
-  @@index([merchantId])
-  @@index([merchantId, isActive])
-  @@index([merchantId, stockQuantity])
-  @@index([merchantId, deliveredCount])
-  @@index([merchantId, isActive, stockQuantity])
-  @@index([stockQuantity])
-  @@index([isActive])
-  @@index([createdAt(sort: Desc)])
-  @@index([lowStockAlert])
-  @@index([deliveredCount])
-  @@index([merchantId, createdAt(sort: Desc)])
-  @@index([name])
+  @@index([merchantId], map: "Product_merchantId_idx")
+  @@index([merchantId, isActive], map: "Product_merchantId_isActive_idx")
+  @@index([merchantId, stockQuantity], map: "Product_merchantId_stockQuantity_idx")
+  @@index([merchantId, deliveredCount], map: "Product_merchantId_deliveredCount_idx")
+  @@index([merchantId, isActive, stockQuantity], map: "Product_merchantId_isActive_stockQuantity_idx")
+  @@index([stockQuantity], map: "Product_stockQuantity_idx")
+  @@index([isActive], map: "Product_isActive_idx")
+  @@index([createdAt(sort: Desc)], map: "Product_createdAt_desc_idx")
+  @@index([lowStockAlert], map: "Product_lowStockAlert_idx")
+  @@index([deliveredCount], map: "Product_deliveredCount_idx")
+  @@index([merchantId, createdAt(sort: Desc)], map: "Product_merchantId_createdAt_desc_idx")
+  @@index([name], map: "Product_name_idx")
 }
 
 model ProductTransfer {
@@ -124,14 +125,14 @@ model ProductTransfer {
   merchant               Merchant       @relation(fields: [merchantId], references: [id])
   transferItems          TransferItem[]
 
-  @@index([merchantId])
-  @@index([merchantId, createdAt(sort: Desc)])
-  @@index([merchantId, status])
-  @@index([status])
-  @@index([trackingNumber])
-  @@index([createdAt(sort: Desc)])
-  @@index([deliveredToWarehouseAt])
-  @@index([merchantId, status, createdAt(sort: Desc)])
+  @@index([merchantId], map: "ProductTransfer_merchantId_idx")
+  @@index([merchantId, createdAt(sort: Desc)], map: "ProductTransfer_merchantId_createdAt_desc_idx")
+  @@index([merchantId, status], map: "ProductTransfer_merchantId_status_idx")
+  @@index([status], map: "ProductTransfer_status_idx")
+  @@index([trackingNumber], map: "ProductTransfer_trackingNumber_idx")
+  @@index([createdAt(sort: Desc)], map: "ProductTransfer_createdAt_desc_idx")
+  @@index([deliveredToWarehouseAt], map: "ProductTransfer_deliveredToWarehouseAt_idx")
+  @@index([merchantId, status, createdAt(sort: Desc)], map: "ProductTransfer_merchantId_status_createdAt_desc_idx")
 }
 
 model TransferItem {
@@ -142,10 +143,10 @@ model TransferItem {
   product    Product         @relation(fields: [productId], references: [id])
   transfer   ProductTransfer @relation(fields: [transferId], references: [id])
 
-  @@index([transferId])
-  @@index([productId])
-  @@index([transferId, productId])
-  @@index([quantity])
+  @@index([transferId], map: "TransferItem_transferId_idx")
+  @@index([productId], map: "TransferItem_productId_idx")
+  @@index([transferId, productId], map: "TransferItem_transferId_productId_idx")
+  @@index([quantity], map: "TransferItem_quantity_idx")
 }
 
 model Order {
@@ -154,10 +155,10 @@ model Order {
   customerName           String
   customerPhone          String
   address                String
-  delivery_date          DateTime? 
-  previous_delivery_date DateTime? 
-  delay_reason           String? 
-  cityId                 Int 
+  delivery_date          DateTime?
+  previous_delivery_date DateTime?
+  delay_reason           String?
+  cityId                 Int
   note                   String?
   totalPrice             Float
   paymentMethod          PaymentMethod     @default(COD)
@@ -176,32 +177,67 @@ model Order {
   updatedAt              DateTime          @updatedAt
   Notification           Notification[]
   deliveryAttemptHistory DeliveryAttempt[]
+  deliveryNotes          DeliveryNote[]
   deliveryMan            DeliveryMan?      @relation(fields: [deliveryManId], references: [id])
   merchant               Merchant          @relation(fields: [merchantId], references: [id])
-  city                   City              @relation(fields: [cityId], references: [id]) // Required relation
+  city                   City              @relation(fields: [cityId], references: [id])
   orderItems             OrderItem[]
 
-  @@index([merchantId])
-  @@index([merchantId, createdAt(sort: Desc)])
-  @@index([merchantId, status])
-  @@index([merchantId, status, createdAt(sort: Desc)])
-  @@index([deliveryManId])
-  @@index([deliveryManId, status])
-  @@index([deliveryManId, status, createdAt(sort: Desc)])
-  @@index([cityId]) // New index
-  @@index([cityId, status]) // New index
-  @@index([cityId, createdAt(sort: Desc)]) // New index
-  @@index([status])
-  @@index([createdAt(sort: Desc)])
-  @@index([orderCode])
-  @@index([customerPhone])
-  @@index([paymentMethod])
-  @@index([totalPrice])
-  @@index([merchantEarning])
-  @@index([deliveredAt])
-  @@index([merchantId, paymentMethod, status])
-  @@index([customerName])
-  @@index([address])
+  @@index([merchantId], map: "Order_merchantId_idx")
+  @@index([merchantId, createdAt(sort: Desc)], map: "Order_merchantId_createdAt_desc_idx")
+  @@index([merchantId, status], map: "Order_merchantId_status_idx")
+  @@index([merchantId, status, createdAt(sort: Desc)], map: "Order_merchantId_status_createdAt_desc_idx")
+  @@index([deliveryManId], map: "Order_deliveryManId_idx")
+  @@index([deliveryManId, status], map: "Order_deliveryManId_status_idx")
+  @@index([deliveryManId, status, createdAt(sort: Desc)], map: "Order_deliveryManId_status_createdAt_desc_idx")
+  @@index([cityId], map: "Order_cityId_idx")
+  @@index([cityId, status], map: "Order_cityId_status_idx")
+  @@index([cityId, createdAt(sort: Desc)], map: "Order_cityId_createdAt_desc_idx")
+  @@index([status], map: "Order_status_idx")
+  @@index([createdAt(sort: Desc)], map: "Order_createdAt_desc_idx")
+  @@index([orderCode], map: "Order_orderCode_idx")
+  @@index([customerPhone], map: "Order_customerPhone_idx")
+  @@index([paymentMethod], map: "Order_paymentMethod_idx")
+  @@index([totalPrice], map: "Order_totalPrice_idx")
+  @@index([merchantEarning], map: "Order_merchantEarning_idx")
+  @@index([deliveredAt], map: "Order_deliveredAt_idx")
+  @@index([merchantId, paymentMethod, status], map: "Order_merchantId_paymentMethod_status_idx")
+  @@index([customerName], map: "Order_customerName_idx")
+  @@index([address], map: "Order_address_idx")
+  @@index([merchantId, deliveryManId, createdAt(sort: Desc)], map: "Order_merchantId_deliveryManId_createdAt_desc_idx")
+}
+
+// NEW: Delivery Note Model
+model DeliveryNote {
+  id            Int         @id @default(autoincrement())
+  orderId       Int
+  deliveryManId Int
+  content       String
+  isPrivate     Boolean     @default(false)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  order         Order       @relation(fields: [orderId], references: [id])
+  deliveryMan   DeliveryMan @relation(fields: [deliveryManId], references: [id])
+
+  // Existing indexes with explicit names
+  @@index([orderId], map: "DeliveryNote_orderId_idx")
+  @@index([deliveryManId], map: "DeliveryNote_deliveryManId_idx")
+  @@index([createdAt(sort: Desc)], map: "DeliveryNote_createdAt_desc_idx")
+  @@index([orderId, createdAt(sort: Desc)], map: "DeliveryNote_orderId_createdAt_desc_idx")
+  @@index([deliveryManId, createdAt(sort: Desc)], map: "DeliveryNote_deliveryManId_createdAt_desc_idx")
+
+  // Additional indexes with unique names
+  @@index([isPrivate], map: "DeliveryNote_isPrivate_idx")
+  @@index([deliveryManId, isPrivate], map: "DeliveryNote_deliveryManId_isPrivate_idx")
+  @@index([orderId, deliveryManId], map: "DeliveryNote_orderId_deliveryManId_idx")
+  @@index([deliveryManId, orderId], map: "DeliveryNote_deliveryManId_orderId_idx")
+  @@index([deliveryManId, orderId, createdAt(sort: Desc)], map: "DeliveryNote_deliveryManId_orderId_createdAt_desc_idx")
+  @@index([updatedAt(sort: Desc)], map: "DeliveryNote_updatedAt_desc_idx")
+  @@index([deliveryManId, isPrivate, createdAt(sort: Desc)], map: "DeliveryNote_deliveryManId_isPrivate_createdAt_desc_idx")
+  @@index([orderId, isPrivate], map: "DeliveryNote_orderId_isPrivate_idx")
+  @@index([createdAt(sort: Asc)], map: "DeliveryNote_createdAt_asc_idx")
+  @@index([deliveryManId, updatedAt(sort: Desc)], map: "DeliveryNote_deliveryManId_updatedAt_desc_idx")
 }
 
 model DeliveryAttempt {
@@ -218,12 +254,12 @@ model DeliveryAttempt {
   order         Order         @relation(fields: [orderId], references: [id])
 
   @@unique([orderId, attemptNumber])
-  @@index([orderId])
-  @@index([deliveryManId])
-  @@index([attemptedAt(sort: Desc)])
-  @@index([orderId, attemptedAt(sort: Desc)])
-  @@index([status])
-  @@index([deliveryManId, attemptedAt(sort: Desc)])
+  @@index([orderId], map: "DeliveryAttempt_orderId_idx")
+  @@index([deliveryManId], map: "DeliveryAttempt_deliveryManId_idx")
+  @@index([attemptedAt(sort: Desc)], map: "DeliveryAttempt_attemptedAt_desc_idx")
+  @@index([orderId, attemptedAt(sort: Desc)], map: "DeliveryAttempt_orderId_attemptedAt_desc_idx")
+  @@index([status], map: "DeliveryAttempt_status_idx")
+  @@index([deliveryManId, attemptedAt(sort: Desc)], map: "DeliveryAttempt_deliveryManId_attemptedAt_desc_idx")
 }
 
 model OrderItem {
@@ -237,13 +273,13 @@ model OrderItem {
   order         Order   @relation(fields: [orderId], references: [id])
   product       Product @relation(fields: [productId], references: [id])
 
-  @@index([orderId])
-  @@index([productId])
-  @@index([orderId, productId])
-  @@index([quantity])
-  @@index([price])
-  @@index([orderId, isFree])
-  @@index([productId, orderId])
+  @@index([orderId], map: "OrderItem_orderId_idx")
+  @@index([productId], map: "OrderItem_productId_idx")
+  @@index([orderId, productId], map: "OrderItem_orderId_productId_idx")
+  @@index([quantity], map: "OrderItem_quantity_idx")
+  @@index([price], map: "OrderItem_price_idx")
+  @@index([orderId, isFree], map: "OrderItem_orderId_isFree_idx")
+  @@index([productId, orderId], map: "OrderItem_productId_orderId_idx")
 }
 
 model DeliveryMan {
@@ -254,10 +290,10 @@ model DeliveryMan {
   active               Boolean           @default(true)
   totalDeliveries      Int               @default(0)
   successfulDeliveries Int               @default(0)
-  totalEarned          Float             @default(0)  // Total earned from base fees
-  pendingEarnings      Float             @default(0)  // Earnings not yet paid by company
-  collectedCOD         Float             @default(0)  // COD money collected from customers
-  pendingCOD           Float             @default(0)  // COD money not yet given to admin
+  totalEarned          Float             @default(0)
+  pendingEarnings      Float             @default(0)
+  collectedCOD         Float             @default(0)
+  pendingCOD           Float             @default(0)
   baseFee              Float             @default(0)
   rating               Float?
   createdAt            DateTime          @default(now())
@@ -265,16 +301,19 @@ model DeliveryMan {
   city                 City?             @relation(fields: [cityId], references: [id])
   assignedOrders       Order[]
   deliveryAttempts     DeliveryAttempt[]
+  deliveryNotes        DeliveryNote[]
   moneyTransfers       MoneyTransfer[]
 
-  @@index([userId])
-  @@index([cityId])
-  @@index([cityId, active])
-  @@index([active])
-  @@index([createdAt(sort: Desc)])
-  @@index([totalEarned])
-  @@index([rating])
-  @@index([cityId, active, createdAt(sort: Desc)])
+  @@index([userId], map: "DeliveryMan_userId_idx")
+  @@index([cityId], map: "DeliveryMan_cityId_idx")
+  @@index([cityId, active], map: "DeliveryMan_cityId_active_idx")
+  @@index([active], map: "DeliveryMan_active_idx")
+  @@index([createdAt(sort: Desc)], map: "DeliveryMan_createdAt_desc_idx")
+  @@index([totalEarned], map: "DeliveryMan_totalEarned_idx")
+  @@index([rating], map: "DeliveryMan_rating_idx")
+  @@index([cityId, active, createdAt(sort: Desc)], map: "DeliveryMan_cityId_active_createdAt_desc_idx")
+  @@index([active, cityId, rating(sort: Desc)], map: "DeliveryMan_active_cityId_rating_desc_idx")
+  @@index([active, totalDeliveries(sort: Desc)], map: "DeliveryMan_active_totalDeliveries_desc_idx")
 }
 
 model MoneyTransfer {
@@ -290,14 +329,14 @@ model MoneyTransfer {
   merchant      Merchant?    @relation(fields: [merchantId], references: [id])
   deliveryMan   DeliveryMan? @relation(fields: [deliveryManId], references: [id])
 
-  @@index([merchantId])
-  @@index([merchantId, transferDate(sort: Desc)])
-  @@index([deliveryManId])
-  @@index([deliveryManId, transferDate(sort: Desc)])
-  @@index([transferDate(sort: Desc)])
-  @@index([amount])
-  @@index([merchantId, amount, transferDate(sort: Desc)])
-  @@index([deliveryManId, amount, transferDate(sort: Desc)])
+  @@index([merchantId], map: "MoneyTransfer_merchantId_idx")
+  @@index([merchantId, transferDate(sort: Desc)], map: "MoneyTransfer_merchantId_transferDate_desc_idx")
+  @@index([deliveryManId], map: "MoneyTransfer_deliveryManId_idx")
+  @@index([deliveryManId, transferDate(sort: Desc)], map: "MoneyTransfer_deliveryManId_transferDate_desc_idx")
+  @@index([transferDate(sort: Desc)], map: "MoneyTransfer_transferDate_desc_idx")
+  @@index([amount], map: "MoneyTransfer_amount_idx")
+  @@index([merchantId, amount, transferDate(sort: Desc)], map: "MoneyTransfer_merchantId_amount_transferDate_desc_idx")
+  @@index([deliveryManId, amount, transferDate(sort: Desc)], map: "MoneyTransfer_deliveryManId_amount_transferDate_desc_idx")
 }
 
 model Notification {
@@ -312,14 +351,14 @@ model Notification {
   order     Order?   @relation(fields: [orderId], references: [id])
   user      User     @relation(fields: [userId], references: [id])
 
-  @@index([userId])
-  @@index([userId, isRead])
-  @@index([userId, createdAt(sort: Desc)])
-  @@index([orderId])
-  @@index([isRead])
-  @@index([createdAt(sort: Desc)])
-  @@index([type])
-  @@index([userId, isRead, createdAt(sort: Desc)])
+  @@index([userId], map: "Notification_userId_idx")
+  @@index([userId, isRead], map: "Notification_userId_isRead_idx")
+  @@index([userId, createdAt(sort: Desc)], map: "Notification_userId_createdAt_desc_idx")
+  @@index([orderId], map: "Notification_orderId_idx")
+  @@index([isRead], map: "Notification_isRead_idx")
+  @@index([createdAt(sort: Desc)], map: "Notification_createdAt_desc_idx")
+  @@index([type], map: "Notification_type_idx")
+  @@index([userId, isRead, createdAt(sort: Desc)], map: "Notification_userId_isRead_createdAt_desc_idx")
 }
 
 enum Role {
