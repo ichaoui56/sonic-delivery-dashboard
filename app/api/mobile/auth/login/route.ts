@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db"
 import { verifyPassword } from "@/lib/password"
-import { signInSchema } from "@/lib/zod"
+import { mobileSignInSchema } from "@/lib/zod"
 import { signMobileJwt } from "@/lib/mobile/jwt"
 import { checkRateLimit } from "@/lib/mobile/rate-limit"
 import { getClientIpFromRequest, jsonError, jsonOk } from "@/lib/mobile/http"
@@ -11,7 +11,7 @@ export async function POST(request: Request) {
     const ip = getClientIpFromRequest(request)
     const body = await request.json().catch(() => null)
 
-    const parsed = signInSchema.safeParse(body)
+    const parsed = mobileSignInSchema.safeParse(body)
     if (!parsed.success) {
       return jsonError("Invalid input", 400, { errors: parsed.error.flatten().fieldErrors })
     }

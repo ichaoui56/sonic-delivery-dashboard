@@ -17,14 +17,23 @@ const emailValidation = string({ required_error: "البريد الإلكترو�
   .transform((email) => sanitizeString(email.toLowerCase()))
 
 const passwordValidation = string({ required_error: "كلمة المرور مطلوبة" })
+  .min(1, "كلمة المرور مطلوبة")
+  .max(32, "يجب ألا تزيد كلمة المرور عن 32 حرفًا")
+  .transform((pwd) => sanitizeString(pwd))
+
+const mobilePasswordValidation = string({ required_error: "كلمة المرور مطلوبة" })
   .min(8, "يجب أن تحتوي كلمة المرور على 8 أحرف على الأقل")
   .max(32, "يجب ألا تزيد كلمة المرور عن 32 حرفًا")
-  .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, "يجب أن تحتوي كلمة المرور على حرف كبير وحرف صغير ورقم واحد على الأقل")
   .transform((pwd) => sanitizeString(pwd))
 
 export const signInSchema = object({
   email: emailValidation,
   password: passwordValidation,
+})
+
+export const mobileSignInSchema = object({
+  email: emailValidation,
+  password: mobilePasswordValidation,
 })
 
 export const signInDefaultValues = {
