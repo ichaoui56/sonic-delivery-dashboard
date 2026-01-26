@@ -474,7 +474,7 @@ export function DeliveryManDetailClient({ initialDeliveryMan }: { initialDeliver
               <div>
                 <p className="text-sm text-gray-500">إجمالي الأرباح</p>
                 <p className="text-2xl font-bold text-red-600">
-                  {deliveryMan.totalEarned.toFixed(2)} د.م
+                  {deliveryMan.collectedCOD.toFixed(2)} د.م
                 </p>
                 <p className="text-xs text-gray-500 mt-1">
                   إجمالي الأرباح
