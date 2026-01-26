@@ -199,17 +199,16 @@ async function handleDeliveredOrder(order: any) {
     })
   }
 
-  // Update delivery man stats and financial tracking
+  // Update delivery man stats and financial tracking - only update pending fields
   if (order.deliveryManId && deliveryMan) {
     await prisma.deliveryMan.update({
       where: { id: order.deliveryManId },
       data: {
         totalDeliveries: { increment: 1 },
         successfulDeliveries: { increment: 1 },
-        totalEarned: { increment: deliveryManBaseFee },
+        // Only update pending fields - main fields updated during payment
         pendingEarnings: { increment: deliveryManBaseFee },
         ...(order.paymentMethod === "COD" && {
-          collectedCOD: { increment: order.totalPrice },
           pendingCOD: { increment: order.totalPrice }
         })
       }
@@ -300,10 +299,9 @@ async function handleDeliveredOrderReversal(order: any) {
       data: {
         totalDeliveries: { decrement: 1 },
         successfulDeliveries: { decrement: 1 },
-        totalEarned: { decrement: deliveryManBaseFee },
+        // Reverse pending fields only
         pendingEarnings: { decrement: deliveryManBaseFee },
         ...(order.paymentMethod === "COD" && {
-          collectedCOD: { decrement: order.totalPrice },
           pendingCOD: { decrement: order.totalPrice }
         })
       }

@@ -731,16 +731,17 @@ export async function markOrderAsDelivered(orderId: number, deliveryManId: numbe
       // Calculate COD amount
       const codAmount = order.paymentMethod === "COD" ? order.totalPrice : 0
 
-      // Update delivery man stats
+      // Update delivery man stats - only update pending fields
       const updatedDeliveryMan = await tx.deliveryMan.update({
         where: { id: deliveryManId },
         data: {
           totalDeliveries: { increment: 1 },
           successfulDeliveries: { increment: 1 },
-          totalEarned: { increment: deliveryMan.baseFee },
+          // Only update pending fields - main fields updated during payment
           pendingEarnings: { increment: deliveryMan.baseFee },
-          collectedCOD: { increment: codAmount },
-          pendingCOD: { increment: codAmount },
+          ...(order.paymentMethod === "COD" && {
+            pendingCOD: { increment: codAmount }
+          }),
         },
       })
 
@@ -796,12 +797,12 @@ export async function collectCODFromDeliveryMan(deliveryManId: number, amount: n
         throw new Error("المبلغ المطلوب تجميعه أكبر من المبلغ المعلق")
       }
 
-      // Update delivery man's COD balances
+      // Update delivery man's COD balances - transfer from pending to collected
       const updatedDeliveryMan = await tx.deliveryMan.update({
         where: { id: deliveryManId },
         data: {
           pendingCOD: { decrement: amount },
-          // Note: collectedCOD is not decremented as it's for tracking total collected
+          collectedCOD: { increment: amount }, // Add to collected total
         },
       })
 
@@ -846,11 +847,12 @@ export async function payDeliveryManEarnings(deliveryManId: number, amount: numb
         throw new Error("المبلغ المطلوب دفعه أكبر من الأرباح المعلقة")
       }
 
-      // Update delivery man's pending earnings
+      // Update delivery man's earnings - transfer from pending to total earned
       const updatedDeliveryMan = await tx.deliveryMan.update({
         where: { id: deliveryManId },
         data: {
           pendingEarnings: { decrement: amount },
+          totalEarned: { increment: amount }, // Add to total earned
         },
       })
 

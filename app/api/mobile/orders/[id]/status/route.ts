@@ -291,17 +291,16 @@ export async function PATCH(
           })
         }
 
-        // Update delivery man stats
+        // Update delivery man stats - only update pending fields
         if (order.deliveryMan) {
           await tx.deliveryMan.update({
             where: { id: order.deliveryMan.id },
             data: {
               totalDeliveries: { increment: 1 },
               successfulDeliveries: { increment: 1 },
-              totalEarned: { increment: deliveryManBaseFee },
+              // Only update pending fields - main fields updated during payment
               pendingEarnings: { increment: deliveryManBaseFee },
               ...(order.paymentMethod === "COD" && {
-                collectedCOD: { increment: order.totalPrice },
                 pendingCOD: { increment: order.totalPrice }
               })
             },
