@@ -863,6 +863,80 @@ export function OrderDetailClient({ order }: OrderDetailProps) {
               </div>
             </CardContent>
           </Card>
+
+          {/* Notes Section */}
+          <Card className="shadow-md border-0">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-3 text-lg font-semibold text-gray-900">
+                <div className="p-2 bg-[#048dba]/10 rounded-lg">
+                  <FileText className="w-5 h-5 text-[#048dba]" />
+                </div>
+                <span>الملاحظات</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Order Notes */}
+              {order.note && (
+                <div className="p-4 bg-blue-50 border border-blue-100 rounded-lg">
+                  <div className="flex items-start gap-3">
+                    <div className="p-1.5 bg-blue-100 rounded-full">
+                      <FileText className="w-4 h-4 text-blue-600" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-blue-900 mb-1">ملاحظات الطلب</p>
+                      <p className="text-sm text-blue-700 leading-relaxed">{order.note}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Delivery Attempt Notes */}
+              {order.deliveryAttemptHistory && order.deliveryAttemptHistory.length > 0 && (
+                <div className="space-y-3">
+                  <p className="text-sm font-medium text-gray-700">ملاحظات محاولات التوصيل:</p>
+                  {order.deliveryAttemptHistory
+                    .filter((attempt: any) => attempt.notes)
+                    .map((attempt: any, index: number) => (
+                      <div key={index} className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                        <div className="flex items-start gap-3">
+                          <div className="p-1.5 bg-gray-100 rounded-full">
+                            <Truck className="w-4 h-4 text-gray-600" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <p className="text-xs font-medium text-gray-500">
+                                {new Date(attempt.attemptedAt).toLocaleDateString('ar-MA')}
+                              </p>
+                              <Badge variant="outline" className="text-xs">
+                                {attempt.status === 'SUCCESSFUL' ? 'نجح' :
+                                 attempt.status === 'FAILED' ? 'فشل' :
+                                 attempt.status === 'REFUSED' ? 'مرفوض' :
+                                 attempt.status === 'CUSTOMER_NOT_AVAILABLE' ? 'العميل غير متاح' :
+                                 attempt.status === 'WRONG_ADDRESS' ? 'عنوان خاطئ' :
+                                 attempt.status}
+                              </Badge>
+                            </div>
+                            <p className="text-sm text-gray-700">{attempt.notes}</p>
+                            {attempt.reason && (
+                              <p className="text-xs text-red-600 mt-1">السبب: {attempt.reason}</p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              )}
+
+              {/* No Notes Message */}
+              {!order.note && (!order.deliveryAttemptHistory || order.deliveryAttemptHistory.length === 0 || 
+                !order.deliveryAttemptHistory.some((attempt: any) => attempt.notes)) && (
+                <div className="text-center py-6 text-gray-500">
+                  <FileText className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                  <p className="text-sm">لا توجد ملاحظات لهذا الطلب</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
 
         {/* Sidebar Info */}
