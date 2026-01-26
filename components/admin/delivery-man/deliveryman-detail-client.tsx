@@ -468,26 +468,23 @@ export function DeliveryManDetailClient({ initialDeliveryMan }: { initialDeliver
           </CardContent>
         </Card>
 
-        {/* Success Rate */}
-        <Card>
+          <Card>
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">معدل النجاح</p>
-                <p className={`text-2xl font-bold ${
-                  parseFloat(successRate) >= 90 ? 'text-green-600' :
-                  parseFloat(successRate) >= 70 ? 'text-yellow-600' : 'text-red-600'
-                }`}>
-                  {successRate}%
+                <p className="text-sm text-gray-500">إجمالي الأرباح</p>
+                <p className="text-2xl font-bold text-red-600">
+                  {deliveryMan.totalEarned.toFixed(2)} د.م
                 </p>
                 <p className="text-xs text-gray-500 mt-1">
-                  {deliveryMan.successfulDeliveries} / {deliveryMan.totalDeliveries}
+                  إجمالي الأرباح
                 </p>
               </div>
-              <TrendingUp className="w-8 h-8 text-green-500" />
+              <CreditCard className="w-8 h-8 text-red-500" />
             </div>
           </CardContent>
         </Card>
+
       </div>
 
       {/* Main Content Tabs */}
