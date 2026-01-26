@@ -357,6 +357,18 @@ export async function getOrderDetails(orderId: number) {
             attemptedAt: "desc",
           },
         },
+        deliveryNotes: {
+          include: {
+            deliveryMan: {
+              include: {
+                user: true,
+              },
+            },
+          },
+          orderBy: {
+            createdAt: "desc",
+          },
+        },
       },
     })
 
