@@ -525,23 +525,6 @@ export function DeliveryMenClient({ initialDeliveryMen }: { initialDeliveryMen: 
 
                     {/* Actions */}
                     <div className="flex gap-2 w-full sm:w-auto">
-                      <EditDeliveryManDialog
-                        deliveryMan={deliveryMan}
-                        onSuccess={handleDeliveryManUpdated}
-                      >
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="flex-1 sm:flex-none border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white text-xs"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                          }}
-                        >
-                          <RefreshCw className="w-3 h-3 sm:w-4 sm:h-4 ml-1" />
-                          <span className="hidden xs:inline">تحديث</span>
-                          <span className="xs:hidden">تحديث</span>
-                        </Button>
-                      </EditDeliveryManDialog>
                       <Button
                         size="sm"
                         variant="outline"
