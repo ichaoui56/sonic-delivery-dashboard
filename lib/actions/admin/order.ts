@@ -3,7 +3,6 @@
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 
-
 export async function getOrderById(id: number) {
   try {
     const session = await auth()
@@ -37,6 +36,18 @@ export async function getOrderById(id: number) {
                 user: true,
               },
             },
+          },
+        },
+        deliveryNotes: {  // Add this section
+          include: {
+            deliveryMan: {
+              include: {
+                user: true,
+              },
+            },
+          },
+          orderBy: {
+            createdAt: "desc",
           },
         },
       },

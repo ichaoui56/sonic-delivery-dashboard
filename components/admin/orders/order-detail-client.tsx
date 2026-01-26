@@ -39,6 +39,9 @@ import {
   ShoppingCart,
   UserCheck,
   FileText,
+  MessageSquare,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { UpdateOrderStatusDialog } from "./update-order-status-dialog";
 import {
@@ -55,6 +58,7 @@ export function OrderDetailClient({ order }: OrderDetailProps) {
   const router = useRouter();
   const [generatingPdf, setGeneratingPdf] = useState(false);
   const [viewingPdf, setViewingPdf] = useState(false);
+  const [showPrivateNotes, setShowPrivateNotes] = useState(false);
   const { toast } = useToast();
 
   const statusLabels: Record<string, string> = {
@@ -76,6 +80,11 @@ export function OrderDetailClient({ order }: OrderDetailProps) {
     REJECTED: "bg-red-100 text-red-800",
     CANCELLED: "bg-gray-100 text-gray-800",
   };
+
+  // Filter delivery notes based on privacy settings
+  const filteredDeliveryNotes = order.deliveryNotes?.filter(
+    (note: any) => showPrivateNotes || !note.isPrivate
+  ) || [];
 
   // Function to get timeline events from order history (sorted chronologically)
   const getTimelineEvents = () => {
@@ -182,12 +191,12 @@ export function OrderDetailClient({ order }: OrderDetailProps) {
           bgColor = "bg-orange-100";
         } else if (attemptStatus === "WRONG_ADDRESS") {
           title = "عنوان خاطئ";
-          description = "العنوان المقدم غير صحيح";
+          description: "العنوان المقدم غير صحيح";
           iconColor = "text-red-600";
           bgColor = "bg-red-100";
         } else if (attemptStatus === "ATTEMPTED") {
           title = "محاولة توصيل";
-          description = "محاولة تسليم الطلب";
+          description: "محاولة تسليم الطلب";
         }
 
         events.push({
@@ -568,6 +577,116 @@ export function OrderDetailClient({ order }: OrderDetailProps) {
         </CardContent>
       </Card>
 
+      {/* Delivery Notes Card - New Section */}
+      {order.deliveryMan && (
+        <Card className="shadow-md border-0">
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-[#048dba]/10 rounded-lg">
+                  <MessageSquare className="w-5 h-5 text-[#048dba]" />
+                </div>
+                <span className="text-lg font-semibold text-gray-900">
+                  ملاحظات الموصل
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge
+                  variant="outline"
+                  className="text-xs bg-gray-50 text-gray-600"
+                >
+                  {filteredDeliveryNotes.length} ملاحظة
+                </Badge>
+                {order.deliveryNotes?.some((note: any) => note.isPrivate) && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowPrivateNotes(!showPrivateNotes)}
+                    className="h-8 px-2 text-xs"
+                  >
+                    {showPrivateNotes ? (
+                      <>
+                        <EyeOff className="w-3 h-3 ml-1" />
+                        إخفاء الخاصة
+                      </>
+                    ) : (
+                      <>
+                        <Eye className="w-3 h-3 ml-1" />
+                        عرض الخاصة
+                      </>
+                    )}
+                  </Button>
+                )}
+              </div>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {filteredDeliveryNotes.length > 0 ? (
+              <div className="space-y-4">
+                {filteredDeliveryNotes.map((note: any) => (
+                  <div
+                    key={note.id}
+                    className={`p-4 rounded-lg border ${
+                      note.isPrivate
+                        ? "bg-red-50 border-red-100"
+                        : "bg-gray-50 border-gray-200"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#048dba] to-[#037296] flex items-center justify-center text-white text-sm font-semibold">
+                            {note.deliveryMan?.user?.name?.charAt(0) || "?"}
+                          </div>
+                          <div>
+                            <p className="font-medium text-sm text-gray-900">
+                              {note.deliveryMan?.user?.name || "غير معروف"}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {formatDate(note.createdAt)}
+                            </p>
+                          </div>
+                        </div>
+                        {note.isPrivate && (
+                          <Badge
+                            variant="outline"
+                            className="text-xs bg-red-100 text-red-800 border-red-200"
+                          >
+                            خاصة
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                    <div className="mt-2">
+                      <p className="text-sm text-gray-700 whitespace-pre-line">
+                        {note.content}
+                      </p>
+                    </div>
+                    {note.updatedAt !== note.createdAt && (
+                      <div className="mt-2 pt-2 border-t border-gray-200">
+                        <p className="text-xs text-gray-500">
+                          تم التعديل في: {formatDate(note.updatedAt)}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                <MessageSquare className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                <p className="text-sm">لا توجد ملاحظات حتى الآن</p>
+                {!showPrivateNotes && order.deliveryNotes?.some((note: any) => note.isPrivate) && (
+                  <p className="text-xs mt-1 text-gray-400">
+                    هناك ملاحظات خاصة مخفية
+                  </p>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Combined Merchant & Delivery Card - Full Width */}
       <Card className="shadow-md border-0">
         <CardContent className="p-6">
@@ -677,6 +796,16 @@ export function OrderDetailClient({ order }: OrderDetailProps) {
                       </span>
                     </div>
                   )}
+                {filteredDeliveryNotes.length > 0 && (
+                  <div className="flex justify-between items-center p-2 bg-gray-50 rounded-lg">
+                    <span className="text-sm text-gray-700 font-medium">
+                      عدد الملاحظات
+                    </span>
+                    <span className="font-bold text-[#048dba]">
+                      {filteredDeliveryNotes.length}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -686,94 +815,6 @@ export function OrderDetailClient({ order }: OrderDetailProps) {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Info Column */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Complete Timeline - Fully Responsive */}
-          {/* <Card className="shadow-sm">
-            <CardHeader className="p-3 sm:p-6">
-              <CardTitle className="flex items-center gap-2 text-sm sm:text-lg">
-                <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-[#048dba]" />
-                سجل العمليات الكامل
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-3 sm:p-6 pt-0">
-              <div className="relative space-y-4 sm:space-y-8">
-                {timelineEvents.map((event, index) => (
-                  <div key={index} className="relative flex items-start gap-3 sm:gap-4">
-                    {index !== timelineEvents.length - 1 && (
-                      <div className="absolute left-[15px] sm:left-[17px] top-8 bottom-0 w-0.5 bg-gray-200" />
-                    )}
-                    
-                    
-                    <div className={`${event.bgColor} rounded-full p-1.5 sm:p-2 z-10 flex-shrink-0`}>
-                      {getEventIcon(event)}
-                    </div>
-                    
-                    <div className="flex-1 min-w-0">
-                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-1 sm:gap-0">
-                        <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-gray-900 text-sm sm:text-base truncate">{event.title}</p>
-                          <p className="text-gray-600 text-xs sm:text-sm mt-0.5 line-clamp-2">{event.description}</p>
-                          
-                          {event.type === 'DELIVERY_ATTEMPT' && event.attemptData && (
-                            <div className="mt-1.5 sm:mt-2 space-y-1 sm:space-y-2">
-                              <div className="flex items-center gap-1.5 text-xs sm:text-sm">
-                                <Truck className="w-3 h-3 sm:w-4 sm:h-4 text-gray-400 flex-shrink-0" />
-                                <span className="text-gray-700 truncate">عامل التوصيل: {event.attemptData.deliveryMan?.user?.name || 'غير معروف'}</span>
-                              </div>
-                              {event.attemptData.notes && (
-                                <div className="text-xs sm:text-sm bg-gray-50 p-1.5 sm:p-2 rounded mt-0.5 text-gray-600 border">
-                                  <span className="font-medium">ملاحظات: </span>
-                                  <span className="line-clamp-2">{event.attemptData.notes}</span>
-                                </div>
-                              )}
-                              {event.attemptData.location && (
-                                <div className="text-xs sm:text-sm text-gray-500">
-                                  <span className="font-medium">الموقع: </span>
-                                  <span className="truncate">{event.attemptData.location}</span>
-                                </div>
-                              )}
-                            </div>
-                          )}
-                          
-                          {event.type === 'REPORT' && (
-                            <div className="mt-1.5 sm:mt-2">
-                              <p className="text-xs sm:text-sm bg-red-50 p-1.5 sm:p-2 rounded text-red-600 border border-red-100 line-clamp-3">
-                                {event.details}
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                        
-                        <div className="flex flex-col items-start sm:items-end gap-1 sm:gap-2 mt-1 sm:mt-0">
-                          <p className="text-gray-500 text-xs whitespace-nowrap">
-                            {formatDate(event.timestamp)}
-                          </p>
-                          <Badge 
-                            variant="outline" 
-                            className="text-[10px] sm:text-xs"
-                          >
-                            {event.type === 'CREATION' ? 'إنشاء' : 
-                             event.type === 'ADMIN_ACCEPTANCE' ? 'موافقة إدارية' :
-                             event.type === 'DELIVERY_ACCEPTANCE' ? 'قبول توصيل' :
-                             event.type === 'DELIVERY_ATTEMPT' ? `محاولة ${event.attemptNumber}` :
-                             event.type === 'DELIVERY_COMPLETED' ? 'اكتمال' :
-                             event.type === 'REPORT' ? 'بلاغ' :
-                             event.type === 'CANCELLATION' ? 'إلغاء/رفض' : 'حدث'}
-                          </Badge>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-                
-                {timelineEvents.length === 0 && (
-                  <div className="text-center py-4 sm:py-8 text-gray-500 text-sm sm:text-base">
-                    لا توجد أحداث مسجلة لهذا الطلب بعد
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card> */}
-
           {/* Products Card */}
           <Card className="shadow-md border-0">
             <CardHeader className="pb-4">
@@ -861,80 +902,6 @@ export function OrderDetailClient({ order }: OrderDetailProps) {
                   </span>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-
-          {/* Notes Section */}
-          <Card className="shadow-md border-0">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-3 text-lg font-semibold text-gray-900">
-                <div className="p-2 bg-[#048dba]/10 rounded-lg">
-                  <FileText className="w-5 h-5 text-[#048dba]" />
-                </div>
-                <span>الملاحظات</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Order Notes */}
-              {order.note && (
-                <div className="p-4 bg-blue-50 border border-blue-100 rounded-lg">
-                  <div className="flex items-start gap-3">
-                    <div className="p-1.5 bg-blue-100 rounded-full">
-                      <FileText className="w-4 h-4 text-blue-600" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-blue-900 mb-1">ملاحظات الطلب</p>
-                      <p className="text-sm text-blue-700 leading-relaxed">{order.note}</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Delivery Attempt Notes */}
-              {order.deliveryAttemptHistory && order.deliveryAttemptHistory.length > 0 && (
-                <div className="space-y-3">
-                  <p className="text-sm font-medium text-gray-700">ملاحظات محاولات التوصيل:</p>
-                  {order.deliveryAttemptHistory
-                    .filter((attempt: any) => attempt.notes)
-                    .map((attempt: any, index: number) => (
-                      <div key={index} className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
-                        <div className="flex items-start gap-3">
-                          <div className="p-1.5 bg-gray-100 rounded-full">
-                            <Truck className="w-4 h-4 text-gray-600" />
-                          </div>
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              <p className="text-xs font-medium text-gray-500">
-                                {new Date(attempt.attemptedAt).toLocaleDateString('ar-MA')}
-                              </p>
-                              <Badge variant="outline" className="text-xs">
-                                {attempt.status === 'SUCCESSFUL' ? 'نجح' :
-                                 attempt.status === 'FAILED' ? 'فشل' :
-                                 attempt.status === 'REFUSED' ? 'مرفوض' :
-                                 attempt.status === 'CUSTOMER_NOT_AVAILABLE' ? 'العميل غير متاح' :
-                                 attempt.status === 'WRONG_ADDRESS' ? 'عنوان خاطئ' :
-                                 attempt.status}
-                              </Badge>
-                            </div>
-                            <p className="text-sm text-gray-700">{attempt.notes}</p>
-                            {attempt.reason && (
-                              <p className="text-xs text-red-600 mt-1">السبب: {attempt.reason}</p>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                </div>
-              )}
-
-              {/* No Notes Message */}
-              {!order.note && (!order.deliveryAttemptHistory || order.deliveryAttemptHistory.length === 0 || 
-                !order.deliveryAttemptHistory.some((attempt: any) => attempt.notes)) && (
-                <div className="text-center py-6 text-gray-500">
-                  <FileText className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                  <p className="text-sm">لا توجد ملاحظات لهذا الطلب</p>
-                </div>
-              )}
             </CardContent>
           </Card>
         </div>
